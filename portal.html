@@ -63,6 +63,17 @@
           This interface now uses live Discord authentication and server-side roles. Personnel, Discord, and RCON actions remain staged until each production workflow is approved.
         </section>
 
+        <section class="notice notice-status" aria-label="Portal workflow status">
+          <div>
+            <strong>Live now</strong>
+            <span>Discord login, session handling, role checks, and database-backed application intake.</span>
+          </div>
+          <div>
+            <strong>Still staged</strong>
+            <span>Most personnel actions, attendance overrides, Discord sync, and system workflows remain prototype-only.</span>
+          </div>
+        </section>
+
         <section class="view active" data-view-panel="dashboard">
           <div class="metric-grid">
             <article class="metric">
@@ -198,35 +209,46 @@
                 <label>
                   Steam64 ID
                   <input id="applicationSteam64" name="steam64Id" type="text" inputmode="numeric" placeholder="7656119..." />
+                  <small class="field-hint">Optional, but if provided it should be a 17-digit Steam64 ID.</small>
+                  <small class="field-error" id="applicationSteam64Error" aria-live="polite"></small>
                 </label>
                 <label>
                   Timezone
                   <input id="applicationTimezone" name="timezone" type="text" placeholder="CST, EST, GMT..." />
+                  <small class="field-hint">Use a short timezone like CST, EST, PST, UTC, or GMT.</small>
+                  <small class="field-error" id="applicationTimezoneError" aria-live="polite"></small>
                 </label>
                 <label>
                   Role Interest
                   <input id="applicationInterest" name="roleInterest" type="text" required placeholder="Infantry, aviation, medical, radio, leadership..." />
+                  <small class="field-error" id="applicationInterestError" aria-live="polite"></small>
                 </label>
                 <label>
                   Availability
                   <textarea id="applicationAvailability" name="availability" rows="3" required placeholder="Weekly availability, operation days, training constraints"></textarea>
+                  <small class="field-error" id="applicationAvailabilityError" aria-live="polite"></small>
                 </label>
                 <label>
                   Arma / MILSIM Experience
                   <textarea id="applicationExperience" name="experience" rows="4" required placeholder="Relevant Arma hours, units, roles, leadership, aviation, medical, radio, or new-player background"></textarea>
+                  <small class="field-error" id="applicationExperienceError" aria-live="polite"></small>
                 </label>
                 <label>
                   Technical Readiness
                   <textarea id="applicationReadiness" name="technicalReadiness" rows="3" placeholder="Modpack, TeamSpeak, ACRE/TFAR, microphone, controls, PC/network limitations"></textarea>
+                  <small class="field-error" id="applicationReadinessError" aria-live="polite"></small>
                 </label>
                 <label>
                   Why Task Force 20?
                   <textarea id="applicationMotivation" name="motivation" rows="4" placeholder="What you are looking for in the unit"></textarea>
+                  <small class="field-error" id="applicationMotivationError" aria-live="polite"></small>
                 </label>
                 <label>
                   Rules / Expectations
                   <textarea id="applicationRules" name="rulesAcknowledgement" rows="3" placeholder="Confirm you understand attendance, maturity, and realism expectations"></textarea>
+                  <small class="field-error" id="applicationRulesError" aria-live="polite"></small>
                 </label>
+                <p class="form-feedback" id="applicationFormFeedback" role="status" aria-live="polite"></p>
                 <div class="action-row">
                   <button class="button primary" type="submit" id="submitApplicationButton">Submit Application</button>
                 </div>

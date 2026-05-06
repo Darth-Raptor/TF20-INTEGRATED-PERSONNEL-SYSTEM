@@ -327,6 +327,26 @@ h3 {
   color: #fff;
 }
 
+.notice-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.notice-status div {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: rgba(10, 14, 18, 0.36);
+}
+
+.notice-status span {
+  display: block;
+  margin-top: 6px;
+  color: var(--soft);
+  line-height: 1.5;
+}
+
 .view {
   display: none;
 }
@@ -769,6 +789,43 @@ tbody tr.selected {
   font-weight: 800;
 }
 
+.field-hint,
+.field-error,
+.form-feedback {
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.field-error {
+  min-height: 1.2em;
+  color: #ffd0c7;
+  font-weight: 600;
+}
+
+.form-feedback {
+  min-height: 1.4em;
+  margin: -2px 0 0;
+  color: var(--muted);
+}
+
+.form-feedback.error {
+  color: #ffd0c7;
+}
+
+.form-feedback.success {
+  color: #caf3c6;
+}
+
+.field-invalid {
+  border-color: rgba(198, 106, 90, 0.78) !important;
+  box-shadow: 0 0 0 3px rgba(198, 106, 90, 0.12);
+}
+
 textarea {
   resize: vertical;
 }
@@ -819,6 +876,10 @@ textarea {
   .section-grid,
   .training-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .notice-status {
+    grid-template-columns: 1fr;
   }
 }
 

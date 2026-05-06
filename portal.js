@@ -21,6 +21,7 @@ const applicationExperience = document.querySelector("#applicationExperience");
 const applicationReadiness = document.querySelector("#applicationReadiness");
 const applicationMotivation = document.querySelector("#applicationMotivation");
 const applicationRules = document.querySelector("#applicationRules");
+const applicationFormFeedback = document.querySelector("#applicationFormFeedback");
 const submitApplicationButton = document.querySelector("#submitApplicationButton");
 const markContactedButton = document.querySelector("#markContactedButton");
 const acceptApplicantButton = document.querySelector("#acceptApplicantButton");
@@ -218,6 +219,28 @@ let portalUsers = [];
 let portalRoles = [];
 let selectedUserId = null;
 
+const applicationFieldMap = {
+  steam64Id: applicationSteam64,
+  timezone: applicationTimezone,
+  roleInterest: applicationInterest,
+  availability: applicationAvailability,
+  experience: applicationExperience,
+  technicalReadiness: applicationReadiness,
+  motivation: applicationMotivation,
+  rulesAcknowledgement: applicationRules,
+};
+
+const applicationErrorMap = {
+  steam64Id: document.querySelector("#applicationSteam64Error"),
+  timezone: document.querySelector("#applicationTimezoneError"),
+  roleInterest: document.querySelector("#applicationInterestError"),
+  availability: document.querySelector("#applicationAvailabilityError"),
+  experience: document.querySelector("#applicationExperienceError"),
+  technicalReadiness: document.querySelector("#applicationReadinessError"),
+  motivation: document.querySelector("#applicationMotivationError"),
+  rulesAcknowledgement: document.querySelector("#applicationRulesError"),
+};
+
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => setView(tab.dataset.view));
 });
@@ -230,6 +253,10 @@ syncButton.addEventListener("click", () => {
 applicationSearch.addEventListener("input", () => loadApplications());
 applicationStatusFilter.addEventListener("change", () => loadApplications());
 applicationForm?.addEventListener("submit", submitApplicantForm);
+Object.entries(applicationFieldMap).forEach(([key, field]) => {
+  field?.addEventListener("input", () => validateApplicationField(key, { silent: true }));
+  field?.addEventListener("blur", () => validateApplicationField(key));
+});
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
 
@@ -675,6 +702,15 @@ async function saveSelectedUserRoles() {
 
 async function submitApplicantForm(event) {
   event.preventDefault();
+  clearApplicationFeedback();
+  const validation = validateApplicationForm();
+  if (!validation.isValid) {
+    submitApplicationButton.disabled = false;
+    setApplicationFeedback("Please fix the highlighted application fields and try again.", "error");
+    validation.firstInvalidField?.focus();
+    return;
+  }
+
   submitApplicationButton.disabled = true;
 
   try {
@@ -698,9 +734,11 @@ async function submitApplicantForm(event) {
     applications = [submitted, ...applications.filter((application) => application.id !== submitted.id)];
     selectedApplicationId = submitted.id;
     renderApplications();
+    setApplicationFeedback("Application submitted successfully. Recruiting staff can now review it.", "success");
     showToast("Application submitted.");
   } catch (error) {
     console.error(error);
+    setApplicationFeedback(error.message || "Unable to submit application.", "error");
     showToast(error.message || "Unable to submit application.");
   } finally {
     submitApplicationButton.disabled = false;
@@ -866,6 +904,111 @@ function deriveAccessRole(user) {
 
 function hasPermission(permission) {
   return currentUser?.permissions?.includes(permission) || false;
+}
+
+function validateApplicationForm() {
+  const fieldKeys = Object.keys(applicationFieldMap);
+  let firstInvalidField = null;
+  const errors = {};
+
+  fieldKeys.forEach((key) => {
+    const error = validateApplicationField(key);
+    if (error) {
+      errors[key] = error;
+      if (!firstInvalidField) {
+        firstInvalidField = applicationFieldMap[key];
+      }
+    }
+  });
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+    firstInvalidField,
+  };
+}
+
+function validateApplicationField(key, options = {}) {
+  const field = applicationFieldMap[key];
+  if (!field) return "";
+
+  const value = field.value.trim();
+  let error = "";
+
+  switch (key) {
+    case "steam64Id":
+      if (value && !/^7656119\d{10}$/.test(value)) {
+        error = "Steam64 IDs should be 17 digits and usually begin with 7656119.";
+      }
+      break;
+    case "timezone":
+      if (value && !/^[A-Za-z]{2,5}(?:\/[A-Za-z_]+)?$|^UTC[+-]\d{1,2}$|^GMT[+-]\d{1,2}$/.test(value)) {
+        error = "Use a short timezone like CST, EST, PST, UTC, GMT, or UTC-5.";
+      }
+      break;
+    case "roleInterest":
+      if (value.length < 3) {
+        error = "Role interest should be at least 3 characters.";
+      }
+      break;
+    case "availability":
+      if (value.length < 12) {
+        error = "Availability should include enough detail for scheduling review.";
+      }
+      break;
+    case "experience":
+      if (value.length < 12) {
+        error = "Experience should include at least a short summary.";
+      }
+      break;
+    case "technicalReadiness":
+      if (value && value.length < 8) {
+        error = "Add a little more detail or leave this field blank.";
+      }
+      break;
+    case "motivation":
+      if (value && value.length < 8) {
+        error = "Add a little more detail or leave this field blank.";
+      }
+      break;
+    case "rulesAcknowledgement":
+      if (value.length < 10) {
+        error = "Confirm that you understand attendance, maturity, and realism expectations.";
+      }
+      break;
+    default:
+      break;
+  }
+
+  if (!options.silent || error || field.classList.contains("field-invalid")) {
+    setFieldError(key, error);
+  }
+
+  return error;
+}
+
+function setFieldError(key, message) {
+  const field = applicationFieldMap[key];
+  const errorNode = applicationErrorMap[key];
+  if (!field || !errorNode) return;
+
+  field.classList.toggle("field-invalid", Boolean(message));
+  field.setAttribute("aria-invalid", message ? "true" : "false");
+  errorNode.textContent = message || "";
+}
+
+function clearApplicationFeedback() {
+  setApplicationFeedback("", "");
+}
+
+function setApplicationFeedback(message, state) {
+  if (!applicationFormFeedback) return;
+
+  applicationFormFeedback.textContent = message;
+  applicationFormFeedback.classList.remove("error", "success");
+  if (state) {
+    applicationFormFeedback.classList.add(state);
+  }
 }
 
 function canManageUsers() {
