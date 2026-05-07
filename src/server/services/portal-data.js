@@ -530,6 +530,117 @@ export async function getPersonnelForUser(userId) {
   return profile ? toPersonnelItem(profile) : null;
 }
 
+export async function updatePersonnelForUser({
+  actorUserId,
+  displayAlias,
+  steam64Id,
+  timezone,
+  ipSessionMetadata,
+}) {
+  assertDatabaseReady();
+
+  if (!actorUserId) {
+    const error = new Error("Authenticated user is required.");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const db = getDb();
+  const cleanedAlias = normalizeText(displayAlias, 80);
+  const cleanedSteam64Id = normalizeText(steam64Id, 32);
+  const cleanedTimezone = normalizeText(timezone, 64);
+
+  if (!cleanedAlias) {
+    const error = new Error("Display alias is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (cleanedSteam64Id && !/^7656119\d{10}$/.test(cleanedSteam64Id)) {
+    const error = new Error("Steam64 ID must be 17 digits and start with 7656119.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (cleanedTimezone && !/^[A-Za-z]{2,5}(?:\/[A-Za-z_]+)?$|^UTC[+-]\d{1,2}$|^GMT[+-]\d{1,2}$/.test(cleanedTimezone)) {
+    const error = new Error("Timezone must be a short value like CST, EST, UTC, or UTC-5.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (cleanedSteam64Id) {
+    const existingSteamUser = await db.user.findFirst({
+      where: {
+        steam64Id: cleanedSteam64Id,
+        NOT: { id: actorUserId },
+      },
+      select: { id: true },
+    });
+
+    if (existingSteamUser) {
+      const error = new Error("That Steam64 ID is already linked to another account.");
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  await db.$transaction(async (tx) => {
+    const currentUser = await tx.user.findUnique({
+      where: { id: actorUserId },
+      select: {
+        id: true,
+        displayAlias: true,
+        steam64Id: true,
+        timezone: true,
+        profile: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!currentUser?.profile?.id) {
+      const error = new Error("Personnel profile not found for this account.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    await tx.user.update({
+      where: { id: actorUserId },
+      data: {
+        displayAlias: cleanedAlias,
+        steam64Id: cleanedSteam64Id || null,
+        timezone: cleanedTimezone || null,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId,
+        affectedProfileId: currentUser.profile.id,
+        module: "Personnel Profile",
+        action: "Updated Self-Service Profile",
+        oldValue: {
+          displayAlias: currentUser.displayAlias,
+          steam64Id: currentUser.steam64Id,
+          timezone: currentUser.timezone,
+        },
+        newValue: {
+          displayAlias: cleanedAlias,
+          steam64Id: cleanedSteam64Id || null,
+          timezone: cleanedTimezone || null,
+        },
+        reason: "Member updated self-service profile fields.",
+        relatedRecordId: actorUserId,
+        severity: "Info",
+        systemGenerated: false,
+        ipSessionMetadata,
+      },
+    });
+  });
+
+  return getPersonnelForUser(actorUserId);
+}
+
 export async function getPortalSummary() {
   assertDatabaseReady();
 

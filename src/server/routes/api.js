@@ -10,6 +10,7 @@ import {
   listPersonnel,
   parseLimit,
   submitApplication,
+  updatePersonnelForUser,
   updateApplicationStatus,
   writeAuditLog,
 } from "../services/portal-data.js";
@@ -167,6 +168,24 @@ export function apiRouter() {
         res.status(404).json({ error: "Personnel profile not found for this account." });
         return;
       }
+      res.json({ item });
+    }),
+  );
+
+  router.patch(
+    "/personnel/me",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      const item = await updatePersonnelForUser({
+        actorUserId: req.user?.id,
+        displayAlias: req.body.displayAlias,
+        steam64Id: req.body.steam64Id,
+        timezone: req.body.timezone,
+        ipSessionMetadata: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
       res.json({ item });
     }),
   );

@@ -29,13 +29,13 @@
 
         <nav class="portal-nav">
           <button class="nav-tab active" type="button" data-view="dashboard">Dashboard</button>
-          <button class="nav-tab" type="button" data-view="applications">Applications</button>
-          <button class="nav-tab" type="button" data-view="personnel">Personnel</button>
-          <button class="nav-tab" type="button" data-view="users">Users & Roles</button>
-          <button class="nav-tab" type="button" data-view="units">Units</button>
-          <button class="nav-tab" type="button" data-view="training">Training</button>
-          <button class="nav-tab" type="button" data-view="events">Events</button>
+          <button class="nav-tab" type="button" data-view="profile">Profile</button>
           <button class="nav-tab" type="button" data-view="loa">LOA</button>
+          <button class="nav-tab" type="button" data-view="personnel">Personnel</button>
+          <button class="nav-tab" type="button" data-view="units">Units</button>
+          <button class="nav-tab" type="button" data-view="events">Events</button>
+          <button class="nav-tab" type="button" data-view="training">Training</button>
+          <button class="nav-tab" type="button" data-view="users">Users & Roles</button>
           <button class="nav-tab" type="button" data-view="actions">Actions</button>
           <button class="nav-tab" type="button" data-view="support">Support</button>
           <button class="nav-tab" type="button" data-view="systems">Systems</button>
@@ -147,6 +147,56 @@
               <div class="queue-list" id="systemDashboardState">
                 <p class="section-note">Loading system status...</p>
               </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="profile">
+          <div class="section-grid">
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>My Profile</h2>
+                <span id="profileDetailStatus">Loading profile</span>
+              </div>
+              <div id="profileDetail" class="detail-panel"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Update My Profile</h2>
+                <span>Self-service</span>
+              </div>
+              <form class="stack-form" id="profileSelfServiceForm">
+                <label>
+                  Display Alias
+                  <input id="profileAliasInput" name="displayAlias" type="text" maxlength="80" />
+                </label>
+                <label>
+                  Steam64 ID
+                  <input id="profileSteam64Input" name="steam64Id" type="text" inputmode="numeric" placeholder="7656119..." />
+                </label>
+                <label>
+                  Timezone
+                  <input id="profileTimezoneInput" name="timezone" type="text" placeholder="CST, EST, UTC..." />
+                </label>
+                <p class="detail-form-note">
+                  This page updates only your self-service identity fields. Rank, unit, billet, and staff assignments stay staff-managed.
+                </p>
+                <p class="form-feedback" id="profileSelfServiceFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="profileSelfServiceSave">Save My Profile</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Profile Scope</h2>
+                <span>Visibility</span>
+              </div>
+              <p class="panel-copy">
+                Your profile page shows the current account-linked personnel record, including unit, billet, assignment summary, and the self-service fields you can maintain yourself.
+              </p>
             </section>
           </div>
         </section>

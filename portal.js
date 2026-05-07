@@ -45,6 +45,14 @@ const personnelStatusFilter = document.querySelector("#personnelStatusFilter");
 const personnelRows = document.querySelector("#personnelRows");
 const personnelDetail = document.querySelector("#personnelDetail");
 const personnelDetailStatus = document.querySelector("#personnelDetailStatus");
+const profileDetail = document.querySelector("#profileDetail");
+const profileDetailStatus = document.querySelector("#profileDetailStatus");
+const profileSelfServiceForm = document.querySelector("#profileSelfServiceForm");
+const profileAliasInput = document.querySelector("#profileAliasInput");
+const profileSteam64Input = document.querySelector("#profileSteam64Input");
+const profileTimezoneInput = document.querySelector("#profileTimezoneInput");
+const profileSelfServiceFeedback = document.querySelector("#profileSelfServiceFeedback");
+const profileSelfServiceSave = document.querySelector("#profileSelfServiceSave");
 const flagTrainingButton = document.querySelector("#flagTrainingButton");
 const recommendPromotionButton = document.querySelector("#recommendPromotionButton");
 const auditRows = document.querySelector("#auditRows");
@@ -61,13 +69,13 @@ const roleCatalog = document.querySelector("#roleCatalog");
 
 const titles = {
   dashboard: "Dashboard",
-  applications: "Applications",
-  personnel: "Personnel",
-  users: "Users and Roles",
-  units: "Units",
-  training: "Training",
-  events: "Events and Attendance",
+  profile: "Profile",
   loa: "Leave of Absence",
+  personnel: "Personnel",
+  units: "Units",
+  events: "Events and Attendance",
+  training: "Training",
+  users: "Users and Roles",
   actions: "Promotions, Awards, and Discipline",
   support: "Bug Reports and Support",
   systems: "Systems",
@@ -75,17 +83,17 @@ const titles = {
 };
 
 const roleAccess = {
-  applicant: ["dashboard", "applications", "support"],
-  member: ["dashboard", "personnel", "training", "events", "loa", "support", "audit"],
-  staff: ["dashboard", "applications", "personnel", "units", "training", "events", "loa", "actions", "support", "audit"],
+  applicant: ["dashboard", "profile", "support"],
+  member: ["dashboard", "profile", "loa", "personnel", "units", "events", "training", "support", "audit"],
+  staff: ["dashboard", "profile", "loa", "personnel", "units", "events", "training", "actions", "support", "audit"],
   command: [
     "dashboard",
-    "applications",
+    "profile",
+    "loa",
     "personnel",
     "units",
-    "training",
     "events",
-    "loa",
+    "training",
     "actions",
     "support",
     "systems",
@@ -93,13 +101,13 @@ const roleAccess = {
   ],
   system: [
     "dashboard",
-    "applications",
-    "personnel",
-    "users",
-    "units",
-    "training",
-    "events",
+    "profile",
     "loa",
+    "personnel",
+    "units",
+    "events",
+    "training",
+    "users",
     "actions",
     "support",
     "systems",
@@ -163,6 +171,7 @@ Object.entries(applicationFieldMap).forEach(([key, field]) => {
 });
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
+profileSelfServiceForm?.addEventListener("submit", submitProfileSelfServiceForm);
 
 markContactedButton.addEventListener("click", () => updateSelectedApplication("Contacted", "Applicant marked contacted"));
 acceptApplicantButton.addEventListener("click", () => updateSelectedApplication("Accepted", "Applicant accepted and recruit conversion queued"));
@@ -250,6 +259,7 @@ function renderAllRecords() {
   renderDashboardSummary();
   renderApplications();
   renderPersonnel();
+  renderProfileView();
   renderAudit();
 }
 
@@ -614,7 +624,15 @@ function renderPersonnelDetail() {
   }
 
   personnelDetailStatus.textContent = member.statusLabel;
-  personnelDetail.innerHTML = `
+  personnelDetail.innerHTML = personnelDetailMarkup(member);
+
+  [flagTrainingButton, recommendPromotionButton].forEach((button) => {
+    button.disabled = !canEdit;
+  });
+}
+
+function personnelDetailMarkup(member) {
+  return `
     <div class="detail-title">
       <div>
         <strong>${escapeHtml(member.rank)} ${escapeHtml(member.alias)}</strong>
@@ -628,6 +646,7 @@ function renderPersonnelDetail() {
       <div><span>Staff Assignment</span><strong>${escapeHtml(member.staff)}</strong></div>
       <div><span>Discord</span><strong>${escapeHtml(member.discord)}</strong></div>
       <div><span>Steam64</span><strong>${escapeHtml(member.steam64 || "Missing")}</strong></div>
+      <div><span>Timezone</span><strong>${escapeHtml(member.timezone || "Missing")}</strong></div>
       <div><span>Attendance</span><strong>${escapeHtml(member.attendance)}</strong></div>
       <div><span>LOA</span><strong>${escapeHtml(member.loa)}</strong></div>
       <div><span>Qualifications</span><strong>${escapeHtml(member.qualifications)}</strong></div>
@@ -640,10 +659,119 @@ function renderPersonnelDetail() {
       <span>Attendance</span><span>LOA</span><span>Awards</span><span>Admin Notes</span><span>Audit History</span>
     </div>
   `;
+}
 
-  [flagTrainingButton, recommendPromotionButton].forEach((button) => {
-    button.disabled = !canEdit;
-  });
+function renderProfileView() {
+  if (!profileDetail || !profileDetailStatus) return;
+
+  const member = currentUserPersonnelProfile();
+  clearProfileSelfServiceFeedback();
+
+  if (!member) {
+    const displayName = displayUserName(currentUser);
+    const roleNames = currentUser?.roles?.length ? currentUser.roles.join(", ") : "No assigned roles";
+    profileDetailStatus.textContent = currentUser?.accountStatus || "Authenticated";
+    profileDetail.innerHTML = `
+      <div class="detail-title">
+        <div>
+          <strong>${escapeHtml(displayName)}</strong>
+          <span>${escapeHtml(currentUser?.username || "Unknown Discord account")}</span>
+        </div>
+        ${statusPill(currentUser?.accountStatus || "Authenticated")}
+      </div>
+      <div class="detail-grid">
+        <div><span>Discord</span><strong>${escapeHtml(currentUser?.username || "Unknown")}</strong></div>
+        <div><span>Display Alias</span><strong>${escapeHtml(displayName)}</strong></div>
+        <div><span>Steam64</span><strong>${escapeHtml(currentUser?.steam64Id || "Missing")}</strong></div>
+        <div><span>Timezone</span><strong>${escapeHtml(currentUser?.timezone || "Missing")}</strong></div>
+        <div><span>Account Status</span><strong>${escapeHtml(accountStatusLabel(currentUser?.accountStatus || "Authenticated"))}</strong></div>
+        <div><span>Roles</span><strong>${escapeHtml(roleNames)}</strong></div>
+      </div>
+      <p class="detail-copy">${escapeHtml(personnelLoadError || "This account is authenticated, but no personnel profile is linked yet.")}</p>
+    `;
+    if (profileSelfServiceForm) {
+      profileSelfServiceForm.hidden = true;
+    }
+    if (profileAliasInput) profileAliasInput.value = "";
+    if (profileSteam64Input) profileSteam64Input.value = "";
+    if (profileTimezoneInput) profileTimezoneInput.value = "";
+    return;
+  }
+
+  profileDetailStatus.textContent = member.statusLabel;
+  profileDetail.innerHTML = personnelDetailMarkup(member);
+  if (profileSelfServiceForm) {
+    profileSelfServiceForm.hidden = false;
+  }
+  if (profileAliasInput) profileAliasInput.value = member.alias || "";
+  if (profileSteam64Input) profileSteam64Input.value = member.steam64 || "";
+  if (profileTimezoneInput) profileTimezoneInput.value = member.timezone || "";
+}
+
+async function submitProfileSelfServiceForm(event) {
+  event.preventDefault();
+  const member = currentUserPersonnelProfile();
+  if (!member) {
+    setProfileSelfServiceFeedback("No linked personnel profile was found for this account.", "error");
+    return;
+  }
+
+  const displayAlias = profileAliasInput.value.trim();
+  const steam64Id = profileSteam64Input.value.trim();
+  const timezone = profileTimezoneInput.value.trim();
+
+  if (!displayAlias) {
+    setProfileSelfServiceFeedback("Display alias is required.", "error");
+    profileAliasInput.focus();
+    return;
+  }
+
+  if (steam64Id && !/^7656119\d{10}$/.test(steam64Id)) {
+    setProfileSelfServiceFeedback("Steam64 ID must be 17 digits and start with 7656119.", "error");
+    profileSteam64Input.focus();
+    return;
+  }
+
+  if (timezone && !/^[A-Za-z]{2,5}(?:\/[A-Za-z_]+)?$|^UTC[+-]\d{1,2}$|^GMT[+-]\d{1,2}$/.test(timezone)) {
+    setProfileSelfServiceFeedback("Use a short timezone like CST, EST, UTC, or UTC-5.", "error");
+    profileTimezoneInput.focus();
+    return;
+  }
+
+  profileSelfServiceSave.disabled = true;
+  clearProfileSelfServiceFeedback();
+
+  try {
+    const response = await fetchJson("/api/personnel/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayAlias, steam64Id, timezone }),
+    });
+
+    const updatedMember = normalizePersonnel(response.item);
+    personnel = personnel.map((item) => (item.id === updatedMember.id ? updatedMember : item));
+    currentUser = {
+      ...currentUser,
+      alias: updatedMember.alias,
+      profile: {
+        ...currentUser?.profile,
+      },
+    };
+
+    const session = await fetchJson("/api/me");
+    currentUser = session.user;
+    updateSessionSummary();
+    renderPersonnel();
+    renderProfileView();
+    renderDashboardSummary();
+    setProfileSelfServiceFeedback("Your profile has been updated.", "success");
+    showToast("Profile updated.");
+  } catch (error) {
+    console.error(error);
+    setProfileSelfServiceFeedback(error.message || "Unable to update your profile.", "error");
+  } finally {
+    profileSelfServiceSave.disabled = false;
+  }
 }
 
 function renderAudit() {
@@ -967,6 +1095,7 @@ function normalizePersonnel(item) {
     alias,
     discord: user.discordUsername || "Unknown Discord",
     steam64: user.steam64Id || "",
+    timezone: user.timezone || "",
     unit,
     primaryMos: item?.primaryMos || "",
     billet: billet || "Missing",
@@ -1066,6 +1195,10 @@ function selectedApplication() {
 
 function selectedPersonnel() {
   return personnel.find((member) => member.id === selectedPersonnelId) || null;
+}
+
+function currentUserPersonnelProfile() {
+  return personnel.find((member) => member.userId === currentUser?.id) || null;
 }
 
 function selectedPortalUser() {
@@ -1193,6 +1326,10 @@ function clearApplicationFeedback() {
   setApplicationFeedback("", "");
 }
 
+function clearProfileSelfServiceFeedback() {
+  setProfileSelfServiceFeedback("", "");
+}
+
 function setApplicationFeedback(message, state) {
   if (!applicationFormFeedback) return;
 
@@ -1200,6 +1337,16 @@ function setApplicationFeedback(message, state) {
   applicationFormFeedback.classList.remove("error", "success");
   if (state) {
     applicationFormFeedback.classList.add(state);
+  }
+}
+
+function setProfileSelfServiceFeedback(message, state) {
+  if (!profileSelfServiceFeedback) return;
+
+  profileSelfServiceFeedback.textContent = message;
+  profileSelfServiceFeedback.classList.remove("error", "success");
+  if (state) {
+    profileSelfServiceFeedback.classList.add(state);
   }
 }
 
