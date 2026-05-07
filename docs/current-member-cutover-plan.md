@@ -77,6 +77,7 @@ At minimum it needs to map:
 - rank -> `Rank`
 - assigned element -> `Unit`
 - billet -> `Billet`
+- Primary MOS -> `PersonnelProfile.primaryMos`
 - shop -> `StaffSection` assignments when present
 - enlistment date -> `PersonnelProfile.dateJoined`
 

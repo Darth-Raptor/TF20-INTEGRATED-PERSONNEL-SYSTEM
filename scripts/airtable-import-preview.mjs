@@ -113,6 +113,7 @@ function buildPreviewReport(rosterRows, payloadRoot) {
       rawStatuses: distinctValues(normalizedMembers, "rawStatus"),
       rawRanks: distinctValues(normalizedMembers, "rawRank"),
       rawAssignedTo: distinctValues(normalizedMembers, "rawAssignedTo"),
+      rawPrimaryMos: distinctValues(normalizedMembers, "primaryMos"),
       rawShops: [...new Set(normalizedMembers.flatMap((member) => member.shop))].sort(),
     },
     issues: {
@@ -141,7 +142,8 @@ function buildPreviewReport(rosterRows, payloadRoot) {
       rawAssignedTo: member.rawAssignedTo,
       inferredUnit: member.inferredUnit,
       billet: member.billet || null,
-      specialty: member.specialty || null,
+      primaryMos: member.primaryMos || null,
+      specialty: member.primaryMos || null,
       shop: member.shop,
       suggestedPortalRole: member.suggestedPortalRole,
       importAction: member.importAction,
@@ -155,6 +157,7 @@ function normalizeRosterMember(row) {
   const rawRank = cleanText(row.rank).toUpperCase();
   const rawAssignedTo = cleanText(row.assignedTo);
   const callsign = cleanText(row.callsign);
+  const primaryMos = cleanText(row.primaryMos || row.primaryMOS || row["Primary MOS"] || row["PRIMARY MOS"] || row.specialty);
   const discordId = normalizeSnowflake(row.discordId);
   const steamId = normalizeSteamId(row.steamId);
   const mappedStatus = mapStatus(rawStatus);
@@ -187,7 +190,8 @@ function normalizeRosterMember(row) {
     rawAssignedTo,
     inferredUnit,
     billet: cleanText(row.billet),
-    specialty: cleanText(row.specialty),
+    primaryMos,
+    specialty: primaryMos,
     platoon: cleanText(row.platoon),
     squad: cleanText(row.squad),
     shop,

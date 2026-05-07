@@ -3,7 +3,10 @@ import express from "express";
 import { config } from "../config.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
+  getPortalSummary,
   listApplications,
+  listAuditLogs,
+  getPersonnelForUser,
   listPersonnel,
   parseLimit,
   submitApplication,
@@ -42,6 +45,15 @@ export function apiRouter() {
       user: req.user,
     });
   });
+
+  router.get(
+    "/summary",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      const item = await getPortalSummary({ actorUser: req.user });
+      res.json({ item });
+    }),
+  );
 
   router.get(
     "/roles",
@@ -147,6 +159,19 @@ export function apiRouter() {
   );
 
   router.get(
+    "/personnel/me",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      const item = await getPersonnelForUser(req.user?.id);
+      if (!item) {
+        res.status(404).json({ error: "Personnel profile not found for this account." });
+        return;
+      }
+      res.json({ item });
+    }),
+  );
+
+  router.get(
     "/personnel",
     requireAuth,
     requireRole("personnel:read", "staff", "command", "command-staff"),
@@ -182,6 +207,16 @@ export function apiRouter() {
         },
       });
       res.status(201).json({ accepted: true, id: entry.id, createdAt: entry.createdAt });
+    }),
+  );
+
+  router.get(
+    "/audit",
+    requireAuth,
+    requireRole("audit:read", "staff", "command", "command-staff", "system-admin"),
+    asyncRoute(async (req, res) => {
+      const items = await listAuditLogs({ limit: parseLimit(req.query.limit, 50, 100) });
+      res.json({ items, next: null });
     }),
   );
 

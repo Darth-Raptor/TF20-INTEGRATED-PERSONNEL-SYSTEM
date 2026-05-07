@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Task Force 20 protected portal prototype for applicant, member, staff, and command workflows."
+      content="Task Force 20 protected portal for applicant, member, staff, and command workflows."
     />
-    <title>TF20 Portal Prototype</title>
+    <title>TF20 Portal</title>
     <link rel="stylesheet" href="portal.css" />
   </head>
   <body>
@@ -17,7 +17,7 @@
           <img src="assets/tf20-logo.png" alt="" />
           <span>
             <strong>TF20 Portal</strong>
-            <small>Prototype Access</small>
+            <small>Protected Access</small>
           </span>
         </a>
 
@@ -59,8 +59,8 @@
         </header>
 
         <section class="notice">
-          <strong>Prototype boundary:</strong>
-          This interface now uses live Discord authentication and server-side roles. Personnel, Discord, and RCON actions remain staged until each production workflow is approved.
+          <strong>Live data boundary:</strong>
+          This interface shows database-backed records when a workflow is connected. Unconnected workflows display empty states so missing data can be addressed directly.
         </section>
 
         <section class="notice notice-status" aria-label="Portal workflow status">
@@ -70,7 +70,7 @@
           </div>
           <div>
             <strong>Still staged</strong>
-            <span>Most personnel actions, attendance overrides, Discord sync, and system workflows remain prototype-only.</span>
+            <span>Personnel actions, attendance overrides, Discord sync, and system workflows are visible but not connected for live updates yet.</span>
           </div>
         </section>
 
@@ -78,23 +78,23 @@
           <div class="metric-grid">
             <article class="metric">
               <span>Active Personnel</span>
-              <strong>42</strong>
-              <small>8 recruits, 3 reserve, 2 LOA</small>
+              <strong id="dashboardActivePersonnel">0</strong>
+              <small id="dashboardActivePersonnelMeta">Loading personnel summary...</small>
             </article>
             <article class="metric">
               <span>Applications</span>
-              <strong>11</strong>
-              <small>4 awaiting contact</small>
+              <strong id="dashboardApplications">0</strong>
+              <small id="dashboardApplicationsMeta">Loading application summary...</small>
             </article>
             <article class="metric">
               <span>Attendance Review</span>
-              <strong>6</strong>
-              <small>RCON suggestions pending</small>
+              <strong id="dashboardAttendanceReview">0</strong>
+              <small id="dashboardAttendanceReviewMeta">Loading attendance summary...</small>
             </article>
             <article class="metric">
               <span>Audit Events</span>
-              <strong>128</strong>
-              <small>This month</small>
+              <strong id="dashboardAuditEvents">0</strong>
+              <small id="dashboardAuditEventsMeta">Loading audit summary...</small>
             </article>
           </div>
 
@@ -104,20 +104,9 @@
                 <h2>Applicant Dashboard</h2>
                 <span>Self-service</span>
               </div>
-              <div class="status-row">
-                <span>Application Status</span>
-                <strong>Interview Scheduled</strong>
+              <div id="applicantDashboardState">
+                <p class="panel-copy">Loading application status...</p>
               </div>
-              <div class="status-row">
-                <span>Required Next Step</span>
-                <strong>Join voice interview Sunday 1800 CST</strong>
-              </div>
-              <ul class="check-list">
-                <li class="done">Discord connected</li>
-                <li class="done">Steam64 ID submitted</li>
-                <li>Microphone check</li>
-                <li>Modpack setup</li>
-              </ul>
             </section>
 
             <section class="panel role-panel" data-role-panel="member">
@@ -125,20 +114,8 @@
                 <h2>Member Dashboard</h2>
                 <span>Self-service</span>
               </div>
-              <div class="profile-chip">
-                <img src="assets/tf20-logo.png" alt="" />
-                <div>
-                  <strong>SPC Mako</strong>
-                  <span>A CO, 1/75th Ranger Regiment</span>
-                </div>
-              </div>
-              <div class="status-row">
-                <span>Upcoming Event</span>
-                <strong>Operation Iron Gate</strong>
-              </div>
-              <div class="status-row">
-                <span>Qualifications</span>
-                <strong>Rifleman, CLS, Basic Radio</strong>
+              <div id="memberDashboardState">
+                <p class="panel-copy">Loading profile status...</p>
               </div>
             </section>
 
@@ -147,19 +124,8 @@
                 <h2>Staff Dashboard</h2>
                 <span>S1 / S3 / Training</span>
               </div>
-              <div class="queue-list">
-                <article>
-                  <strong>Promotion packet</strong>
-                  <span>Raptor to SFC awaiting command decision</span>
-                </article>
-                <article>
-                  <strong>Qualification recommendation</strong>
-                  <span>Newman cleared for unit assignment</span>
-                </article>
-                <article>
-                  <strong>Attendance exception</strong>
-                  <span>Nightmare joined while on approved LOA</span>
-                </article>
+              <div class="queue-list" id="staffDashboardState">
+                <p class="section-note">Loading staff review counts...</p>
               </div>
             </section>
 
@@ -168,10 +134,8 @@
                 <h2>Command Dashboard</h2>
                 <span>All personnel visibility</span>
               </div>
-              <div class="readiness-bars">
-                <div><span>A CO</span><meter min="0" max="100" value="82"></meter><strong>82%</strong></div>
-                <div><span>SFOD-D</span><meter min="0" max="100" value="76"></meter><strong>76%</strong></div>
-                <div><span>SOAR</span><meter min="0" max="100" value="69"></meter><strong>69%</strong></div>
+              <div class="queue-list" id="commandDashboardState">
+                <p class="section-note">Loading unit summary...</p>
               </div>
             </section>
 
@@ -180,19 +144,8 @@
                 <h2>System Dashboard</h2>
                 <span>Technical only</span>
               </div>
-              <div class="queue-list">
-                <article>
-                  <strong>Discord sync</strong>
-                  <span>2 role sync retries queued</span>
-                </article>
-                <article>
-                  <strong>RCON collector</strong>
-                  <span>Last poll completed 6 minutes ago</span>
-                </article>
-                <article>
-                  <strong>Access boundary</strong>
-                  <span>No default disciplinary or LOA detail visibility</span>
-                </article>
+              <div class="queue-list" id="systemDashboardState">
+                <p class="section-note">Loading system status...</p>
               </div>
             </section>
           </div>
@@ -328,15 +281,17 @@
                 <span>Source of truth: TF20 database</span>
               </div>
               <div class="toolbar">
-                <input id="personnelSearch" type="search" placeholder="Search rank, alias, billet, unit..." aria-label="Search personnel" />
+                <input id="personnelSearch" type="search" placeholder="Search rank, alias, MOS, billet, unit..." aria-label="Search personnel" />
                 <select id="personnelStatusFilter" aria-label="Status filter">
                   <option value="all">All statuses</option>
                   <option value="Active">Active</option>
                   <option value="Recruit">Recruit</option>
-                  <option value="Leave of Absence">Leave of Absence</option>
+                  <option value="ProbationaryMember">Probationary Member</option>
+                  <option value="LeaveOfAbsence">Leave of Absence</option>
                   <option value="Reserve">Reserve</option>
+                  <option value="Inactive">Inactive</option>
                   <option value="Discharged">Discharged</option>
-                  <option value="Banned / Do Not Rehire">Banned / Do Not Rehire</option>
+                  <option value="BannedDoNotRehire">Banned / Do Not Rehire</option>
                 </select>
               </div>
               <div class="table-wrap">
@@ -346,6 +301,7 @@
                       <th>Rank</th>
                       <th>Alias</th>
                       <th>Primary Unit</th>
+                      <th>Primary MOS</th>
                       <th>Primary Billet</th>
                       <th>Status</th>
                       <th>Flags</th>
@@ -473,9 +429,7 @@
                 <span>Training authority</span>
               </div>
               <div class="queue-list">
-                <article><strong>Newman</strong><span>Basic Infantry Qualified, pending approval.</span></article>
-                <article><strong>Mako</strong><span>CLS requalification due in 22 days.</span></article>
-                <article><strong>Nightmare</strong><span>NVG Flight currency review required.</span></article>
+                <p class="section-note">No training recommendation records are connected yet.</p>
               </div>
             </section>
 
@@ -512,25 +466,7 @@
                   </thead>
                   <tbody>
                     <tr>
-                      <td>Operation Iron Gate</td>
-                      <td>Operation</td>
-                      <td><span class="pill warning">Pending Attendance Review</span></td>
-                      <td>31 matched sessions</td>
-                      <td>4 exceptions</td>
-                    </tr>
-                    <tr>
-                      <td>Recruit Orientation</td>
-                      <td>Training Event</td>
-                      <td><span class="pill success">Completed</span></td>
-                      <td>Not required</td>
-                      <td>Finalized</td>
-                    </tr>
-                    <tr>
-                      <td>Mod Test</td>
-                      <td>Server Test</td>
-                      <td><span class="pill">Scheduled</span></td>
-                      <td>Collector armed</td>
-                      <td>Not started</td>
+                      <td colspan="5">No event or attendance records have been created yet.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -540,7 +476,7 @@
             <section class="panel">
               <div class="panel-heading">
                 <h2>Attendance Defaults</h2>
-                <span>Prototype rules</span>
+                <span>Draft rules</span>
               </div>
               <ul class="plain-list">
                 <li>Grace period: 15 minutes</li>
@@ -557,11 +493,7 @@
                 <h2>Manual Override</h2>
                 <span>Required audit fields</span>
               </div>
-              <form class="stack-form">
-                <label>Member <input type="text" value="Mako" /></label>
-                <label>New Status <select><option>Present - Manual</option><option>Excused</option><option>Absent</option></select></label>
-                <label>Reason <textarea rows="4">Manual correction requires staff reason.</textarea></label>
-              </form>
+              <p class="panel-copy">Attendance override records are not connected yet.</p>
             </section>
           </div>
         </section>
@@ -574,14 +506,14 @@
                 <span>Member workflow</span>
               </div>
               <form class="stack-form">
-                <label>Start Date <input type="date" value="2026-05-01" /></label>
-                <label>End Date <input type="date" value="2026-05-08" /></label>
+                <label>Start Date <input type="date" /></label>
+                <label>End Date <input type="date" /></label>
                 <label>Reason Category
                   <select>
                     <option>Work</option><option>School</option><option>Family</option><option>Health / Personal</option><option>Military / Real-World Duty</option><option>Technical Issue</option><option>Temporary Burnout</option><option>Other</option>
                   </select>
                 </label>
-                <label>Details <textarea rows="4">Do not over-collect private details.</textarea></label>
+                <label>Details <textarea rows="4" placeholder="Do not over-collect private details."></textarea></label>
               </form>
             </section>
 
@@ -591,9 +523,7 @@
                 <span>S1 / delegated leadership</span>
               </div>
               <div class="queue-list">
-                <article><strong>Nightmare</strong><span>Reduced availability, 2026-04-20 to 2026-05-04, pending S1 review.</span></article>
-                <article><strong>Archer</strong><span>Work conflict, approved, attendance penalties suppressed.</span></article>
-                <article><strong>Slate</strong><span>Returned from LOA, return confirmation pending.</span></article>
+                <p class="section-note">No LOA request records are connected yet.</p>
               </div>
             </section>
           </div>
@@ -621,8 +551,7 @@
                 <span>Approval required</span>
               </div>
               <div class="queue-list">
-                <article><strong>Technical Contribution</strong><span>S6 recommends Repository Workflow award for modpack fix.</span></article>
-                <article><strong>Campaign / Deployment Award</strong><span>S3 ready for roster eligibility check.</span></article>
+                <p class="section-note">No award recommendation records are connected yet.</p>
               </div>
             </section>
 
@@ -657,9 +586,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td>ACRE radio preset not loading</td><td>Mod Bug</td><td>High</td><td>In Review</td><td>S6</td></tr>
-                    <tr><td>Applicant cannot link Steam64</td><td>Application / Account Issue</td><td>Medium</td><td>Needs More Info</td><td>Recruiting</td></tr>
-                    <tr><td>Mission object cleanup issue</td><td>Mission Bug</td><td>Low</td><td>Assigned</td><td>Zeus Staff</td></tr>
+                    <tr><td colspan="5">No support or bug report records have been created yet.</td></tr>
                   </tbody>
                 </table>
               </div>

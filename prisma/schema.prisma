@@ -134,6 +134,7 @@ model PersonnelProfile {
   primaryUnit        Unit?                   @relation(fields: [primaryUnitId], references: [id])
   primaryBilletId    String?
   primaryBillet      Billet?                 @relation(fields: [primaryBilletId], references: [id])
+  primaryMos         String?
   dateJoined         DateTime?
   dateAccepted       DateTime?
   recruitClass       String?

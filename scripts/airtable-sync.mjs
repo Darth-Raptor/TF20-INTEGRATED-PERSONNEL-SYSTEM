@@ -162,6 +162,7 @@ function normalizeRosterRecord(record, assignments) {
     source: fields.SOURCE || "",
     recruiterIds: arrayValue(fields.RECRUITER),
     billet: unit.billet || "",
+    primaryMos: unit.primaryMos || "",
     specialty: unit.primaryMos || "",
     platoon: unit.platoon || unit.assignedTo || "",
     squad: unit.squad || "",

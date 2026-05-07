@@ -108,5 +108,38 @@ node scripts/airtable-sync.mjs
 
 Full roster exports should go into `.private/`, which is ignored by git.
 
+Convert a downloaded top-level roster CSV into the private import JSON:
+
+```bash
+npm run roster:csv -- --base="/Users/leahemken/Downloads/TASK FORCE ROSTER-PRIMARY ROSTER.csv"
+```
+
+Follow-on billet or MOS CSV exports can be merged onto the same roster by
+passing one or more overlay files:
+
+```bash
+npm run roster:csv -- --base="/Users/leahemken/Downloads/TASK FORCE ROSTER-PRIMARY ROSTER.csv" --overlay="/path/to/unit-billets.csv"
+```
+
+Recommended roster fields for the current-member import:
+
+```text
+displayAlias
+rank
+status
+dateOfEnlistment
+discordName
+discordId
+steam64Id
+steamProfile
+assignedTo
+primaryMos
+billet
+shop
+platoon
+squad
+fireTeam
+```
+
 Missing Airtable fields should import as blank/null so unit staff can update
 them inside the website later.

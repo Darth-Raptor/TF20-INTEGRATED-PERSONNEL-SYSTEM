@@ -113,6 +113,7 @@ export function toSessionUser(user) {
                 name: user.profile.primaryBillet.name,
               }
             : null,
+          primaryMos: user.profile.primaryMos,
         }
       : null,
   };

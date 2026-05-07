@@ -127,6 +127,7 @@ async function importPreview(previewReport, options) {
       currentStatus: record.mappedStatus,
       primaryUnitId: unit?.id || null,
       primaryBilletId: billet?.id || null,
+      primaryMos: cleanText(record.primaryMos || record.specialty, 191) || null,
       dateJoined: parseDateOnly(record.dateOfEnlistment),
       dateAccepted: parseDateOnly(record.dateOfEnlistment),
       goodStanding: true,
@@ -238,6 +239,7 @@ async function importPreview(previewReport, options) {
           status: record.mappedStatus,
           unit: record.inferredUnit,
           billet: record.billet,
+          primaryMos: record.primaryMos || record.specialty || null,
           suggestedPortalRole: record.suggestedPortalRole,
           importBatchId,
         },
@@ -260,11 +262,13 @@ async function importPreview(previewReport, options) {
 }
 
 function buildUserPayload(record) {
+  const displayAlias = record.name || record.callsign || record.discordName || record.discordId;
+
   return {
     discordId: record.discordId,
     discordUsername: record.discordName || record.callsign || record.discordId,
-    discordDisplayName: record.name || record.callsign || record.discordName,
-    displayAlias: record.callsign || record.name,
+    discordDisplayName: displayAlias,
+    displayAlias,
     steam64Id: record.steamId || null,
     accountStatus: record.mappedStatus,
   };
@@ -518,4 +522,9 @@ function parseDateOnly(value) {
   if (!text) return null;
   const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function cleanText(value, maxLength = 1000) {
+  const text = String(value ?? "").trim();
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
 }

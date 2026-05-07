@@ -6,6 +6,19 @@ const syncButton = document.querySelector("#syncButton");
 const toast = document.querySelector("#toast");
 const currentUserName = document.querySelector("#currentUserName");
 const currentUserMeta = document.querySelector("#currentUserMeta");
+const dashboardActivePersonnel = document.querySelector("#dashboardActivePersonnel");
+const dashboardActivePersonnelMeta = document.querySelector("#dashboardActivePersonnelMeta");
+const dashboardApplications = document.querySelector("#dashboardApplications");
+const dashboardApplicationsMeta = document.querySelector("#dashboardApplicationsMeta");
+const dashboardAttendanceReview = document.querySelector("#dashboardAttendanceReview");
+const dashboardAttendanceReviewMeta = document.querySelector("#dashboardAttendanceReviewMeta");
+const dashboardAuditEvents = document.querySelector("#dashboardAuditEvents");
+const dashboardAuditEventsMeta = document.querySelector("#dashboardAuditEventsMeta");
+const applicantDashboardState = document.querySelector("#applicantDashboardState");
+const memberDashboardState = document.querySelector("#memberDashboardState");
+const staffDashboardState = document.querySelector("#staffDashboardState");
+const commandDashboardState = document.querySelector("#commandDashboardState");
+const systemDashboardState = document.querySelector("#systemDashboardState");
 
 const applicationSearch = document.querySelector("#applicationSearch");
 const applicationStatusFilter = document.querySelector("#applicationStatusFilter");
@@ -95,124 +108,16 @@ const roleAccess = {
 };
 
 let applications = [];
-
-const personnel = [
-  {
-    id: "pers-havoc",
-    rank: "COL",
-    alias: "Havoc 6",
-    discord: "havoc6",
-    steam64: "76561198000002001",
-    unit: "Task Force 20",
-    billet: "Task Force Commander",
-    status: "Active",
-    flags: "Command",
-    staff: "Command Staff",
-    qualifications: "Mission Command, Instructor, Zeus",
-    attendance: "96%",
-    loa: "None",
-    note: "Final approval authority for policy changes, promotions, and major status changes.",
-  },
-  {
-    id: "pers-raptor",
-    rank: "SSG",
-    alias: "Raptor",
-    discord: "raptor",
-    steam64: "76561198000002004",
-    unit: "A CO, 1/75th Ranger Regiment",
-    billet: "Squad Leader",
-    status: "Active",
-    flags: "Promotion packet",
-    staff: "None",
-    qualifications: "Ranger School, Breacher, CLS",
-    attendance: "84%",
-    loa: "None",
-    note: "Runs assault rehearsals and accountability for Ranger element.",
-  },
-  {
-    id: "pers-newman",
-    rank: "RCT",
-    alias: "Newman",
-    discord: "newman",
-    steam64: "",
-    unit: "Recruit Holding / Training Pipeline",
-    billet: "Recruit Candidate",
-    status: "Recruit",
-    flags: "Steam64 pending",
-    staff: "None",
-    qualifications: "Orientation Complete",
-    attendance: "100%",
-    loa: "None",
-    note: "Awaiting final recruit evaluation and unit assignment.",
-  },
-  {
-    id: "pers-nightmare",
-    rank: "CW3",
-    alias: "Nightmare",
-    discord: "nightmare",
-    steam64: "76561198000002005",
-    unit: "B CO, 2/160th SOAR",
-    billet: "Aviation Lead",
-    status: "Leave of Absence",
-    flags: "LOA overlap review",
-    staff: "S3 Training",
-    qualifications: "Rotary-Wing Pilot, CAS, Air Assault",
-    attendance: "79%",
-    loa: "Approved through 2026-05-04",
-    note: "Flagged because RCON observed server presence during approved LOA.",
-  },
-  {
-    id: "pers-mako",
-    rank: "SPC",
-    alias: "Mako",
-    discord: "mako",
-    steam64: "76561198000002006",
-    unit: "A CO, 1/75th Ranger Regiment",
-    billet: "Automatic Rifleman",
-    status: "Active",
-    flags: "CLS requalification due",
-    staff: "None",
-    qualifications: "Rifleman, CLS, Basic Radio",
-    attendance: "72%",
-    loa: "None",
-    note: "Needs updated qualification packet after next FTX.",
-  },
-];
-
-const auditLog = [
-  {
-    timestamp: "2026-04-28 12:14",
-    actor: "S1 NCOIC",
-    module: "LOA",
-    action: "Approved",
-    reason: "Work conflict reviewed",
-  },
-  {
-    timestamp: "2026-04-28 12:06",
-    actor: "Training Authority",
-    module: "Qualification",
-    action: "Pending Approval",
-    reason: "Instructor recommendation",
-  },
-  {
-    timestamp: "2026-04-28 11:54",
-    actor: "System",
-    module: "Discord Sync",
-    action: "Failed",
-    reason: "Missing mapped role ID",
-  },
-  {
-    timestamp: "2026-04-28 11:41",
-    actor: "Command Staff",
-    module: "Promotion",
-    action: "Approved",
-    reason: "Packet validated by S1",
-  },
-];
+let personnel = [];
+let personnelLoadError = "";
+let dashboardSummary = null;
+let dashboardSummaryError = "";
+let auditLog = [];
+let auditLoadError = "";
 
 let currentView = "dashboard";
 let selectedApplicationId = null;
-let selectedPersonnelId = personnel[1].id;
+let selectedPersonnelId = null;
 let currentUser = null;
 let activeAccessRole = "applicant";
 let portalUsers = [];
@@ -246,8 +151,7 @@ tabs.forEach((tab) => {
 });
 
 syncButton.addEventListener("click", () => {
-  appendAudit(currentUser?.displayName || "Current User", "Discord Sync", "Queued", "Mock sync request from portal toolbar");
-  showToast("Mock Discord sync queued. Production sync must run from the backend.");
+  showToast("Discord sync is not connected to a live workflow yet.");
 });
 
 applicationSearch.addEventListener("input", () => loadApplications());
@@ -265,13 +169,13 @@ acceptApplicantButton.addEventListener("click", () => updateSelectedApplication(
 denyApplicantButton.addEventListener("click", () => updateSelectedApplication("Denied", "Applicant denied after staff review"));
 flagTrainingButton.addEventListener("click", () => {
   const member = selectedPersonnel();
-  appendAudit("Training Staff", "Training", "Flagged", `${member.alias} flagged for training follow-up`);
-  showToast(`${member.alias} flagged for training follow-up.`);
+  if (!member) return;
+  showToast("Training follow-up actions are not connected yet.");
 });
 recommendPromotionButton.addEventListener("click", () => {
   const member = selectedPersonnel();
-  appendAudit("Unit Leadership", "Promotion", "Recommended", `${member.alias} promotion recommendation opened`);
-  showToast(`${member.alias} promotion recommendation mocked.`);
+  if (!member) return;
+  showToast("Promotion recommendations are not connected yet.");
 });
 
 saveRolesButton?.addEventListener("click", saveSelectedUserRoles);
@@ -288,7 +192,7 @@ async function initPortal() {
     activeAccessRole = deriveAccessRole(currentUser);
     updateSessionSummary();
     applyRole();
-    await loadApplications();
+    await Promise.all([loadDashboardSummary(), loadApplications(), loadPersonnel(), loadAuditLogs()]);
     renderAllRecords();
     setView(currentView);
 
@@ -317,11 +221,14 @@ function applyRole() {
   const allowed = roleAccess[role] || roleAccess.staff;
 
   tabs.forEach((tab) => {
-    const isAllowed = allowed.includes(tab.dataset.view);
+    let isAllowed = allowed.includes(tab.dataset.view);
+    if (tab.dataset.view === "audit" && !canReadAudit()) {
+      isAllowed = false;
+    }
     tab.hidden = !isAllowed;
   });
 
-  if (!allowed.includes(currentView)) {
+  if (!allowed.includes(currentView) || (currentView === "audit" && !canReadAudit())) {
     setView("dashboard");
   }
 
@@ -335,14 +242,173 @@ function applyRole() {
     panel.classList.toggle("visible", visible);
   });
 
-  syncButton.disabled = !hasPermission("discord:sync") && !["command", "system"].includes(role);
-  syncButton.textContent = role === "system" ? "Retry Discord Sync" : "Queue Discord Sync";
+  syncButton.disabled = true;
+  syncButton.textContent = "Discord Sync Not Connected";
 }
 
 function renderAllRecords() {
+  renderDashboardSummary();
   renderApplications();
   renderPersonnel();
   renderAudit();
+}
+
+async function loadDashboardSummary() {
+  dashboardSummaryError = "";
+
+  try {
+    const response = await fetchJson("/api/summary");
+    dashboardSummary = response.item || null;
+  } catch (error) {
+    console.error(error);
+    dashboardSummary = null;
+    dashboardSummaryError = error.message || "Unable to load dashboard summary.";
+  }
+
+  renderDashboardSummary();
+}
+
+function renderDashboardSummary() {
+  const summary = dashboardSummary || {};
+  const personnelSummary = summary.personnel || {};
+  const applicationSummary = summary.applications || {};
+  const attendanceSummary = summary.attendance || {};
+  const auditSummary = summary.audit || {};
+  const workflows = summary.workflows || {};
+
+  dashboardActivePersonnel.textContent = formatCount(personnelSummary.active);
+  dashboardActivePersonnelMeta.textContent = dashboardSummaryError
+    ? dashboardSummaryError
+    : `${formatCount(personnelSummary.total)} total profiles; ${formatCount(personnelSummary.missingBillet)} missing billet; ${formatCount(
+        personnelSummary.missingPrimaryMos,
+      )} missing Primary MOS`;
+
+  dashboardApplications.textContent = formatCount(applicationSummary.active);
+  dashboardApplicationsMeta.textContent = dashboardSummaryError
+    ? "Application summary unavailable."
+    : `${formatCount(applicationSummary.total)} total; ${formatCount(applicationSummary.awaitingContact)} awaiting staff contact`;
+
+  dashboardAttendanceReview.textContent = formatCount(attendanceSummary.pendingReview);
+  dashboardAttendanceReviewMeta.textContent = dashboardSummaryError
+    ? "Attendance summary unavailable."
+    : `${formatCount(attendanceSummary.totalEvents)} event records; ${formatCount(attendanceSummary.upcomingEvents)} upcoming`;
+
+  dashboardAuditEvents.textContent = formatCount(auditSummary.thisMonth);
+  dashboardAuditEventsMeta.textContent = dashboardSummaryError
+    ? "Audit summary unavailable."
+    : `${formatCount(auditSummary.total)} total audit events`;
+
+  renderApplicantDashboard();
+  renderMemberDashboard();
+  renderStaffDashboard(workflows, personnelSummary, attendanceSummary);
+  renderCommandDashboard(summary.units || []);
+  renderSystemDashboard(workflows);
+}
+
+function renderApplicantDashboard() {
+  const ownApplication = applications.find((application) => application.userId === currentUser?.id);
+  const steam64 = currentUser?.steam64Id || ownApplication?.steam64 || "";
+
+  if (!ownApplication) {
+    applicantDashboardState.innerHTML = `
+      <div class="status-row">
+        <span>Application Status</span>
+        <strong>No active application</strong>
+      </div>
+      <div class="status-row">
+        <span>Required Next Step</span>
+        <strong>Submit the application form when ready</strong>
+      </div>
+      <ul class="check-list">
+        <li class="done">Discord connected</li>
+        <li${steam64 ? ' class="done"' : ""}>Steam64 ID ${steam64 ? "submitted" : "not submitted"}</li>
+      </ul>
+    `;
+    return;
+  }
+
+  applicantDashboardState.innerHTML = `
+    <div class="status-row">
+      <span>Application Status</span>
+      <strong>${escapeHtml(applicationStatusLabel(ownApplication.status))}</strong>
+    </div>
+    <div class="status-row">
+      <span>Required Next Step</span>
+      <strong>${escapeHtml(ownApplication.nextStep)}</strong>
+    </div>
+    <ul class="check-list">
+      <li class="done">Discord connected</li>
+      <li${steam64 ? ' class="done"' : ""}>Steam64 ID ${steam64 ? "submitted" : "not submitted"}</li>
+      <li${ownApplication.readiness !== "Not specified" ? ' class="done"' : ""}>Technical readiness ${ownApplication.readiness !== "Not specified" ? "provided" : "missing"}</li>
+    </ul>
+  `;
+}
+
+function renderMemberDashboard() {
+  const member = personnel.find((item) => item.userId === currentUser?.id) || personnel[0] || null;
+
+  if (!member) {
+    memberDashboardState.innerHTML = `<p class="panel-copy">No personnel profile is available for this account.</p>`;
+    return;
+  }
+
+  memberDashboardState.innerHTML = `
+    <div class="profile-chip">
+      <img src="assets/tf20-logo.png" alt="" />
+      <div>
+        <strong>${escapeHtml(member.rank)} ${escapeHtml(member.alias)}</strong>
+        <span>${escapeHtml(member.unit)}</span>
+      </div>
+    </div>
+    <div class="status-row">
+      <span>Upcoming Event</span>
+      <strong>No event records connected</strong>
+    </div>
+    <div class="status-row">
+      <span>Qualifications</span>
+      <strong>${escapeHtml(member.qualifications)}</strong>
+    </div>
+  `;
+}
+
+function renderStaffDashboard(workflows, personnelSummary, attendanceSummary) {
+  const items = [
+    ["Missing billet", `${formatCount(personnelSummary.missingBillet)} personnel profile${personnelSummary.missingBillet === 1 ? "" : "s"} need a primary billet.`],
+    [
+      "Missing Primary MOS",
+      `${formatCount(personnelSummary.missingPrimaryMos)} personnel profile${personnelSummary.missingPrimaryMos === 1 ? "" : "s"} need Primary MOS.`,
+    ],
+    ["Qualification recommendations", `${formatCount(workflows.pendingQualifications)} records pending approval.`],
+    ["Attendance review", `${formatCount(attendanceSummary.pendingReview)} attendance records pending review.`],
+  ];
+
+  staffDashboardState.innerHTML = items.map(summaryArticle).join("");
+}
+
+function renderCommandDashboard(units) {
+  commandDashboardState.innerHTML = units.length
+    ? units
+        .map((unit) => summaryArticle([unit.name, `${formatCount(unit.personnelCount)} active roster profile${unit.personnelCount === 1 ? "" : "s"}.`]))
+        .join("")
+    : `<p class="section-note">No primary unit assignments are recorded yet.</p>`;
+}
+
+function renderSystemDashboard(workflows) {
+  const discordText = workflows.latestDiscordSync
+    ? `${workflows.latestDiscordSync.status} ${workflows.latestDiscordSync.action} at ${formatDate(workflows.latestDiscordSync.createdAt)}.`
+    : "No Discord sync records are available yet.";
+
+  systemDashboardState.innerHTML = [
+    ["Discord sync", discordText],
+    ["RCON collector", "No RCON attendance collector records are connected yet."],
+    ["Support queue", `${formatCount(workflows.openSupport)} open support records.`],
+  ]
+    .map(summaryArticle)
+    .join("");
+}
+
+function summaryArticle([title, body]) {
+  return `<article><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`;
 }
 
 async function loadApplications() {
@@ -402,6 +468,32 @@ function renderApplications() {
   renderApplicationDetail();
 }
 
+async function loadPersonnel() {
+  if (!personnelRows) return;
+
+  personnelLoadError = "";
+  personnelRows.innerHTML = `<tr><td colspan="7">Loading personnel...</td></tr>`;
+
+  try {
+    const response = canReadAllPersonnel()
+      ? await fetchJson("/api/personnel?limit=100")
+      : { items: [(await fetchJson("/api/personnel/me")).item] };
+
+    personnel = (response.items || []).filter(Boolean).map(normalizePersonnel);
+    if (!personnel.some((member) => member.id === selectedPersonnelId)) {
+      selectedPersonnelId = personnel[0]?.id || null;
+    }
+  } catch (error) {
+    console.error(error);
+    personnel = [];
+    selectedPersonnelId = null;
+    personnelLoadError = error.message || "Unable to load personnel.";
+    showToast(personnelLoadError);
+  }
+
+  renderPersonnel();
+}
+
 function renderApplicationDetail() {
   const application = selectedApplication();
   const role = activeAccessRole;
@@ -445,11 +537,16 @@ function renderApplicationDetail() {
 }
 
 function renderPersonnel() {
-  const role = activeAccessRole;
   const query = personnelSearch.value.trim().toLowerCase();
   const status = personnelStatusFilter.value;
+
+  if (personnelLoadError) {
+    personnelRows.innerHTML = `<tr><td colspan="7">${escapeHtml(personnelLoadError)}</td></tr>`;
+    renderPersonnelDetail();
+    return;
+  }
+
   const visiblePersonnel = personnel.filter((member) => {
-    const roleAllowed = role !== "member" || member.id === "pers-mako";
     const matchesStatus = status === "all" || member.status === status;
     const searchable = [
       member.rank,
@@ -457,18 +554,19 @@ function renderPersonnel() {
       member.discord,
       member.steam64,
       member.unit,
+      member.primaryMos,
       member.billet,
-      member.status,
+      member.statusLabel,
       member.flags,
       member.qualifications,
     ]
       .join(" ")
       .toLowerCase();
-    return roleAllowed && matchesStatus && (!query || searchable.includes(query));
+    return matchesStatus && (!query || searchable.includes(query));
   });
 
   if (!visiblePersonnel.some((member) => member.id === selectedPersonnelId)) {
-    selectedPersonnelId = visiblePersonnel[0]?.id || personnel[0].id;
+    selectedPersonnelId = visiblePersonnel[0]?.id || null;
   }
 
   personnelRows.innerHTML = visiblePersonnel.length
@@ -479,14 +577,15 @@ function renderPersonnel() {
               <td>${escapeHtml(member.rank)}</td>
               <td><strong>${escapeHtml(member.alias)}</strong><br><span class="muted">${escapeHtml(member.discord)}</span></td>
               <td>${escapeHtml(member.unit)}</td>
+              <td>${escapeHtml(member.primaryMos || "Missing")}</td>
               <td>${escapeHtml(member.billet)}</td>
-              <td>${statusPill(member.status)}</td>
+              <td>${statusPill(member.statusLabel)}</td>
               <td>${escapeHtml(member.flags)}</td>
             </tr>
           `,
         )
         .join("")
-    : `<tr><td colspan="6">No personnel records match the current filters.</td></tr>`;
+    : `<tr><td colspan="7">No personnel records match the current filters.</td></tr>`;
 
   personnelRows.querySelectorAll("[data-personnel-id]").forEach((row) => {
     row.addEventListener("click", () => {
@@ -503,17 +602,29 @@ function renderPersonnelDetail() {
   const role = activeAccessRole;
   const canEdit = ["staff", "command", "system"].includes(role) || hasPermission("personnel:write");
 
-  personnelDetailStatus.textContent = member.status;
+  if (!member) {
+    personnelDetailStatus.textContent = "No profile";
+    personnelDetail.innerHTML = `<p class="panel-copy">${escapeHtml(
+      personnelLoadError || "No personnel profile is available for the current filters.",
+    )}</p>`;
+    [flagTrainingButton, recommendPromotionButton].forEach((button) => {
+      button.disabled = true;
+    });
+    return;
+  }
+
+  personnelDetailStatus.textContent = member.statusLabel;
   personnelDetail.innerHTML = `
     <div class="detail-title">
       <div>
         <strong>${escapeHtml(member.rank)} ${escapeHtml(member.alias)}</strong>
         <span>${escapeHtml(member.unit)}</span>
       </div>
-      ${statusPill(member.status)}
+      ${statusPill(member.statusLabel)}
     </div>
     <div class="detail-grid">
       <div><span>Primary Billet</span><strong>${escapeHtml(member.billet)}</strong></div>
+      <div><span>Primary MOS</span><strong>${escapeHtml(member.primaryMos || "Missing")}</strong></div>
       <div><span>Staff Assignment</span><strong>${escapeHtml(member.staff)}</strong></div>
       <div><span>Discord</span><strong>${escapeHtml(member.discord)}</strong></div>
       <div><span>Steam64</span><strong>${escapeHtml(member.steam64 || "Missing")}</strong></div>
@@ -536,19 +647,56 @@ function renderPersonnelDetail() {
 }
 
 function renderAudit() {
-  auditRows.innerHTML = auditLog
-    .map(
-      (entry) => `
-        <tr>
-          <td>${escapeHtml(entry.timestamp)}</td>
-          <td>${escapeHtml(entry.actor)}</td>
-          <td>${escapeHtml(entry.module)}</td>
-          <td>${escapeHtml(entry.action)}</td>
-          <td>${escapeHtml(entry.reason)}</td>
-        </tr>
-      `,
-    )
-    .join("");
+  if (!auditRows) return;
+
+  if (!canReadAudit()) {
+    auditRows.innerHTML = `<tr><td colspan="5">Audit log access is not assigned to this account.</td></tr>`;
+    return;
+  }
+
+  if (auditLoadError) {
+    auditRows.innerHTML = `<tr><td colspan="5">${escapeHtml(auditLoadError)}</td></tr>`;
+    return;
+  }
+
+  auditRows.innerHTML = auditLog.length
+    ? auditLog
+        .map(
+          (entry) => `
+            <tr>
+              <td>${escapeHtml(formatDate(entry.createdAt))}</td>
+              <td>${escapeHtml(entry.actor || "Unknown")}</td>
+              <td>${escapeHtml(entry.module || "Unknown")}</td>
+              <td>${escapeHtml(entry.action || "Unknown")}</td>
+              <td>${escapeHtml(entry.reason || "No reason recorded")}</td>
+            </tr>
+          `,
+        )
+        .join("")
+    : `<tr><td colspan="5">No audit entries are available yet.</td></tr>`;
+}
+
+async function loadAuditLogs() {
+  if (!auditRows) return;
+
+  auditLoadError = "";
+  if (!canReadAudit()) {
+    auditLog = [];
+    renderAudit();
+    return;
+  }
+
+  auditRows.innerHTML = `<tr><td colspan="5">Loading audit entries...</td></tr>`;
+  try {
+    const response = await fetchJson("/api/audit?limit=50");
+    auditLog = response.items || [];
+  } catch (error) {
+    console.error(error);
+    auditLog = [];
+    auditLoadError = error.message || "Unable to load audit entries.";
+  }
+
+  renderAudit();
 }
 
 async function loadUserAdmin() {
@@ -682,6 +830,7 @@ async function saveSelectedUserRoles() {
     portalUsers = portalUsers.map((item) => (item.id === response.user.id ? response.user : item));
     roleChangeReason.value = "";
     renderUsers();
+    await loadAuditLogs();
 
     if (response.user.id === currentUser?.id) {
       const session = await fetchJson("/api/me");
@@ -689,6 +838,7 @@ async function saveSelectedUserRoles() {
       activeAccessRole = deriveAccessRole(currentUser);
       updateSessionSummary();
       applyRole();
+      await loadPersonnel();
     }
 
     showToast(`${displayUserName(response.user)} roles updated.`);
@@ -734,6 +884,8 @@ async function submitApplicantForm(event) {
     applications = [submitted, ...applications.filter((application) => application.id !== submitted.id)];
     selectedApplicationId = submitted.id;
     renderApplications();
+    renderDashboardSummary();
+    await Promise.all([loadDashboardSummary(), loadAuditLogs()]);
     setApplicationFeedback("Application submitted successfully. Recruiting staff can now review it.", "success");
     showToast("Application submitted.");
   } catch (error) {
@@ -789,6 +941,47 @@ function normalizeApplication(item) {
   };
 }
 
+function normalizePersonnel(item) {
+  const user = item?.user || {};
+  const counts = item?.counts || {};
+  const rank = item?.rank?.abbreviation || "Unranked";
+  const alias = user.displayAlias || user.discordDisplayName || user.discordUsername || "Unknown Member";
+  const unit = item?.unit?.name || "Unassigned";
+  const billet = item?.billet?.name || "";
+  const status = item?.status || user.accountStatus || "Unknown";
+  const staffAssignments = (item?.staffAssignments || [])
+    .map((assignment) => assignment.staffSection?.code || assignment.staffSection?.name)
+    .filter(Boolean);
+  const flags = [
+    !billet ? "Billet missing" : "",
+    !item?.primaryMos ? "Primary MOS missing" : "",
+    item?.goodStanding === false ? "Not in good standing" : "",
+  ].filter(Boolean);
+  const joinedText = item?.dateJoined ? `Joined ${formatDate(item.dateJoined)}` : "Join date missing";
+  const assignmentCount = Number.isFinite(counts.assignments) ? counts.assignments : 0;
+
+  return {
+    id: item?.id,
+    userId: user.id,
+    rank,
+    alias,
+    discord: user.discordUsername || "Unknown Discord",
+    steam64: user.steam64Id || "",
+    unit,
+    primaryMos: item?.primaryMos || "",
+    billet: billet || "Missing",
+    status,
+    statusLabel: accountStatusLabel(status),
+    flags: flags.length ? flags.join(", ") : "None",
+    staff: staffAssignments.length ? staffAssignments.join(", ") : "None",
+    qualifications: counts.qualifications ? `${counts.qualifications} qualification records` : "No qualifications recorded",
+    attendance: counts.attendanceRecords ? `${counts.attendanceRecords} attendance records` : "No attendance records",
+    loa: counts.loaRequests ? `${counts.loaRequests} LOA requests` : "None",
+    note: `${joinedText}. ${assignmentCount} assignment record${assignmentCount === 1 ? "" : "s"} on file.`,
+    updatedAt: item?.updatedAt,
+  };
+}
+
 function nextStepForApplication(status) {
   switch (status) {
     case "Submitted":
@@ -808,6 +1001,21 @@ function nextStepForApplication(status) {
     default:
       return "Awaiting next staff action.";
   }
+}
+
+function accountStatusLabel(status) {
+  const labels = {
+    Applicant: "Applicant",
+    Recruit: "Recruit",
+    ProbationaryMember: "Probationary Member",
+    Active: "Active",
+    Reserve: "Reserve",
+    LeaveOfAbsence: "Leave of Absence",
+    Inactive: "Inactive",
+    Discharged: "Discharged",
+    BannedDoNotRehire: "Banned / Do Not Rehire",
+  };
+  return labels[status] || status || "Unknown";
 }
 
 function applicationStatusLabel(status) {
@@ -841,8 +1049,9 @@ async function updateSelectedApplication(status, reason) {
     });
     const updatedApplication = normalizeApplication(response.item);
     applications = applications.map((item) => (item.id === updatedApplication.id ? updatedApplication : item));
-    appendAudit(currentUser?.displayName || "Recruiting Staff", "Application", applicationStatusLabel(updatedApplication.status), `${updatedApplication.alias}: ${reason}`);
     renderApplications();
+    renderDashboardSummary();
+    await Promise.all([loadDashboardSummary(), loadAuditLogs()]);
     showToast(`${updatedApplication.alias} status changed to ${applicationStatusLabel(updatedApplication.status)}.`);
   } catch (error) {
     console.error(error);
@@ -851,29 +1060,12 @@ async function updateSelectedApplication(status, reason) {
   }
 }
 
-function appendAudit(actor, module, action, reason) {
-  auditLog.unshift({
-    timestamp: new Date().toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    actor,
-    module,
-    action,
-    reason,
-  });
-  renderAudit();
-}
-
 function selectedApplication() {
   return applications.find((application) => application.id === selectedApplicationId) || null;
 }
 
 function selectedPersonnel() {
-  return personnel.find((member) => member.id === selectedPersonnelId) || personnel[0];
+  return personnel.find((member) => member.id === selectedPersonnelId) || null;
 }
 
 function selectedPortalUser() {
@@ -1015,6 +1207,18 @@ function canManageUsers() {
   return activeAccessRole === "system" || hasPermission("system:admin");
 }
 
+function canReadAllPersonnel() {
+  return hasPermission("personnel:read") || hasPermission("system:admin");
+}
+
+function canReadAudit() {
+  return (
+    hasPermission("audit:read") ||
+    hasPermission("system:admin") ||
+    ["staff", "command", "system"].includes(activeAccessRole)
+  );
+}
+
 function updateSessionSummary(error) {
   if (!currentUser || error) {
     currentUserName.textContent = "Session unavailable";
@@ -1060,6 +1264,12 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatCount(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  return new Intl.NumberFormat("en-US").format(number);
 }
 
 function statusPill(status) {

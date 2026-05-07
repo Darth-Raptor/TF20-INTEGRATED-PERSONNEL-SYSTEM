@@ -38,6 +38,39 @@ const activeApplicationStatuses = [
 ];
 const finalApplicationStatuses = new Set(["Denied", "Withdrawn", "ConvertedToRecruit"]);
 
+const personnelProfileInclude = {
+  user: {
+    select: {
+      id: true,
+      discordId: true,
+      discordUsername: true,
+      discordDisplayName: true,
+      displayAlias: true,
+      steam64Id: true,
+      timezone: true,
+      accountStatus: true,
+      email: true,
+    },
+  },
+  currentRank: true,
+  primaryUnit: true,
+  primaryBillet: true,
+  staffAssignments: {
+    where: { endDate: null },
+    include: {
+      staffSection: true,
+    },
+  },
+  _count: {
+    select: {
+      assignments: true,
+      qualifications: true,
+      attendanceRecords: true,
+      loaRequests: true,
+    },
+  },
+};
+
 function normalizeText(value, maxLength = 1000) {
   const normalized = String(value ?? "").trim();
   return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
@@ -470,6 +503,7 @@ export async function listPersonnel({ status, search, limit = 50 } = {}) {
       { currentRank: { is: { abbreviation: { contains: search } } } },
       { primaryUnit: { is: { name: { contains: search } } } },
       { primaryBillet: { is: { name: { contains: search } } } },
+      { primaryMos: { contains: search } },
     ];
   }
 
@@ -477,46 +511,227 @@ export async function listPersonnel({ status, search, limit = 50 } = {}) {
     where,
     take: limit,
     orderBy: [{ updatedAt: "desc" }],
+    include: personnelProfileInclude,
+  });
+
+  return personnel.map(toPersonnelItem);
+}
+
+export async function getPersonnelForUser(userId) {
+  assertDatabaseReady();
+
+  if (!userId) return null;
+
+  const profile = await getDb().personnelProfile.findUnique({
+    where: { userId },
+    include: personnelProfileInclude,
+  });
+
+  return profile ? toPersonnelItem(profile) : null;
+}
+
+export async function getPortalSummary() {
+  assertDatabaseReady();
+
+  const db = getDb();
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const activeRosterStatuses = ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"];
+
+  const [
+    personnelByStatus,
+    totalPersonnel,
+    activePersonnel,
+    missingBillet,
+    missingPrimaryMos,
+    applicationsByStatus,
+    pendingAttendanceReview,
+    totalEvents,
+    upcomingEvents,
+    auditThisMonth,
+    totalAudit,
+    unitCounts,
+    pendingQualifications,
+    openSupport,
+    latestDiscordSync,
+  ] = await Promise.all([
+    db.personnelProfile.groupBy({
+      by: ["currentStatus"],
+      _count: { _all: true },
+    }),
+    db.personnelProfile.count(),
+    db.personnelProfile.count({ where: { currentStatus: "Active" } }),
+    db.personnelProfile.count({ where: { primaryBilletId: null } }),
+    db.personnelProfile.count({
+      where: {
+        OR: [{ primaryMos: null }, { primaryMos: "" }],
+      },
+    }),
+    db.application.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+    db.attendanceRecord.count({ where: { status: "PendingReview" } }),
+    db.calendarEvent.count(),
+    db.calendarEvent.count({ where: { startsAt: { gte: now } } }),
+    db.auditLog.count({ where: { createdAt: { gte: startOfMonth } } }),
+    db.auditLog.count(),
+    db.personnelProfile.groupBy({
+      by: ["primaryUnitId"],
+      where: {
+        currentStatus: { in: activeRosterStatuses },
+        primaryUnitId: { not: null },
+      },
+      _count: { _all: true },
+    }),
+    db.personnelQualification.count({
+      where: { status: { in: ["Recommended", "PendingApproval"] } },
+    }),
+    db.bugReport.count({
+      where: { status: { notIn: ["Closed", "Resolved"] } },
+    }),
+    db.discordSyncLog.findFirst({ orderBy: { createdAt: "desc" } }),
+  ]);
+
+  const unitIds = unitCounts.map((entry) => entry.primaryUnitId).filter(Boolean);
+  const units = unitIds.length
+    ? await db.unit.findMany({
+        where: { id: { in: unitIds } },
+        select: { id: true, name: true, type: true },
+      })
+    : [];
+  const unitNamesById = new Map(units.map((unit) => [unit.id, unit]));
+
+  return {
+    personnel: {
+      total: totalPersonnel,
+      active: activePersonnel,
+      missingBillet,
+      missingPrimaryMos,
+      byStatus: groupCounts(personnelByStatus, "currentStatus"),
+    },
+    applications: {
+      total: sumGroupedCounts(applicationsByStatus),
+      active: applicationsByStatus
+        .filter((entry) => activeApplicationStatuses.includes(entry.status))
+        .reduce((total, entry) => total + groupedCount(entry), 0),
+      awaitingContact: applicationsByStatus
+        .filter((entry) => ["Submitted", "UnderReview"].includes(entry.status))
+        .reduce((total, entry) => total + groupedCount(entry), 0),
+      byStatus: groupCounts(applicationsByStatus, "status"),
+    },
+    attendance: {
+      pendingReview: pendingAttendanceReview,
+      totalEvents,
+      upcomingEvents,
+    },
+    audit: {
+      thisMonth: auditThisMonth,
+      total: totalAudit,
+    },
+    units: unitCounts.map((entry) => {
+      const unit = unitNamesById.get(entry.primaryUnitId);
+      return {
+        id: entry.primaryUnitId,
+        name: unit?.name || "Unknown Unit",
+        type: unit?.type || "Unit",
+        personnelCount: groupedCount(entry),
+      };
+    }),
+    workflows: {
+      pendingQualifications,
+      openSupport,
+      latestDiscordSync: latestDiscordSync
+        ? {
+            action: latestDiscordSync.action,
+            status: latestDiscordSync.status,
+            createdAt: latestDiscordSync.createdAt,
+          }
+        : null,
+    },
+  };
+}
+
+export async function listAuditLogs({ limit = 50 } = {}) {
+  assertDatabaseReady();
+
+  const entries = await getDb().auditLog.findMany({
+    take: limit,
+    orderBy: { createdAt: "desc" },
     include: {
-      user: {
+      actor: {
         select: {
-          id: true,
-          discordId: true,
           discordUsername: true,
           discordDisplayName: true,
           displayAlias: true,
-          accountStatus: true,
-          email: true,
         },
       },
-      currentRank: true,
-      primaryUnit: true,
-      primaryBillet: true,
-      _count: {
-        select: {
-          assignments: true,
-          qualifications: true,
-          attendanceRecords: true,
-          loaRequests: true,
+      affectedProfile: {
+        include: {
+          user: {
+            select: {
+              discordUsername: true,
+              discordDisplayName: true,
+              displayAlias: true,
+            },
+          },
         },
       },
     },
   });
 
-  return personnel.map((profile) => ({
+  return entries.map((entry) => ({
+    id: entry.id,
+    createdAt: entry.createdAt,
+    actor: displayUser(entry.actor) || (entry.systemGenerated ? "System" : "Unknown"),
+    affectedProfile: displayUser(entry.affectedProfile?.user),
+    module: entry.module,
+    action: entry.action,
+    reason: entry.reason,
+    severity: entry.severity,
+    relatedRecordId: entry.relatedRecordId,
+    systemGenerated: entry.systemGenerated,
+  }));
+}
+
+function toPersonnelItem(profile) {
+  return {
     id: profile.id,
     status: profile.currentStatus,
     dateJoined: profile.dateJoined,
     dateAccepted: profile.dateAccepted,
     recruitClass: profile.recruitClass,
     goodStanding: profile.goodStanding,
+    primaryMos: profile.primaryMos,
     user: profile.user,
     rank: profile.currentRank,
     unit: profile.primaryUnit,
     billet: profile.primaryBillet,
+    staffAssignments: profile.staffAssignments.map((assignment) => ({
+      id: assignment.id,
+      assignmentType: assignment.assignmentType,
+      effectiveDate: assignment.effectiveDate,
+      staffSection: assignment.staffSection,
+    })),
     counts: profile._count,
     updatedAt: profile.updatedAt,
-  }));
+  };
+}
+
+function groupedCount(entry) {
+  return entry?._count?._all || 0;
+}
+
+function groupCounts(entries, key) {
+  return Object.fromEntries(entries.map((entry) => [entry[key] || "None", groupedCount(entry)]));
+}
+
+function sumGroupedCounts(entries) {
+  return entries.reduce((total, entry) => total + groupedCount(entry), 0);
+}
+
+function displayUser(user) {
+  return user?.displayAlias || user?.discordDisplayName || user?.discordUsername || "";
 }
 
 export async function writeAuditLog({
