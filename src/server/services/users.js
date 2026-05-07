@@ -1,4 +1,5 @@
 import { getDb, isDbConfigured } from "../db.js";
+import { getStaffScopeUnitName, isCommandStaffBillet } from "./unit-hierarchy.js";
 
 const sessionUserInclude = {
   roles: {
@@ -75,6 +76,16 @@ function permissionsFor(user) {
 
 export function toSessionUser(user) {
   if (!user) return null;
+  const profileUnitName = user.profile?.primaryUnit?.name || "";
+  const profileBilletName = user.profile?.primaryBillet?.name || "";
+  const scopedUnitName = getStaffScopeUnitName({
+    unitName: profileUnitName,
+    billetName: profileBilletName,
+  });
+  const commandBillet = isCommandStaffBillet({
+    unitName: profileUnitName,
+    billetName: profileBilletName,
+  });
 
   return {
     id: user.id,
@@ -82,12 +93,22 @@ export function toSessionUser(user) {
     username: user.discordUsername,
     displayName: user.discordDisplayName || user.discordUsername,
     alias: user.displayAlias,
-    email: user.email,
+    steam64Id: user.steam64Id,
+    steamUsername: user.steamUsername,
+    steamProfileUrl: user.steamProfileUrl,
+    steamAvatarUrl: user.steamAvatarUrl,
+    steamLinkedAt: user.steamLinkedAt,
+    steamLastSyncedAt: user.steamLastSyncedAt,
+    timezone: user.timezone,
     accountStatus: user.accountStatus,
     accountLocked: user.accountLocked,
     accountDisabled: user.accountDisabled,
     roles: roleNamesFor(user),
     permissions: permissionsFor(user),
+    access: {
+      personnelScope: commandBillet ? "all" : scopedUnitName ? "scoped" : "self",
+      personnelScopeUnit: commandBillet ? "Task Force 20" : scopedUnitName,
+    },
     profile: user.profile
       ? {
           id: user.profile.id,
@@ -126,7 +147,13 @@ function toAdminUser(user) {
     username: user.discordUsername,
     displayName: user.discordDisplayName || user.discordUsername,
     alias: user.displayAlias,
-    email: user.email,
+    steam64Id: user.steam64Id,
+    steamUsername: user.steamUsername,
+    steamProfileUrl: user.steamProfileUrl,
+    steamAvatarUrl: user.steamAvatarUrl,
+    steamLinkedAt: user.steamLinkedAt,
+    steamLastSyncedAt: user.steamLastSyncedAt,
+    timezone: user.timezone,
     accountStatus: user.accountStatus,
     accountLocked: user.accountLocked,
     accountDisabled: user.accountDisabled,
@@ -148,7 +175,6 @@ export async function upsertDiscordUser(profile) {
       discordId: profile.id,
       username: profile.username,
       displayName: profile.global_name || profile.displayName || profile.username,
-      email: profile.email,
       accountStatus: "Applicant",
       roles: ["applicant"],
       permissions: [],
@@ -164,14 +190,12 @@ export async function upsertDiscordUser(profile) {
       discordId: profile.id,
       discordUsername: profile.username,
       discordDisplayName: profile.global_name || profile.displayName || profile.username,
-      email: profile.email,
       accountStatus: "Applicant",
       lastLoginAt: new Date(),
     },
     update: {
       discordUsername: profile.username,
       discordDisplayName: profile.global_name || profile.displayName || profile.username,
-      email: profile.email,
       lastLoginAt: new Date(),
     },
     include: sessionUserInclude,

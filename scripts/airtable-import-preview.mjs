@@ -2,6 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  inferUnitNameForRosterRecord,
+  isCurrentMemberStatus,
+  suggestPortalRoleForRosterRecord,
+} from "../src/server/services/unit-hierarchy.js";
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultInputPath = path.join(projectRoot, ".private", "airtable-roster.json");
 const defaultOutputPath = path.join(projectRoot, ".private", "airtable-import-preview.json");
@@ -134,6 +140,7 @@ function buildPreviewReport(rosterRows, payloadRoot) {
       discordName: member.discordName || null,
       discordId: member.discordId || null,
       steamId: member.steamId || null,
+      timezone: member.timezone || null,
       dateOfEnlistment: member.dateOfEnlistment || null,
       rawStatus: member.rawStatus,
       mappedStatus: member.mappedStatus,
@@ -144,6 +151,9 @@ function buildPreviewReport(rosterRows, payloadRoot) {
       billet: member.billet || null,
       primaryMos: member.primaryMos || null,
       specialty: member.primaryMos || null,
+      platoon: member.platoon || null,
+      squad: member.squad || null,
+      fireTeam: member.fireTeam || null,
       shop: member.shop,
       suggestedPortalRole: member.suggestedPortalRole,
       importAction: member.importAction,
@@ -158,14 +168,23 @@ function normalizeRosterMember(row) {
   const rawAssignedTo = cleanText(row.assignedTo);
   const callsign = cleanText(row.callsign);
   const primaryMos = cleanText(row.primaryMos || row.primaryMOS || row["Primary MOS"] || row["PRIMARY MOS"] || row.specialty);
+  const platoon = cleanText(row.platoon);
+  const squad = cleanText(row.squad);
+  const fireTeam = cleanText(row.fireTeam);
   const discordId = normalizeSnowflake(row.discordId);
   const steamId = normalizeSteamId(row.steamId);
   const mappedStatus = mapStatus(rawStatus);
   const mappedRank = mapRank(rawRank);
-  const inferredUnit = inferUnit({ rawAssignedTo, billet: row.billet, platoon: row.platoon, squad: row.squad, shop: row.shop });
+  const inferredUnit = inferUnitNameForRosterRecord({ rawAssignedTo, billet: row.billet, platoon, squad, fireTeam, shop: row.shop });
   const shop = normalizeStringList(row.shop);
-  const isCurrentMember = isCurrentStatus(mappedStatus);
-  const suggestedPortalRole = suggestPortalRole({ mappedStatus, rawAssignedTo, billet: row.billet, shop });
+  const isCurrentMember = isCurrentMemberStatus(mappedStatus);
+  const suggestedPortalRole = suggestPortalRoleForRosterRecord({
+    mappedStatus,
+    rawAssignedTo,
+    unitName: inferredUnit,
+    billet: row.billet,
+    shop,
+  });
 
   const validationFlags = [];
   if (!mappedStatus) validationFlags.push("unmapped-status");
@@ -183,6 +202,7 @@ function normalizeRosterMember(row) {
     discordName: cleanText(row.discordName),
     discordId,
     steamId,
+    timezone: cleanText(row.timezone || row.timeZone || row["TIME ZONE"] || row["Timezone"]),
     rawStatus,
     mappedStatus,
     rawRank,
@@ -192,8 +212,9 @@ function normalizeRosterMember(row) {
     billet: cleanText(row.billet),
     primaryMos,
     specialty: primaryMos,
-    platoon: cleanText(row.platoon),
-    squad: cleanText(row.squad),
+    platoon,
+    squad,
+    fireTeam,
     shop,
     isCurrentMember,
     suggestedPortalRole,
@@ -257,52 +278,6 @@ function mapRank(rawRank) {
   };
 
   return rankMap[value] || null;
-}
-
-function inferUnit({ rawAssignedTo, billet, platoon, squad, shop }) {
-  const text = [rawAssignedTo, billet, platoon, squad, ...normalizeStringList(shop)].map(normalizeKey).join(" ");
-
-  if (!text) return null;
-  if (text.includes("sfod") || text.includes("delta")) return "1 Troop, A Squadron, 1st SFOD-Delta";
-  if (text.includes("160th") || text.includes("soar") || text.includes("aviation")) return "B Co, 2/160th SOAR";
-  if (text.includes("75th") || text.includes("ranger")) return "A Co, 1/75th Ranger Regiment";
-  if (text.includes("recruit")) return "Recruit Holding / Training Pipeline";
-  if (text.includes("command") || text.includes("headquarters") || text.includes("hhc")) return "Task Force 20";
-  if (text.includes("s1") || text.includes("s2") || text.includes("s3") || text.includes("s4") || text.includes("s6")) {
-    return "Task Force 20";
-  }
-
-  return null;
-}
-
-function suggestPortalRole({ mappedStatus, rawAssignedTo, billet, shop }) {
-  if (!isCurrentStatus(mappedStatus)) return "Applicant";
-
-  const text = [rawAssignedTo, billet, ...shop].map(normalizeKey).join(" ");
-
-  if (text.includes("system") || text.includes("s6") || text.includes("j6")) return "System Admin";
-  if (text.includes("command") || text.includes("commander") || text.includes("xo") || text.includes("1sg")) {
-    return "Command Staff";
-  }
-  if (text.includes("recruit")) return "Recruiter";
-  if (
-    text.includes("s1") ||
-    text.includes("s2") ||
-    text.includes("s3") ||
-    text.includes("s4") ||
-    text.includes("j1") ||
-    text.includes("j2") ||
-    text.includes("j3") ||
-    text.includes("j4") ||
-    text.includes("staff")
-  ) {
-    return "Staff";
-  }
-  return "Member";
-}
-
-function isCurrentStatus(status) {
-  return ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"].includes(status);
 }
 
 function findDuplicates(rows, key) {

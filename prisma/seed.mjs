@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
+import { standardBilletDefinitions, unitDefinitions, unitNameForKey } from "../src/server/services/unit-hierarchy.js";
+
 const prisma = new PrismaClient();
 
 const permissions = [
@@ -111,6 +113,84 @@ async function main() {
         },
       });
     }
+  }
+
+  const unitMap = new Map();
+
+  for (const unitDefinition of unitDefinitions) {
+    const parent = unitDefinition.parentKey ? unitMap.get(unitNameForKey(unitDefinition.parentKey)) : null;
+    const unit = await prisma.unit.findFirst({
+      where: { name: unitDefinition.name },
+      select: { id: true, name: true },
+    });
+
+    const data = {
+      name: unitDefinition.name,
+      type: unitDefinition.type,
+      parentId: parent?.id || null,
+      sortOrder: unitDefinition.sortOrder || 0,
+      isActive: true,
+    };
+
+    const record = unit
+      ? await prisma.unit.update({
+          where: { id: unit.id },
+          data,
+          select: { id: true, name: true },
+        })
+      : await prisma.unit.create({
+          data,
+          select: { id: true, name: true },
+        });
+
+    unitMap.set(record.name, record);
+  }
+
+  const billetCategoryMap = new Map();
+  for (const categoryName of [...new Set(standardBilletDefinitions.map((billet) => billet.category))]) {
+    const category = await prisma.billetCategory.upsert({
+      where: { name: categoryName },
+      update: {},
+      create: { name: categoryName },
+      select: { id: true, name: true },
+    });
+    billetCategoryMap.set(category.name, category);
+  }
+
+  for (const billetDefinition of standardBilletDefinitions) {
+    const unitName = unitNameForKey(billetDefinition.unitKey);
+    const unit = unitName ? unitMap.get(unitName) : null;
+    const category = billetCategoryMap.get(billetDefinition.category);
+
+    if (!unit || !category) continue;
+
+    const existing = await prisma.billet.findFirst({
+      where: {
+        unitId: unit.id,
+        name: billetDefinition.name,
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.billet.update({
+        where: { id: existing.id },
+        data: {
+          categoryId: category.id,
+          unitId: unit.id,
+          name: billetDefinition.name,
+        },
+      });
+      continue;
+    }
+
+    await prisma.billet.create({
+      data: {
+        categoryId: category.id,
+        unitId: unit.id,
+        name: billetDefinition.name,
+      },
+    });
   }
 }
 

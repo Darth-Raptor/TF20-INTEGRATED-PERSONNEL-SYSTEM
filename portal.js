@@ -47,12 +47,6 @@ const personnelDetail = document.querySelector("#personnelDetail");
 const personnelDetailStatus = document.querySelector("#personnelDetailStatus");
 const profileDetail = document.querySelector("#profileDetail");
 const profileDetailStatus = document.querySelector("#profileDetailStatus");
-const profileSelfServiceForm = document.querySelector("#profileSelfServiceForm");
-const profileAliasInput = document.querySelector("#profileAliasInput");
-const profileSteam64Input = document.querySelector("#profileSteam64Input");
-const profileTimezoneInput = document.querySelector("#profileTimezoneInput");
-const profileSelfServiceFeedback = document.querySelector("#profileSelfServiceFeedback");
-const profileSelfServiceSave = document.querySelector("#profileSelfServiceSave");
 const flagTrainingButton = document.querySelector("#flagTrainingButton");
 const recommendPromotionButton = document.querySelector("#recommendPromotionButton");
 const auditRows = document.querySelector("#auditRows");
@@ -171,7 +165,6 @@ Object.entries(applicationFieldMap).forEach(([key, field]) => {
 });
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
-profileSelfServiceForm?.addEventListener("submit", submitProfileSelfServiceForm);
 
 markContactedButton.addEventListener("click", () => updateSelectedApplication("Contacted", "Applicant marked contacted"));
 acceptApplicantButton.addEventListener("click", () => updateSelectedApplication("Accepted", "Applicant accepted and recruit conversion queued"));
@@ -485,9 +478,18 @@ async function loadPersonnel() {
   personnelRows.innerHTML = `<tr><td colspan="7">Loading personnel...</td></tr>`;
 
   try {
-    const response = canReadAllPersonnel()
-      ? await fetchJson("/api/personnel?limit=100")
-      : { items: [(await fetchJson("/api/personnel/me")).item] };
+    let response;
+    try {
+      response = canReadAllPersonnel()
+        ? await fetchJson("/api/personnel?limit=100")
+        : { items: [(await fetchJson("/api/personnel/me")).item] };
+    } catch (error) {
+      if (error.status === 403 && canReadAllPersonnel()) {
+        response = { items: [(await fetchJson("/api/personnel/me")).item] };
+      } else {
+        throw error;
+      }
+    }
 
     personnel = (response.items || []).filter(Boolean).map(normalizePersonnel);
     if (!personnel.some((member) => member.id === selectedPersonnelId)) {
@@ -646,6 +648,8 @@ function personnelDetailMarkup(member) {
       <div><span>Staff Assignment</span><strong>${escapeHtml(member.staff)}</strong></div>
       <div><span>Discord</span><strong>${escapeHtml(member.discord)}</strong></div>
       <div><span>Steam64</span><strong>${escapeHtml(member.steam64 || "Missing")}</strong></div>
+      <div><span>Steam Name</span><strong>${escapeHtml(member.steamUsername || "Not linked")}</strong></div>
+      <div><span>Steam Profile</span><strong>${steamProfileLinkMarkup(member)}</strong></div>
       <div><span>Timezone</span><strong>${escapeHtml(member.timezone || "Missing")}</strong></div>
       <div><span>Attendance</span><strong>${escapeHtml(member.attendance)}</strong></div>
       <div><span>LOA</span><strong>${escapeHtml(member.loa)}</strong></div>
@@ -665,7 +669,6 @@ function renderProfileView() {
   if (!profileDetail || !profileDetailStatus) return;
 
   const member = currentUserPersonnelProfile();
-  clearProfileSelfServiceFeedback();
 
   if (!member) {
     const displayName = displayUserName(currentUser);
@@ -683,95 +686,19 @@ function renderProfileView() {
         <div><span>Discord</span><strong>${escapeHtml(currentUser?.username || "Unknown")}</strong></div>
         <div><span>Display Alias</span><strong>${escapeHtml(displayName)}</strong></div>
         <div><span>Steam64</span><strong>${escapeHtml(currentUser?.steam64Id || "Missing")}</strong></div>
+        <div><span>Steam Name</span><strong>${escapeHtml(currentUser?.steamUsername || "Not linked")}</strong></div>
+        <div><span>Steam Profile</span><strong>${steamProfileLinkMarkup(currentUser)}</strong></div>
         <div><span>Timezone</span><strong>${escapeHtml(currentUser?.timezone || "Missing")}</strong></div>
         <div><span>Account Status</span><strong>${escapeHtml(accountStatusLabel(currentUser?.accountStatus || "Authenticated"))}</strong></div>
         <div><span>Roles</span><strong>${escapeHtml(roleNames)}</strong></div>
       </div>
       <p class="detail-copy">${escapeHtml(personnelLoadError || "This account is authenticated, but no personnel profile is linked yet.")}</p>
     `;
-    if (profileSelfServiceForm) {
-      profileSelfServiceForm.hidden = true;
-    }
-    if (profileAliasInput) profileAliasInput.value = "";
-    if (profileSteam64Input) profileSteam64Input.value = "";
-    if (profileTimezoneInput) profileTimezoneInput.value = "";
     return;
   }
 
   profileDetailStatus.textContent = member.statusLabel;
   profileDetail.innerHTML = personnelDetailMarkup(member);
-  if (profileSelfServiceForm) {
-    profileSelfServiceForm.hidden = false;
-  }
-  if (profileAliasInput) profileAliasInput.value = member.alias || "";
-  if (profileSteam64Input) profileSteam64Input.value = member.steam64 || "";
-  if (profileTimezoneInput) profileTimezoneInput.value = member.timezone || "";
-}
-
-async function submitProfileSelfServiceForm(event) {
-  event.preventDefault();
-  const member = currentUserPersonnelProfile();
-  if (!member) {
-    setProfileSelfServiceFeedback("No linked personnel profile was found for this account.", "error");
-    return;
-  }
-
-  const displayAlias = profileAliasInput.value.trim();
-  const steam64Id = profileSteam64Input.value.trim();
-  const timezone = profileTimezoneInput.value.trim();
-
-  if (!displayAlias) {
-    setProfileSelfServiceFeedback("Display alias is required.", "error");
-    profileAliasInput.focus();
-    return;
-  }
-
-  if (steam64Id && !/^7656119\d{10}$/.test(steam64Id)) {
-    setProfileSelfServiceFeedback("Steam64 ID must be 17 digits and start with 7656119.", "error");
-    profileSteam64Input.focus();
-    return;
-  }
-
-  if (timezone && !/^[A-Za-z]{2,5}(?:\/[A-Za-z_]+)?$|^UTC[+-]\d{1,2}$|^GMT[+-]\d{1,2}$/.test(timezone)) {
-    setProfileSelfServiceFeedback("Use a short timezone like CST, EST, UTC, or UTC-5.", "error");
-    profileTimezoneInput.focus();
-    return;
-  }
-
-  profileSelfServiceSave.disabled = true;
-  clearProfileSelfServiceFeedback();
-
-  try {
-    const response = await fetchJson("/api/personnel/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ displayAlias, steam64Id, timezone }),
-    });
-
-    const updatedMember = normalizePersonnel(response.item);
-    personnel = personnel.map((item) => (item.id === updatedMember.id ? updatedMember : item));
-    currentUser = {
-      ...currentUser,
-      alias: updatedMember.alias,
-      profile: {
-        ...currentUser?.profile,
-      },
-    };
-
-    const session = await fetchJson("/api/me");
-    currentUser = session.user;
-    updateSessionSummary();
-    renderPersonnel();
-    renderProfileView();
-    renderDashboardSummary();
-    setProfileSelfServiceFeedback("Your profile has been updated.", "success");
-    showToast("Profile updated.");
-  } catch (error) {
-    console.error(error);
-    setProfileSelfServiceFeedback(error.message || "Unable to update your profile.", "error");
-  } finally {
-    profileSelfServiceSave.disabled = false;
-  }
 }
 
 function renderAudit() {
@@ -901,7 +828,6 @@ function renderUserDetail() {
   userDetailStatus.textContent = user.accountStatus || "Unknown status";
   userIdentity.innerHTML = `
     <div><span>Discord</span><strong>${escapeHtml(user.username || "Unknown")}</strong></div>
-    <div><span>Email</span><strong>${escapeHtml(user.email || "Not provided")}</strong></div>
     <div><span>Discord ID</span><strong>${escapeHtml(user.discordId || "Not provided")}</strong></div>
   `;
 
@@ -1095,6 +1021,11 @@ function normalizePersonnel(item) {
     alias,
     discord: user.discordUsername || "Unknown Discord",
     steam64: user.steam64Id || "",
+    steamUsername: user.steamUsername || "",
+    steamProfileUrl: user.steamProfileUrl || "",
+    steamAvatarUrl: user.steamAvatarUrl || "",
+    steamLinkedAt: user.steamLinkedAt,
+    steamLastSyncedAt: user.steamLastSyncedAt,
     timezone: user.timezone || "",
     unit,
     primaryMos: item?.primaryMos || "",
@@ -1214,10 +1145,11 @@ function deriveAccessRole(user) {
   const permissions = new Set(user?.permissions || []);
 
   if (roles.has("system-admin") || permissions.has("system:admin")) return "system";
-  if (roles.has("command-staff")) return "command";
+  if (roles.has("command-staff") || user?.access?.personnelScope === "all") return "command";
   if (
     roles.has("staff") ||
     roles.has("recruiter") ||
+    user?.access?.personnelScope === "scoped" ||
     permissions.has("applications:write") ||
     permissions.has("personnel:write")
   ) {
@@ -1326,10 +1258,6 @@ function clearApplicationFeedback() {
   setApplicationFeedback("", "");
 }
 
-function clearProfileSelfServiceFeedback() {
-  setProfileSelfServiceFeedback("", "");
-}
-
 function setApplicationFeedback(message, state) {
   if (!applicationFormFeedback) return;
 
@@ -1340,30 +1268,34 @@ function setApplicationFeedback(message, state) {
   }
 }
 
-function setProfileSelfServiceFeedback(message, state) {
-  if (!profileSelfServiceFeedback) return;
-
-  profileSelfServiceFeedback.textContent = message;
-  profileSelfServiceFeedback.classList.remove("error", "success");
-  if (state) {
-    profileSelfServiceFeedback.classList.add(state);
-  }
-}
-
 function canManageUsers() {
   return activeAccessRole === "system" || hasPermission("system:admin");
 }
 
 function canReadAllPersonnel() {
-  return hasPermission("personnel:read") || hasPermission("system:admin");
+  return (
+    hasPermission("personnel:read") ||
+    hasPermission("system:admin") ||
+    ["all", "scoped"].includes(currentUser?.access?.personnelScope)
+  );
 }
 
 function canReadAudit() {
+  const roles = new Set(currentUser?.roles || []);
   return (
     hasPermission("audit:read") ||
     hasPermission("system:admin") ||
-    ["staff", "command", "system"].includes(activeAccessRole)
+    roles.has("staff") ||
+    roles.has("command-staff") ||
+    roles.has("system-admin")
   );
+}
+
+function steamProfileLinkMarkup(item) {
+  const steam64Id = item?.steam64 || item?.steam64Id || "";
+  const profileUrl = item?.steamProfileUrl || (steam64Id ? `https://steamcommunity.com/profiles/${steam64Id}/` : "");
+  if (!profileUrl) return "Missing";
+  return `<a href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener">Open profile</a>`;
 }
 
 function updateSessionSummary(error) {
@@ -1394,7 +1326,9 @@ async function fetchJson(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.error || `Request failed with ${response.status}`);
+    const error = new Error(payload?.error || `Request failed with ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

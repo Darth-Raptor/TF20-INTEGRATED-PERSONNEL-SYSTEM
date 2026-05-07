@@ -11,6 +11,9 @@ export const config = {
     clientSecret: process.env.DISCORD_CLIENT_SECRET,
     callbackUrl: process.env.DISCORD_CALLBACK_URL || "http://localhost:3000/auth/discord/callback",
   },
+  steam: {
+    webApiKey: process.env.STEAM_WEB_API_KEY,
+  },
 };
 
 export function validateConfig() {

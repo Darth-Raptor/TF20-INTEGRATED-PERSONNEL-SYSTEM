@@ -4,7 +4,7 @@ import { config } from "../config.js";
 import { isDbConfigured } from "../db.js";
 import { getSessionUserById, upsertDiscordUser } from "../services/users.js";
 
-const scopes = ["identify", "email"];
+const scopes = ["identify"];
 
 export function configureAuth(passport) {
   if (config.discord.clientId && config.discord.clientSecret) {

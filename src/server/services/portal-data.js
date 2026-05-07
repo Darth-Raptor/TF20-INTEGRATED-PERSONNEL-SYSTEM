@@ -1,4 +1,5 @@
 import { getDb, isDbConfigured } from "../db.js";
+import { getStaffScopeUnitName, isCommandStaffBillet } from "./unit-hierarchy.js";
 
 const applicationStatuses = new Set([
   "NotStarted",
@@ -47,9 +48,13 @@ const personnelProfileInclude = {
       discordDisplayName: true,
       displayAlias: true,
       steam64Id: true,
+      steamUsername: true,
+      steamProfileUrl: true,
+      steamAvatarUrl: true,
+      steamLinkedAt: true,
+      steamLastSyncedAt: true,
       timezone: true,
       accountStatus: true,
-      email: true,
     },
   },
   currentRank: true,
@@ -80,6 +85,127 @@ function assertCanReadApplication(user, application) {
   const permissions = user?.permissions || [];
   if (permissions.includes("applications:read") || permissions.includes("system:admin")) return;
   if (application.userId === user?.id) return;
+
+  const error = new Error("Forbidden");
+  error.statusCode = 403;
+  throw error;
+}
+
+function hasFullPersonnelAccess(user) {
+  const roles = user?.roles || [];
+  const permissions = user?.permissions || [];
+
+  if (permissions.includes("system:admin")) return true;
+  if (roles.some((role) => ["system-admin", "command", "command-staff"].includes(role))) return true;
+  if (
+    isCommandStaffBillet({
+      unitName: user?.profile?.unit?.name,
+      billetName: user?.profile?.billet?.name,
+    })
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function canReadScopedPersonnel(user) {
+  const roles = user?.roles || [];
+  const permissions = user?.permissions || [];
+  const hasBilletScope = Boolean(
+    getStaffScopeUnitName({
+      unitName: user?.profile?.unit?.name,
+      billetName: user?.profile?.billet?.name,
+    }),
+  );
+
+  return (
+    hasFullPersonnelAccess(user) ||
+    hasBilletScope ||
+    permissions.includes("personnel:read") ||
+    roles.some((role) => ["staff", "recruiter"].includes(role))
+  );
+}
+
+export function canAccessPersonnelRoster(user) {
+  return canReadScopedPersonnel(user);
+}
+
+function mergeWhere(...clauses) {
+  const filters = clauses.filter((clause) => clause && Object.keys(clause).length);
+  if (!filters.length) return {};
+  if (filters.length === 1) return filters[0];
+  return { AND: filters };
+}
+
+async function getUnitAndDescendantIds(rootUnitName) {
+  if (!rootUnitName) return [];
+
+  const db = getDb();
+  const root = await db.unit.findFirst({
+    where: { name: rootUnitName },
+    select: { id: true },
+  });
+
+  if (!root) return [];
+
+  const units = await db.unit.findMany({
+    select: { id: true, parentId: true },
+  });
+  const childrenByParentId = new Map();
+
+  for (const unit of units) {
+    if (!unit.parentId) continue;
+    const children = childrenByParentId.get(unit.parentId) || [];
+    children.push(unit.id);
+    childrenByParentId.set(unit.parentId, children);
+  }
+
+  const visibleIds = new Set([root.id]);
+  const queue = [root.id];
+
+  while (queue.length) {
+    const unitId = queue.shift();
+    for (const childId of childrenByParentId.get(unitId) || []) {
+      if (visibleIds.has(childId)) continue;
+      visibleIds.add(childId);
+      queue.push(childId);
+    }
+  }
+
+  return [...visibleIds];
+}
+
+async function personnelAccessWhere(actorUser) {
+  if (hasFullPersonnelAccess(actorUser)) return {};
+
+  const ownProfileId = actorUser?.profile?.id || null;
+  if (!canReadScopedPersonnel(actorUser)) {
+    return ownProfileId ? { id: ownProfileId } : { id: "__no_personnel_access__" };
+  }
+
+  const scopeUnitName = getStaffScopeUnitName({
+    unitName: actorUser?.profile?.unit?.name,
+    billetName: actorUser?.profile?.billet?.name,
+  });
+  const scopedUnitIds = await getUnitAndDescendantIds(scopeUnitName);
+  const filters = [];
+
+  if (ownProfileId) filters.push({ id: ownProfileId });
+  if (scopedUnitIds.length) filters.push({ primaryUnitId: { in: scopedUnitIds } });
+
+  return filters.length ? { OR: filters } : { id: "__no_personnel_scope__" };
+}
+
+export async function assertCanAccessPersonnelProfile(actorUser, profileId) {
+  assertDatabaseReady();
+
+  if (!profileId || hasFullPersonnelAccess(actorUser)) return;
+
+  const where = mergeWhere({ id: profileId }, await personnelAccessWhere(actorUser));
+  const count = await getDb().personnelProfile.count({ where });
+
+  if (count > 0) return;
 
   const error = new Error("Forbidden");
   error.statusCode = 403;
@@ -488,7 +614,7 @@ export async function updateApplicationStatus({
   return (await listApplications({ actorUser, limit: 100 })).find((item) => item.id === applicationId);
 }
 
-export async function listPersonnel({ status, search, limit = 50 } = {}) {
+export async function listPersonnel({ status, search, limit = 50, actorUser } = {}) {
   assertDatabaseReady();
 
   const where = {};
@@ -507,8 +633,9 @@ export async function listPersonnel({ status, search, limit = 50 } = {}) {
     ];
   }
 
+  const accessWhere = await personnelAccessWhere(actorUser);
   const personnel = await getDb().personnelProfile.findMany({
-    where,
+    where: mergeWhere(accessWhere, where),
     take: limit,
     orderBy: [{ updatedAt: "desc" }],
     include: personnelProfileInclude,
@@ -530,124 +657,14 @@ export async function getPersonnelForUser(userId) {
   return profile ? toPersonnelItem(profile) : null;
 }
 
-export async function updatePersonnelForUser({
-  actorUserId,
-  displayAlias,
-  steam64Id,
-  timezone,
-  ipSessionMetadata,
-}) {
-  assertDatabaseReady();
-
-  if (!actorUserId) {
-    const error = new Error("Authenticated user is required.");
-    error.statusCode = 401;
-    throw error;
-  }
-
-  const db = getDb();
-  const cleanedAlias = normalizeText(displayAlias, 80);
-  const cleanedSteam64Id = normalizeText(steam64Id, 32);
-  const cleanedTimezone = normalizeText(timezone, 64);
-
-  if (!cleanedAlias) {
-    const error = new Error("Display alias is required.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (cleanedSteam64Id && !/^7656119\d{10}$/.test(cleanedSteam64Id)) {
-    const error = new Error("Steam64 ID must be 17 digits and start with 7656119.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (cleanedTimezone && !/^[A-Za-z]{2,5}(?:\/[A-Za-z_]+)?$|^UTC[+-]\d{1,2}$|^GMT[+-]\d{1,2}$/.test(cleanedTimezone)) {
-    const error = new Error("Timezone must be a short value like CST, EST, UTC, or UTC-5.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (cleanedSteam64Id) {
-    const existingSteamUser = await db.user.findFirst({
-      where: {
-        steam64Id: cleanedSteam64Id,
-        NOT: { id: actorUserId },
-      },
-      select: { id: true },
-    });
-
-    if (existingSteamUser) {
-      const error = new Error("That Steam64 ID is already linked to another account.");
-      error.statusCode = 409;
-      throw error;
-    }
-  }
-
-  await db.$transaction(async (tx) => {
-    const currentUser = await tx.user.findUnique({
-      where: { id: actorUserId },
-      select: {
-        id: true,
-        displayAlias: true,
-        steam64Id: true,
-        timezone: true,
-        profile: {
-          select: { id: true },
-        },
-      },
-    });
-
-    if (!currentUser?.profile?.id) {
-      const error = new Error("Personnel profile not found for this account.");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    await tx.user.update({
-      where: { id: actorUserId },
-      data: {
-        displayAlias: cleanedAlias,
-        steam64Id: cleanedSteam64Id || null,
-        timezone: cleanedTimezone || null,
-      },
-    });
-
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        affectedProfileId: currentUser.profile.id,
-        module: "Personnel Profile",
-        action: "Updated Self-Service Profile",
-        oldValue: {
-          displayAlias: currentUser.displayAlias,
-          steam64Id: currentUser.steam64Id,
-          timezone: currentUser.timezone,
-        },
-        newValue: {
-          displayAlias: cleanedAlias,
-          steam64Id: cleanedSteam64Id || null,
-          timezone: cleanedTimezone || null,
-        },
-        reason: "Member updated self-service profile fields.",
-        relatedRecordId: actorUserId,
-        severity: "Info",
-        systemGenerated: false,
-        ipSessionMetadata,
-      },
-    });
-  });
-
-  return getPersonnelForUser(actorUserId);
-}
-
-export async function getPortalSummary() {
+export async function getPortalSummary({ actorUser } = {}) {
   assertDatabaseReady();
 
   const db = getDb();
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const activeRosterStatuses = ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"];
+  const accessWhere = await personnelAccessWhere(actorUser);
 
   const [
     personnelByStatus,
@@ -668,15 +685,16 @@ export async function getPortalSummary() {
   ] = await Promise.all([
     db.personnelProfile.groupBy({
       by: ["currentStatus"],
+      where: accessWhere,
       _count: { _all: true },
     }),
-    db.personnelProfile.count(),
-    db.personnelProfile.count({ where: { currentStatus: "Active" } }),
-    db.personnelProfile.count({ where: { primaryBilletId: null } }),
+    db.personnelProfile.count({ where: accessWhere }),
+    db.personnelProfile.count({ where: mergeWhere(accessWhere, { currentStatus: "Active" }) }),
+    db.personnelProfile.count({ where: mergeWhere(accessWhere, { primaryBilletId: null }) }),
     db.personnelProfile.count({
-      where: {
+      where: mergeWhere(accessWhere, {
         OR: [{ primaryMos: null }, { primaryMos: "" }],
-      },
+      }),
     }),
     db.application.groupBy({
       by: ["status"],
@@ -689,10 +707,10 @@ export async function getPortalSummary() {
     db.auditLog.count(),
     db.personnelProfile.groupBy({
       by: ["primaryUnitId"],
-      where: {
+      where: mergeWhere(accessWhere, {
         currentStatus: { in: activeRosterStatuses },
         primaryUnitId: { not: null },
-      },
+      }),
       _count: { _all: true },
     }),
     db.personnelQualification.count({
@@ -763,10 +781,20 @@ export async function getPortalSummary() {
   };
 }
 
-export async function listAuditLogs({ limit = 50 } = {}) {
+export async function listAuditLogs({ limit = 50, actorUser } = {}) {
   assertDatabaseReady();
 
+  const accessWhere = await personnelAccessWhere(actorUser);
+  const where = hasFullPersonnelAccess(actorUser)
+    ? {}
+    : {
+        affectedProfile: {
+          is: accessWhere,
+        },
+      };
+
   const entries = await getDb().auditLog.findMany({
+    where,
     take: limit,
     orderBy: { createdAt: "desc" },
     include: {

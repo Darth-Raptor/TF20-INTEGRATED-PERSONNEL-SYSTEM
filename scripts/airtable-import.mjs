@@ -3,6 +3,13 @@ import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { fileURLToPath } from "node:url";
 
+import {
+  expandUnitNamesWithAncestors,
+  unitDefinitionForName,
+  unitDefinitions,
+  unitNameForKey,
+} from "../src/server/services/unit-hierarchy.js";
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const defaultPreviewPath = path.join(projectRoot, ".private", "airtable-import-preview.json");
 
@@ -73,6 +80,7 @@ async function importPreview(previewReport, options) {
     profilesCreated: 0,
     profilesUpdated: 0,
     rolesAssigned: 0,
+    assignmentsEnded: 0,
     assignmentsCreated: 0,
     staffAssignmentsCreated: 0,
     auditLogsCreated: 0,
@@ -176,14 +184,24 @@ async function importPreview(previewReport, options) {
       const existingAssignment = await prisma.unitAssignment.findFirst({
         where: {
           profileId: profile.id,
-          unitId: unit.id,
           assignmentType: "Primary",
           endDate: null,
         },
-        select: { id: true },
+        select: { id: true, unitId: true },
       });
 
-      if (!existingAssignment) {
+      if (existingAssignment?.unitId !== unit.id) {
+        if (existingAssignment) {
+          await prisma.unitAssignment.update({
+            where: { id: existingAssignment.id },
+            data: {
+              endDate: new Date(),
+              reason: `Closed by Airtable import batch ${importBatchId}.`,
+            },
+          });
+          totals.assignmentsEnded += 1;
+        }
+
         await prisma.unitAssignment.create({
           data: {
             profileId: profile.id,
@@ -270,6 +288,7 @@ function buildUserPayload(record) {
     discordDisplayName: displayAlias,
     displayAlias,
     steam64Id: record.steamId || null,
+    timezone: cleanText(record.timezone, 64) || null,
     accountStatus: record.mappedStatus,
   };
 }
@@ -314,13 +333,55 @@ async function ensureRanks(rankCodes, commitMode) {
 }
 
 async function ensureUnits(unitNames, commitMode) {
+  const canonicalDefinitions = expandUnitNamesWithAncestors(unitNames);
+  const canonicalNames = canonicalDefinitions.map((definition) => definition.name);
+  const unknownUnitNames = unitNames.filter((name) => name && !unitDefinitionForName(name));
+  const desiredUnitNames = [...new Set([...canonicalNames, ...unknownUnitNames])];
+
   const existing = await prisma.unit.findMany({
-    where: { name: { in: unitNames } },
-    select: { id: true, name: true, type: true },
+    where: { name: { in: desiredUnitNames } },
+    select: { id: true, name: true, type: true, parentId: true, sortOrder: true },
   });
   const map = new Map(existing.map((unit) => [unit.name, unit]));
 
-  for (const name of unitNames) {
+  for (const definition of unitDefinitions.filter((item) => canonicalDefinitions.some((candidate) => candidate.key === item.key))) {
+    const parentName = definition.parentKey ? unitNameForKey(definition.parentKey) : null;
+    const parent = parentName ? map.get(parentName) : null;
+    const existingUnit = map.get(definition.name);
+
+    if (existingUnit && !commitMode) continue;
+    if (!commitMode) {
+      map.set(definition.name, {
+        id: `dry-unit-${definition.key}`,
+        name: definition.name,
+        type: definition.type,
+        parentId: parent?.id || null,
+        sortOrder: definition.sortOrder || 0,
+      });
+      continue;
+    }
+
+    const data = {
+      name: definition.name,
+      type: definition.type,
+      parentId: parent?.id || null,
+      sortOrder: definition.sortOrder || 0,
+      isActive: true,
+    };
+    const record = existingUnit
+      ? await prisma.unit.update({
+          where: { id: existingUnit.id },
+          data,
+          select: { id: true, name: true, type: true, parentId: true, sortOrder: true },
+        })
+      : await prisma.unit.create({
+          data,
+          select: { id: true, name: true, type: true, parentId: true, sortOrder: true },
+        });
+    map.set(record.name, record);
+  }
+
+  for (const name of unknownUnitNames) {
     if (map.has(name)) continue;
     if (!commitMode) {
       map.set(name, { id: `dry-unit-${normalizeKey(name)}`, name, type: inferUnitType(name) });

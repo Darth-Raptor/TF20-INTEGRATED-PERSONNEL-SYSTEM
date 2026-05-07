@@ -8,6 +8,8 @@
       content="Task Force 20 protected portal for applicant, member, staff, and command workflows."
     />
     <title>TF20 Portal</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/tf20-favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/tf20-apple-touch-icon.png" />
     <link rel="stylesheet" href="portal.css" />
   </head>
   <body>
@@ -112,7 +114,7 @@
             <section class="panel role-panel" data-role-panel="member">
               <div class="panel-heading">
                 <h2>Member Dashboard</h2>
-                <span>Self-service</span>
+                <span>Member record</span>
               </div>
               <div id="memberDashboardState">
                 <p class="panel-copy">Loading profile status...</p>
@@ -163,39 +165,11 @@
 
             <section class="panel">
               <div class="panel-heading">
-                <h2>Update My Profile</h2>
-                <span>Self-service</span>
-              </div>
-              <form class="stack-form" id="profileSelfServiceForm">
-                <label>
-                  Display Alias
-                  <input id="profileAliasInput" name="displayAlias" type="text" maxlength="80" />
-                </label>
-                <label>
-                  Steam64 ID
-                  <input id="profileSteam64Input" name="steam64Id" type="text" inputmode="numeric" placeholder="7656119..." />
-                </label>
-                <label>
-                  Timezone
-                  <input id="profileTimezoneInput" name="timezone" type="text" placeholder="CST, EST, UTC..." />
-                </label>
-                <p class="detail-form-note">
-                  This page updates only your self-service identity fields. Rank, unit, billet, and staff assignments stay staff-managed.
-                </p>
-                <p class="form-feedback" id="profileSelfServiceFeedback" role="status" aria-live="polite"></p>
-                <div class="action-row">
-                  <button class="button primary" type="submit" id="profileSelfServiceSave">Save My Profile</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Profile Scope</h2>
-                <span>Visibility</span>
+                <h2>Profile Authority</h2>
+                <span>Staff managed</span>
               </div>
               <p class="panel-copy">
-                Your profile page shows the current account-linked personnel record, including unit, billet, assignment summary, and the self-service fields you can maintain yourself.
+                Member profile fields are read-only. Display alias, timezone, Steam identity, rank, unit, billet, and staff assignments are set at enlistment or by authorized staff.
               </p>
             </section>
           </div>
@@ -397,27 +371,57 @@
                 <ul>
                   <li>Task Force 20
                     <ul>
-                      <li>HHC
+                      <li>Task Force 20 HHC
                         <ul>
-                          <li>Recruit Holding / Training Pipeline</li>
-                          <li>A CO, 1/75th Ranger Regiment
+                          <li>Commanding Officer</li>
+                          <li>Executive Officer</li>
+                          <li>NCOIC</li>
+                          <li>A Co, 1/75th Ranger Regiment
                             <ul>
-                              <li>A CO HHC</li>
+                              <li>Commanding Officer</li>
+                              <li>Executive Officer</li>
                               <li>1st Platoon
                                 <ul>
-                                  <li>Platoon Headquarters</li>
-                                  <li>1st Squad: A Team, B Team</li>
-                                  <li>2nd Squad: A Team, B Team</li>
-                                  <li>3rd Squad: A Team, B Team</li>
-                                  <li>Weapons Squad</li>
+                                  <li>1st Platoon Leader</li>
+                                  <li>1st Platoon Sergeant</li>
+                                  <li>1st Squad
+                                    <ul>
+                                      <li>1st Squad Leader</li>
+                                      <li>A Team Leader</li>
+                                      <li>B Team Leader</li>
+                                    </ul>
+                                  </li>
+                                  <li>2nd Squad
+                                    <ul>
+                                      <li>2nd Squad Leader</li>
+                                      <li>A Team Leader</li>
+                                      <li>B Team Leader</li>
+                                    </ul>
+                                  </li>
                                 </ul>
                               </li>
                             </ul>
                           </li>
-                          <li>1 Troop, A Squadron, 1st SFOD-Delta: A Team, B Team</li>
-                          <li>B CO, 2/160th SOAR: B CO HHC, 1st Platoon, 1st Squad</li>
+                          <li>1 Troop, A Squadron, 1st SFOD-Delta
+                            <ul>
+                              <li>A Team
+                                <ul>
+                                  <li>A Team Leader</li>
+                                  <li>A Assistant Team Leader</li>
+                                </ul>
+                              </li>
+                              <li>B Team
+                                <ul>
+                                  <li>B Team Leader</li>
+                                  <li>B Assistant Team Leader</li>
+                                </ul>
+                              </li>
+                            </ul>
+                          </li>
                         </ul>
                       </li>
+                      <li>Recruit Holding / Training Pipeline</li>
+                      <li>B Co, 2/160th SOAR</li>
                     </ul>
                   </li>
                 </ul>
@@ -444,7 +448,7 @@
                 <span>Separate from rank</span>
               </div>
               <p class="panel-copy">
-                Members have one current rank, one primary unit assignment, one primary billet, optional secondary billets, optional staff-section assignments, and multiple qualifications.
+                Yellow command billets receive task force visibility. Orange staff billets receive visibility for the unit subtree under their billet.
               </p>
             </section>
           </div>

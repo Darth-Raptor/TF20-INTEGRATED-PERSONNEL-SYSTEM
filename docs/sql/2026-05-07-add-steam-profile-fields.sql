@@ -1,0 +1,6 @@
+ALTER TABLE `User`
+  ADD COLUMN `steamUsername` VARCHAR(191) NULL,
+  ADD COLUMN `steamProfileUrl` VARCHAR(191) NULL,
+  ADD COLUMN `steamAvatarUrl` VARCHAR(191) NULL,
+  ADD COLUMN `steamLinkedAt` DATETIME(3) NULL,
+  ADD COLUMN `steamLastSyncedAt` DATETIME(3) NULL;

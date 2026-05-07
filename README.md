@@ -10,8 +10,10 @@ Public website and protected personnel-management portal for Task Force 20.
 - Discord OAuth login for protected portal access
 - Server-side sessions stored in the database
 - Role and permission seed data for Applicant, Member, Recruiter, Staff, Command Staff, and System Admin
+- Seeded Task Force 20 unit hierarchy and staff billet scopes
 - Live portal shell with Users & Roles management
 - Database-backed application submission and review flow
+- Steam profile fields and Web API support for future staff-managed identity workflows
 
 ## Important Security Rules
 
@@ -51,6 +53,7 @@ DATABASE_URL
 DISCORD_CLIENT_ID
 DISCORD_CLIENT_SECRET
 DISCORD_CALLBACK_URL
+STEAM_WEB_API_KEY
 ```
 
 Generate Prisma client and apply migrations:
@@ -80,6 +83,17 @@ Run syntax checks:
 ```bash
 npm run check
 ```
+
+## Personnel Visibility
+
+The portal uses billet-based personnel scope in addition to portal roles.
+
+- Command Staff role, System Admin role, and Task Force 20 HHC command billets
+  can see the full task force roster.
+- Staff billets can see personnel assigned to the unit subtree below their
+  billet. Example: the 1st Platoon Leader can see 1st and 2nd Squad personnel
+  under 1st Platoon, including A and B teams.
+- Members without staff scope see only their own personnel profile.
 
 ## Deployment Notes
 

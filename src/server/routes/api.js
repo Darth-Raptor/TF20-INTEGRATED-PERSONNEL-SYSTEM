@@ -3,6 +3,8 @@ import express from "express";
 import { config } from "../config.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
+  assertCanAccessPersonnelProfile,
+  canAccessPersonnelRoster,
   getPortalSummary,
   listApplications,
   listAuditLogs,
@@ -10,7 +12,6 @@ import {
   listPersonnel,
   parseLimit,
   submitApplication,
-  updatePersonnelForUser,
   updateApplicationStatus,
   writeAuditLog,
 } from "../services/portal-data.js";
@@ -29,6 +30,7 @@ export function apiRouter() {
       service: "tf20-portal",
       databaseConfigured: Boolean(config.databaseUrl),
       discordConfigured: Boolean(config.discord.clientId && config.discord.clientSecret),
+      steamConfigured: Boolean(config.steam.webApiKey),
       timestamp: new Date().toISOString(),
     });
   });
@@ -172,33 +174,20 @@ export function apiRouter() {
     }),
   );
 
-  router.patch(
-    "/personnel/me",
-    requireAuth,
-    asyncRoute(async (req, res) => {
-      const item = await updatePersonnelForUser({
-        actorUserId: req.user?.id,
-        displayAlias: req.body.displayAlias,
-        steam64Id: req.body.steam64Id,
-        timezone: req.body.timezone,
-        ipSessionMetadata: {
-          ip: req.ip,
-          userAgent: req.get("user-agent"),
-        },
-      });
-      res.json({ item });
-    }),
-  );
-
   router.get(
     "/personnel",
     requireAuth,
-    requireRole("personnel:read", "staff", "command", "command-staff"),
     asyncRoute(async (req, res) => {
+      if (!canAccessPersonnelRoster(req.user)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
       const items = await listPersonnel({
         status: req.query.status,
         search: req.query.search,
         limit: parseLimit(req.query.limit),
+        actorUser: req.user,
       });
       res.json({ items, next: null });
     }),
@@ -209,6 +198,7 @@ export function apiRouter() {
     requireAuth,
     requireRole("audit:write", "staff", "command", "command-staff", "system-admin"),
     asyncRoute(async (req, res) => {
+      await assertCanAccessPersonnelProfile(req.user, req.body.affectedProfileId);
       const entry = await writeAuditLog({
         actorUserId: req.user?.id,
         affectedProfileId: req.body.affectedProfileId,
@@ -234,7 +224,7 @@ export function apiRouter() {
     requireAuth,
     requireRole("audit:read", "staff", "command", "command-staff", "system-admin"),
     asyncRoute(async (req, res) => {
-      const items = await listAuditLogs({ limit: parseLimit(req.query.limit, 50, 100) });
+      const items = await listAuditLogs({ limit: parseLimit(req.query.limit, 50, 100), actorUser: req.user });
       res.json({ items, next: null });
     }),
   );

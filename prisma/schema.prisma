@@ -97,6 +97,11 @@ model User {
   discordDisplayName String?
   displayAlias       String?
   steam64Id          String?         @unique
+  steamUsername      String?
+  steamProfileUrl    String?
+  steamAvatarUrl     String?
+  steamLinkedAt      DateTime?
+  steamLastSyncedAt  DateTime?
   email              String?
   timezone           String?
   accountStatus      AccountStatus   @default(Applicant)
