@@ -6,6 +6,7 @@ const syncButton = document.querySelector("#syncButton");
 const toast = document.querySelector("#toast");
 const currentUserName = document.querySelector("#currentUserName");
 const currentUserMeta = document.querySelector("#currentUserMeta");
+const metricGrid = document.querySelector(".metric-grid");
 const viewAsControl = document.querySelector("#viewAsControl");
 const viewAsSelect = document.querySelector("#viewAsSelect");
 const dashboardActivePersonnel = document.querySelector("#dashboardActivePersonnel");
@@ -165,14 +166,13 @@ const unitMosCatalog = {
 
 const roleAccess = {
   applicant: ["dashboard", "profile", "support"],
-  member: ["dashboard", "profile", "loa", "personnel", "units", "events", "training", "support", "audit"],
-  staff: ["dashboard", "profile", "loa", "personnel", "units", "events", "training", "actions", "support", "audit"],
+  member: ["dashboard", "profile", "loa", "events", "training", "support", "audit"],
+  staff: ["dashboard", "profile", "loa", "personnel", "events", "training", "actions", "support", "audit"],
   command: [
     "dashboard",
     "profile",
     "loa",
     "personnel",
-    "units",
     "events",
     "training",
     "actions",
@@ -185,7 +185,6 @@ const roleAccess = {
     "profile",
     "loa",
     "personnel",
-    "units",
     "events",
     "training",
     "users",
@@ -205,8 +204,6 @@ let auditLog = [];
 let auditLoadError = "";
 let loaRequests = [];
 let loaLoadError = "";
-let unitsData = null;
-let unitsLoadError = "";
 let supportTickets = [];
 let supportLoadError = "";
 let personnelLookups = null;
@@ -328,7 +325,6 @@ async function initPortal() {
       loadPersonnelLookups(),
       loadEvents(),
       loadLoaRequests(),
-      loadUnits(),
       loadSupportTickets(),
       loadAuditLogs(),
     ]);
@@ -372,15 +368,23 @@ function applyRole() {
     setView("dashboard");
   }
 
+  const dashboardVisibility = {
+    applicant: new Set(["applicant"]),
+    member: new Set(["member"]),
+    staff: new Set(["member", "staff"]),
+    command: new Set(["member", "staff", "command"]),
+    system: new Set(["applicant", "member", "staff", "command", "system"]),
+  };
+  const visiblePanels = dashboardVisibility[role] || dashboardVisibility.staff;
   rolePanels.forEach((panel) => {
-    const panelRole = panel.dataset.rolePanel;
-    const visible =
-      role === "system" ||
-      panelRole === role ||
-      (role === "command" && ["staff", "command"].includes(panelRole)) ||
-      (role === "staff" && panelRole === "staff");
-    panel.classList.toggle("visible", visible);
+    panel.classList.toggle("visible", visiblePanels.has(panel.dataset.rolePanel));
   });
+
+  if (metricGrid) {
+    metricGrid.hidden = ["applicant", "member", "staff"].includes(role);
+  }
+
+  syncEventRolePanels();
 
   syncButton.disabled = true;
   syncButton.textContent = "Discord Sync Not Connected";
@@ -393,7 +397,6 @@ function renderAllRecords() {
   renderProfileView();
   renderEvents();
   renderLoaRequests();
-  renderUnits();
   renderSupportTickets();
   renderAudit();
 }
@@ -671,23 +674,6 @@ async function loadLoaRequests() {
   }
 
   renderLoaRequests();
-}
-
-async function loadUnits() {
-  if (!unitTreeContainer) return;
-
-  unitsLoadError = "";
-  unitTreeContainer.innerHTML = `<p class="panel-copy">Loading unit hierarchy...</p>`;
-
-  try {
-    unitsData = await fetchJson("/api/units");
-  } catch (error) {
-    console.error(error);
-    unitsData = null;
-    unitsLoadError = error.message || "Unable to load units.";
-  }
-
-  renderUnits();
 }
 
 async function loadSupportTickets() {
@@ -1162,6 +1148,16 @@ function renderEventEditor() {
   setEventFeedback(item ? "Editing selected event." : "Create the first event record for the live calendar.", "");
 }
 
+function syncEventRolePanels() {
+  const eventPanels = document.querySelectorAll('[data-view-panel="events"] .panel');
+  if (!eventPanels.length) return;
+
+  const showOnlyCalendar = activeAccessRole === "member";
+  eventPanels.forEach((panel, index) => {
+    panel.hidden = showOnlyCalendar && index > 0;
+  });
+}
+
 function renderAttendanceRecords() {
   if (!attendanceRows || !attendanceDetailStatus) return;
 
@@ -1236,16 +1232,16 @@ function renderLoaRequests() {
     return;
   }
 
-  const canReview = canReviewLoa();
   loaQueue.innerHTML = visibleLoaRequests
     .map((record) => {
-      const buttons = canReview
-        ? `<div class="action-row">
-            <button class="button" type="button" data-loa-action="approve" data-loa-id="${escapeHtml(record.id)}">Approve</button>
-            <button class="button danger" type="button" data-loa-action="deny" data-loa-id="${escapeHtml(record.id)}">Deny</button>
-            <button class="button ghost" type="button" data-loa-action="return" data-loa-id="${escapeHtml(record.id)}">Mark Returned</button>
-          </div>`
-        : "";
+      const buttons = [];
+      if (record.canApproveDeny) {
+        buttons.push(`<button class="button" type="button" data-loa-action="approve" data-loa-id="${escapeHtml(record.id)}">Approve</button>`);
+        buttons.push(`<button class="button danger" type="button" data-loa-action="deny" data-loa-id="${escapeHtml(record.id)}">Deny</button>`);
+      }
+      if (record.canMarkReturned) {
+        buttons.push(`<button class="button ghost" type="button" data-loa-action="return" data-loa-id="${escapeHtml(record.id)}">Mark Returned</button>`);
+      }
       return `
         <article>
           <strong>${escapeHtml(record.member)} | ${escapeHtml(record.rank)}</strong>
@@ -1253,7 +1249,7 @@ function renderLoaRequests() {
           <span>${escapeHtml(formatDate(record.startDate))} to ${escapeHtml(formatDate(record.endDate))}</span>
           <span>${escapeHtml(record.reasonCategory)} | ${escapeHtml(record.status)}</span>
           <span>${escapeHtml(record.details || "No additional details provided.")}</span>
-          ${buttons}
+          ${buttons.length ? `<div class="action-row">${buttons.join("")}</div>` : ""}
         </article>
       `;
     })
@@ -1262,56 +1258,6 @@ function renderLoaRequests() {
   loaQueue.querySelectorAll("[data-loa-action]").forEach((button) => {
     button.addEventListener("click", () => reviewLoa(button.dataset.loaId, button.dataset.loaAction));
   });
-}
-
-function renderUnits() {
-  if (!unitTreeContainer || !unitSummaryList) return;
-
-  if (unitsLoadError) {
-    unitTreeContainer.innerHTML = `<p class="panel-copy">${escapeHtml(unitsLoadError)}</p>`;
-    unitSummaryList.innerHTML = `<p class="section-note">${escapeHtml(unitsLoadError)}</p>`;
-    return;
-  }
-
-  const items = unitsData?.items || [];
-  const roots = unitsData?.roots || [];
-  const byParent = new Map();
-
-  items.forEach((item) => {
-    const key = item.parentId || "__root__";
-    const list = byParent.get(key) || [];
-    list.push(item);
-    byParent.set(key, list);
-  });
-
-  const renderNode = (unitId) => {
-    const unit = items.find((item) => item.id === unitId);
-    if (!unit) return "";
-    const children = byParent.get(unit.id) || [];
-    return `
-      <li>
-        <strong>${escapeHtml(unit.name)}</strong>
-        <span class="muted">${escapeHtml(unit.type)} | ${formatCount(unit.personnelCount)} personnel | ${formatCount(unit.billets.length)} billets</span>
-        ${children.length ? `<ul>${children.map((child) => renderNode(child.id)).join("")}</ul>` : ""}
-      </li>
-    `;
-  };
-
-  unitTreeContainer.innerHTML = roots.length ? `<ul>${roots.map((rootId) => renderNode(rootId)).join("")}</ul>` : `<p class="panel-copy">No units have been seeded yet.</p>`;
-
-  const topUnits = [...items].sort((left, right) => right.personnelCount - left.personnelCount).slice(0, 6);
-  unitSummaryList.innerHTML = topUnits.length
-    ? topUnits
-        .map(
-          (unit) => `
-            <article>
-              <strong>${escapeHtml(unit.name)}</strong>
-              <span>${formatCount(unit.personnelCount)} personnel | ${formatCount(unit.childCount)} child units | ${formatCount(unit.billets.length)} billets</span>
-            </article>
-          `,
-        )
-        .join("")
-    : `<p class="section-note">No unit summary is available yet.</p>`;
 }
 
 function renderSupportTickets() {

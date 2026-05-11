@@ -265,7 +265,6 @@ export function apiRouter() {
   router.patch(
     "/loa/:id/status",
     requireAuth,
-    requireRole("personnel:write", "staff", "command", "command-staff", "system-admin"),
     asyncRoute(async (req, res) => {
       const item = await reviewLoaRequest({
         actorUser: req.user,

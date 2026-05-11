@@ -56,6 +56,7 @@ const activeApplicationStatuses = [
 ];
 const finalApplicationStatuses = new Set(["Denied", "Withdrawn", "ConvertedToRecruit"]);
 const activeRosterStatuses = ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"];
+const loaReviewerBillets = new Set(["co", "commandingofficer", "xo", "executiveofficer", "pl", "platoonleader", "tl", "teamleader"]);
 
 const personnelProfileInclude = {
   user: {
@@ -97,6 +98,14 @@ const personnelProfileInclude = {
 function normalizeText(value, maxLength = 1000) {
   const normalized = String(value ?? "").trim();
   return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+}
+
+function normalizeOrgValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function currentTimestamp() {
@@ -165,6 +174,44 @@ function canManageEvents(user) {
     user?.permissions?.includes("personnel:write") ||
     user?.roles?.some((role) => ["staff", "command-staff", "system-admin"].includes(role))
   );
+}
+
+function isCommandStaffReviewer(actorUser) {
+  return (
+    actorUser?.roles?.some((role) => ["command-staff", "command"].includes(role)) ||
+    isCommandStaffBillet({
+      unitName: actorUser?.profile?.unit?.name,
+      billetName: actorUser?.profile?.billet?.name,
+    })
+  );
+}
+
+function getLoaReviewerScopeUnitName(actorUser) {
+  if (isCommandStaffReviewer(actorUser)) return "__all__";
+
+  const billetKey = normalizeOrgValue(actorUser?.profile?.billet?.name);
+  if (!loaReviewerBillets.has(billetKey)) return null;
+
+  return getStaffScopeUnitName({
+    unitName: actorUser?.profile?.unit?.name,
+    billetName: actorUser?.profile?.billet?.name,
+  });
+}
+
+async function canActorReviewLoaRecord(actorUser, record) {
+  if (!actorUser?.id || !record?.profile) return false;
+
+  const submitterBilletKey = normalizeOrgValue(record.profile?.primaryBillet?.name);
+  if (submitterBilletKey === "co" || submitterBilletKey === "commandingofficer") {
+    return isCommandStaffReviewer(actorUser);
+  }
+
+  const scopeUnitName = getLoaReviewerScopeUnitName(actorUser);
+  if (!scopeUnitName) return false;
+  if (scopeUnitName === "__all__") return true;
+
+  const scopedUnitIds = await getUnitAndDescendantIds(scopeUnitName);
+  return Boolean(record.profile?.primaryUnitId && scopedUnitIds.includes(record.profile.primaryUnitId));
 }
 
 function mergeWhere(...clauses) {
@@ -971,27 +1018,8 @@ export async function listLoaRequests({ actorUser, limit = 50, status } = {}) {
   assertDatabaseReady();
 
   const statusWhere = status && loaStatuses.has(status) ? { status } : {};
-
-  const canReadAll =
-    hasFullPersonnelAccess(actorUser) ||
-    actorUser?.permissions?.includes("personnel:read") ||
-    actorUser?.roles?.some((role) => ["staff", "command-staff", "system-admin"].includes(role));
-
-  let where;
-  if (!canReadAll) {
-    const ownProfileId = actorUser?.profile?.id;
-    where = mergeWhere(statusWhere, { profileId: ownProfileId || "__no_profile__" });
-  } else {
-    const accessWhere = await personnelAccessWhere(actorUser);
-    where = mergeWhere(statusWhere, {
-      profile: {
-        is: accessWhere,
-      },
-    });
-  }
-
   const records = await getDb().lOARequest.findMany({
-    where,
+    where: statusWhere,
     take: limit,
     orderBy: [{ submittedAt: "desc" }],
     include: {
@@ -1013,25 +1041,37 @@ export async function listLoaRequests({ actorUser, limit = 50, status } = {}) {
     },
   });
 
-  return records.map((record) => ({
-    id: record.id,
-    profileId: record.profileId,
-    member: displayUser(record.profile?.user),
-    rank: record.profile?.currentRank?.abbreviation || "Unranked",
-    unit: record.profile?.primaryUnit?.name || "Unassigned",
-    billet: record.profile?.primaryBillet?.name || "Missing",
-    startDate: record.startDate,
-    endDate: record.endDate,
-    reasonCategory: record.reasonCategory,
-    details: record.details,
-    status: record.status,
-    submittedAt: record.submittedAt,
-    reviewedById: record.reviewedById,
-    decisionDate: record.decisionDate,
-    leadershipComment: record.leadershipComment,
-    s1Notes: record.s1Notes,
-    returnConfirmed: record.returnConfirmed,
-  }));
+  const ownProfileId = actorUser?.profile?.id || null;
+  const visibleRecords = [];
+  for (const record of records) {
+    const isOwn = ownProfileId && record.profileId === ownProfileId;
+    const canReview = await canActorReviewLoaRecord(actorUser, record);
+    if (!isOwn && !canReview) continue;
+
+    visibleRecords.push({
+      id: record.id,
+      profileId: record.profileId,
+      member: displayUser(record.profile?.user),
+      rank: record.profile?.currentRank?.abbreviation || "Unranked",
+      unit: record.profile?.primaryUnit?.name || "Unassigned",
+      billet: record.profile?.primaryBillet?.name || "Missing",
+      startDate: record.startDate,
+      endDate: record.endDate,
+      reasonCategory: record.reasonCategory,
+      details: record.details,
+      status: record.status,
+      submittedAt: record.submittedAt,
+      reviewedById: record.reviewedById,
+      decisionDate: record.decisionDate,
+      leadershipComment: record.leadershipComment,
+      s1Notes: record.s1Notes,
+      returnConfirmed: record.returnConfirmed,
+      canApproveDeny: canReview && record.status === "Submitted",
+      canMarkReturned: isOwn && record.status === "Approved",
+    });
+  }
+
+  return visibleRecords;
 }
 
 export async function submitLoaRequest({
@@ -1135,15 +1175,30 @@ export async function reviewLoaRequest({
     throw error;
   }
 
-  await assertCanAccessPersonnelProfile(actorUser, record.profileId);
-  const reviewReason = normalizeText(reason, 1000) || `LOA request ${status.toLowerCase()} from the portal.`;
+  const isOwn = actorUser?.profile?.id === record.profileId;
+  const canReview = await canActorReviewLoaRecord(actorUser, record);
+  if (status === "Returned") {
+    if (!isOwn || record.status !== "Approved") {
+      const error = new Error("Only the submitting member can mark an approved LOA as returned.");
+      error.statusCode = 403;
+      throw error;
+    }
+  } else if (!canReview || record.status !== "Submitted") {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const reviewReason =
+    normalizeText(reason, 1000) ||
+    (status === "Returned" ? "Member marked approved LOA as returned." : `LOA request ${status.toLowerCase()} from the portal.`);
 
   await db.$transaction(async (tx) => {
     await tx.lOARequest.update({
       where: { id: loaRequestId },
       data: {
         status,
-        reviewedById: actorUser?.id,
+        reviewedById: status === "Returned" ? record.reviewedById || actorUser?.id : actorUser?.id,
         decisionDate: currentTimestamp(),
         leadershipComment: normalizeText(leadershipComment, 2000) || null,
         s1Notes: normalizeText(s1Notes, 2000) || null,
