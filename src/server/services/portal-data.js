@@ -1240,7 +1240,7 @@ export async function listUnits({ actorUser } = {}) {
 export async function listPersonnelLookups({ actorUser } = {}) {
   assertDatabaseReady();
 
-  if (!canReadScopedPersonnel(actorUser)) {
+  if (!canReadScopedPersonnel(actorUser) && !canManageEvents(actorUser)) {
     const error = new Error("Forbidden");
     error.statusCode = 403;
     throw error;

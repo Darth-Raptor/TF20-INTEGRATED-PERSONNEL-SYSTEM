@@ -295,7 +295,7 @@ export function apiRouter() {
   router.get(
     "/lookups/personnel",
     requireAuth,
-    requireRole("personnel:read", "staff", "command", "command-staff", "system-admin"),
+    requireRole("personnel:write", "personnel:read", "staff", "command", "command-staff", "system-admin"),
     asyncRoute(async (req, res) => {
       const item = await listPersonnelLookups({ actorUser: req.user });
       res.json(item);
