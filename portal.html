@@ -29,6 +29,17 @@
           <p id="currentUserMeta">Checking live roles and permissions...</p>
         </div>
 
+        <div class="role-control" id="viewAsControl" hidden>
+          <span>View As</span>
+          <select id="viewAsSelect" aria-label="View portal as role">
+            <option value="">System Admin</option>
+            <option value="command">Command</option>
+            <option value="staff">Staff</option>
+            <option value="member">Member</option>
+            <option value="applicant">Applicant</option>
+          </select>
+        </div>
+
         <nav class="portal-nav">
           <button class="nav-tab active" type="button" data-view="dashboard">Dashboard</button>
           <button class="nav-tab" type="button" data-view="profile">Profile</button>

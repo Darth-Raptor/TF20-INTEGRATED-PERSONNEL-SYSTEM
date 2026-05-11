@@ -6,6 +6,8 @@ const syncButton = document.querySelector("#syncButton");
 const toast = document.querySelector("#toast");
 const currentUserName = document.querySelector("#currentUserName");
 const currentUserMeta = document.querySelector("#currentUserMeta");
+const viewAsControl = document.querySelector("#viewAsControl");
+const viewAsSelect = document.querySelector("#viewAsSelect");
 const dashboardActivePersonnel = document.querySelector("#dashboardActivePersonnel");
 const dashboardActivePersonnelMeta = document.querySelector("#dashboardActivePersonnelMeta");
 const dashboardApplications = document.querySelector("#dashboardApplications");
@@ -221,7 +223,9 @@ let selectedPersonnelId = null;
 let selectedEventId = null;
 let selectedAttendanceRecordId = null;
 let currentUser = null;
+let baseAccessRole = "applicant";
 let activeAccessRole = "applicant";
+let previewAccessRole = null;
 let portalUsers = [];
 let portalRoles = [];
 let selectedUserId = null;
@@ -301,6 +305,10 @@ saveRolesButton?.addEventListener("click", saveSelectedUserRoles);
 reloadUsersButton?.addEventListener("click", () => {
   loadUserAdmin();
 });
+viewAsSelect?.addEventListener("change", () => {
+  const value = viewAsSelect.value || null;
+  setPreviewAccessRole(value);
+});
 
 initPortal();
 
@@ -308,7 +316,9 @@ async function initPortal() {
   try {
     const session = await fetchJson("/api/me");
     currentUser = session.user;
-    activeAccessRole = deriveAccessRole(currentUser);
+    baseAccessRole = deriveAccessRole(currentUser);
+    previewAccessRole = getStoredPreviewAccessRole();
+    activeAccessRole = previewAccessRole || baseAccessRole;
     updateSessionSummary();
     applyRole();
     await Promise.all([
@@ -346,6 +356,7 @@ function setView(viewName) {
 }
 
 function applyRole() {
+  renderViewAsControl();
   const role = activeAccessRole;
   const allowed = roleAccess[role] || roleAccess.staff;
 
@@ -575,12 +586,16 @@ async function loadApplications() {
 }
 
 function renderApplications() {
-  if (!applications.some((application) => application.id === selectedApplicationId)) {
-    selectedApplicationId = applications[0]?.id || null;
+  const visibleApplications = canProcessApplications()
+    ? applications
+    : applications.filter((application) => application.userId === currentUser?.id);
+
+  if (!visibleApplications.some((application) => application.id === selectedApplicationId)) {
+    selectedApplicationId = visibleApplications[0]?.id || null;
   }
 
-  applicationRows.innerHTML = applications.length
-    ? applications
+  applicationRows.innerHTML = visibleApplications.length
+    ? visibleApplications
         .map(
           (application) => `
             <tr data-application-id="${escapeHtml(application.id)}" class="${application.id === selectedApplicationId ? "selected" : ""}">
@@ -768,8 +783,7 @@ async function loadAttendanceForSelectedEvent() {
 
 function renderApplicationDetail() {
   const application = selectedApplication();
-  const role = activeAccessRole;
-  const canProcess = ["staff", "command", "system"].includes(role) || hasPermission("applications:write");
+  const canProcess = canProcessApplications();
 
   if (!application) {
     applicationDetailStatus.textContent = "No application";
@@ -818,7 +832,11 @@ function renderPersonnel() {
     return;
   }
 
-  const visiblePersonnel = personnel.filter((member) => {
+  const scopedPersonnel = canReadAllPersonnel()
+    ? personnel
+    : personnel.filter((member) => member.userId === currentUser?.id);
+
+  const visiblePersonnel = scopedPersonnel.filter((member) => {
     const matchesStatus = status === "all" || member.status === status;
     const searchable = [
       member.rank,
@@ -1209,13 +1227,17 @@ function renderLoaRequests() {
     return;
   }
 
-  if (!loaRequests.length) {
+  const visibleLoaRequests = canReviewLoa()
+    ? loaRequests
+    : loaRequests.filter((record) => record.profileId === currentUserPersonnelProfile()?.id);
+
+  if (!visibleLoaRequests.length) {
     loaQueue.innerHTML = `<p class="section-note">No LOA requests have been submitted yet.</p>`;
     return;
   }
 
-  const canReview = ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("personnel:write");
-  loaQueue.innerHTML = loaRequests
+  const canReview = canReviewLoa();
+  loaQueue.innerHTML = visibleLoaRequests
     .map((record) => {
       const buttons = canReview
         ? `<div class="action-row">
@@ -1300,8 +1322,12 @@ function renderSupportTickets() {
     return;
   }
 
-  supportRows.innerHTML = supportTickets.length
+  const visibleSupportTickets = canReadAllSupportTickets()
     ? supportTickets
+    : supportTickets.filter((ticket) => ticket.submittedById === currentUser?.id);
+
+  supportRows.innerHTML = visibleSupportTickets.length
+    ? visibleSupportTickets
         .map(
           (ticket) => `
             <tr>
@@ -1714,7 +1740,9 @@ async function saveSelectedUserRoles() {
     if (response.user.id === currentUser?.id) {
       const session = await fetchJson("/api/me");
       currentUser = session.user;
-      activeAccessRole = deriveAccessRole(currentUser);
+      baseAccessRole = deriveAccessRole(currentUser);
+      previewAccessRole = getStoredPreviewAccessRole();
+      activeAccessRole = previewAccessRole || baseAccessRole;
       updateSessionSummary();
       applyRole();
       await Promise.all([loadPersonnel(), loadPersonnelLookups(), loadEvents()]);
@@ -2000,6 +2028,19 @@ function selectedPortalUser() {
   return portalUsers.find((user) => user.id === selectedUserId) || null;
 }
 
+function renderViewAsControl() {
+  if (!viewAsControl || !viewAsSelect) return;
+
+  const canPreview = canViewAs();
+  viewAsControl.hidden = !canPreview;
+  if (!canPreview) {
+    viewAsSelect.value = "";
+    return;
+  }
+
+  viewAsSelect.value = previewAccessRole || "";
+}
+
 function displayUserName(user) {
   return user?.alias || user?.displayName || user?.username || "Unknown User";
 }
@@ -2023,8 +2064,42 @@ function deriveAccessRole(user) {
   return "applicant";
 }
 
+function getStoredPreviewAccessRole() {
+  if (!canViewAs()) return null;
+  try {
+    const stored = window.sessionStorage.getItem("tf20.viewAsRole");
+    return ["applicant", "member", "staff", "command", "system"].includes(stored) && stored !== baseAccessRole ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function setPreviewAccessRole(role) {
+  previewAccessRole = canViewAs() && role && role !== baseAccessRole ? role : null;
+  activeAccessRole = previewAccessRole || baseAccessRole;
+  try {
+    if (previewAccessRole) {
+      window.sessionStorage.setItem("tf20.viewAsRole", previewAccessRole);
+    } else {
+      window.sessionStorage.removeItem("tf20.viewAsRole");
+    }
+  } catch {
+    // Ignore sessionStorage failures; preview mode is optional convenience state.
+  }
+  updateSessionSummary();
+  applyRole();
+  renderAllRecords();
+}
+
 function hasPermission(permission) {
+  if (isPreviewMode()) {
+    return false;
+  }
   return currentUser?.permissions?.includes(permission) || false;
+}
+
+function isPreviewMode() {
+  return Boolean(previewAccessRole);
 }
 
 function canManagePersonnelUpdates() {
@@ -2210,7 +2285,14 @@ function canManageUsers() {
   return activeAccessRole === "system" || hasPermission("system:admin");
 }
 
+function canViewAs() {
+  return baseAccessRole === "system" || hasPermission("system:admin");
+}
+
 function canReadAllPersonnel() {
+  if (isPreviewMode()) {
+    return ["staff", "command", "system"].includes(activeAccessRole);
+  }
   return (
     hasPermission("personnel:read") ||
     hasPermission("system:admin") ||
@@ -2219,6 +2301,9 @@ function canReadAllPersonnel() {
 }
 
 function canReadAudit() {
+  if (isPreviewMode()) {
+    return ["staff", "command", "system"].includes(activeAccessRole);
+  }
   const roles = new Set(currentUser?.roles || []);
   return (
     hasPermission("audit:read") ||
@@ -2227,6 +2312,18 @@ function canReadAudit() {
     roles.has("command-staff") ||
     roles.has("system-admin")
   );
+}
+
+function canProcessApplications() {
+  return ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("applications:write");
+}
+
+function canReviewLoa() {
+  return ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("personnel:write");
+}
+
+function canReadAllSupportTickets() {
+  return ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("system:admin");
 }
 
 function steamProfileLinkMarkup(item) {
@@ -2247,7 +2344,9 @@ function updateSessionSummary(error) {
     ? currentUser.roles.map((role) => titleCase(role.replaceAll("-", " "))).join(", ")
     : currentUser.accountStatus;
   currentUserName.textContent = displayUserName(currentUser);
-  currentUserMeta.textContent = `${roleText} | ${currentUser.accountStatus}`;
+  currentUserMeta.textContent = previewAccessRole
+    ? `${roleText} | ${currentUser.accountStatus} | Previewing ${titleCase(previewAccessRole)}`
+    : `${roleText} | ${currentUser.accountStatus}`;
 }
 
 function populateSelect(element, options, selectedValue, placeholder) {
