@@ -852,11 +852,15 @@ export async function updatePersonnelProfile({
   }
 
   const nextStatus = status && accountStatuses.has(status) ? status : profile.currentStatus;
-  const nextPrimaryMos = normalizeText(primaryMos, 160) || null;
+  const lockAssignmentFields = ["Discharged", "BannedDoNotRehire"].includes(nextStatus);
+  const nextPrimaryMos = lockAssignmentFields ? null : normalizeText(primaryMos, 160) || null;
   const nextGoodStanding = typeof goodStanding === "boolean" ? goodStanding : profile.goodStanding;
-  const nextStaffSectionIds = Array.isArray(staffSectionIds)
-    ? [...new Set(staffSectionIds.map((value) => String(value).trim()).filter(Boolean))]
-    : profile.staffAssignments.map((assignment) => assignment.staffSectionId);
+  const nextPrimaryBilletId = lockAssignmentFields ? null : primaryBilletId ?? profile.primaryBilletId;
+  const nextStaffSectionIds = lockAssignmentFields
+    ? []
+    : Array.isArray(staffSectionIds)
+      ? [...new Set(staffSectionIds.map((value) => String(value).trim()).filter(Boolean))]
+      : profile.staffAssignments.map((assignment) => assignment.staffSectionId);
 
   if (primaryUnitId) {
     const unit = await db.unit.findUnique({ where: { id: primaryUnitId }, select: { id: true } });
@@ -867,8 +871,8 @@ export async function updatePersonnelProfile({
     }
   }
 
-  if (primaryBilletId) {
-    const billet = await db.billet.findUnique({ where: { id: primaryBilletId }, select: { id: true } });
+  if (nextPrimaryBilletId) {
+    const billet = await db.billet.findUnique({ where: { id: nextPrimaryBilletId }, select: { id: true } });
     if (!billet) {
       const error = new Error("Primary billet not found.");
       error.statusCode = 400;
@@ -894,7 +898,7 @@ export async function updatePersonnelProfile({
       where: { id: profileId },
       data: {
         primaryUnitId: primaryUnitId ?? profile.primaryUnitId,
-        primaryBilletId: primaryBilletId ?? profile.primaryBilletId,
+        primaryBilletId: nextPrimaryBilletId,
         primaryMos: nextPrimaryMos,
         currentStatus: nextStatus,
         goodStanding: nextGoodStanding,
@@ -940,7 +944,7 @@ export async function updatePersonnelProfile({
         },
         newValue: {
           primaryUnitId: primaryUnitId ?? profile.primaryUnitId,
-          primaryBilletId: primaryBilletId ?? profile.primaryBilletId,
+          primaryBilletId: nextPrimaryBilletId,
           primaryMos: nextPrimaryMos,
           currentStatus: nextStatus,
           goodStanding: nextGoodStanding,

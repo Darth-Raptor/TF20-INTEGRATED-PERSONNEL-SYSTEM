@@ -229,6 +229,7 @@ Object.entries(applicationFieldMap).forEach(([key, field]) => {
 });
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
+personnelEditStatus?.addEventListener("change", syncPersonnelStatusLocks);
 personnelUpdateForm?.addEventListener("submit", submitPersonnelUpdateForm);
 eventForm?.addEventListener("submit", submitEventForm);
 newEventButton?.addEventListener("click", () => {
@@ -942,6 +943,7 @@ function renderPersonnelEditor() {
     personnelEditSections.innerHTML = `<p class="section-note">Select a profile to load staff section options.</p>`;
     savePersonnelUpdateButton.disabled = true;
     setPersonnelUpdateFeedback(personnelLookupError || "Select a profile to edit.", personnelLookupError ? "error" : "");
+    syncPersonnelStatusLocks();
     return;
   }
 
@@ -980,6 +982,7 @@ function renderPersonnelEditor() {
     personnelLookupError || "Changes here update the selected profile and write an audit entry.",
     personnelLookupError ? "error" : "",
   );
+  syncPersonnelStatusLocks();
 }
 
 function renderEvents() {
@@ -1727,12 +1730,13 @@ function normalizePersonnel(item) {
   const unit = item?.unit?.name || "Unassigned";
   const billet = item?.billet?.name || "";
   const status = item?.status || user.accountStatus || "Unknown";
+  const lockedAssignments = ["Discharged", "BannedDoNotRehire"].includes(status);
   const staffAssignments = (item?.staffAssignments || [])
     .map((assignment) => assignment.staffSection?.code || assignment.staffSection?.name)
     .filter(Boolean);
   const flags = [
-    !billet ? "Billet missing" : "",
-    !item?.primaryMos ? "Primary MOS missing" : "",
+    !lockedAssignments && !billet ? "Billet missing" : "",
+    !lockedAssignments && !item?.primaryMos ? "Primary MOS missing" : "",
     item?.goodStanding === false ? "Not in good standing" : "",
   ].filter(Boolean);
   const joinedText = item?.dateJoined ? `Joined ${formatDate(item.dateJoined)}` : "Join date missing";
@@ -1754,13 +1758,13 @@ function normalizePersonnel(item) {
     steamLastSyncedAt: user.steamLastSyncedAt,
     timezone: user.timezone || "",
     unit,
-    primaryMos: item?.primaryMos || "",
-    billet: billet || "Missing",
+    primaryMos: lockedAssignments ? "" : item?.primaryMos || "",
+    billet: lockedAssignments ? "None" : billet || "Missing",
     status,
     statusLabel: accountStatusLabel(status),
     goodStanding: item?.goodStanding !== false,
     flags: flags.length ? flags.join(", ") : "None",
-    staff: staffAssignments.length ? staffAssignments.join(", ") : "None",
+    staff: lockedAssignments ? "None" : staffAssignments.length ? staffAssignments.join(", ") : "None",
     staffSectionIds: (item?.staffAssignments || []).map((assignment) => assignment.staffSection?.id).filter(Boolean),
     qualifications: counts.qualifications ? `${counts.qualifications} qualification records` : "No qualifications recorded",
     attendance: counts.attendanceRecords ? `${counts.attendanceRecords} attendance records` : "No attendance records",
@@ -1801,9 +1805,35 @@ function accountStatusLabel(status) {
     LeaveOfAbsence: "Leave of Absence",
     Inactive: "Inactive",
     Discharged: "Discharged",
-    BannedDoNotRehire: "Banned / Do Not Rehire",
+    BannedDoNotRehire: "Banned",
   };
   return labels[status] || status || "Unknown";
+}
+
+function isSeparatedPersonnelStatus(status) {
+  return ["Discharged", "BannedDoNotRehire"].includes(status);
+}
+
+function syncPersonnelStatusLocks() {
+  if (!personnelEditStatus) return;
+
+  const locked = isSeparatedPersonnelStatus(personnelEditStatus.value);
+  if (personnelEditBillet) {
+    if (locked) personnelEditBillet.value = "";
+    personnelEditBillet.disabled = locked;
+  }
+  if (personnelEditMos) {
+    if (locked) personnelEditMos.value = "";
+    personnelEditMos.disabled = locked;
+  }
+  if (personnelEditSections) {
+    personnelEditSections.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      if (locked) {
+        input.checked = false;
+      }
+      input.disabled = locked;
+    });
+  }
 }
 
 function applicationStatusLabel(status) {
