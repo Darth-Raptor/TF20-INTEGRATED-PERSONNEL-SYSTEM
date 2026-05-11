@@ -772,9 +772,15 @@ export async function getPortalSummary({ actorUser } = {}) {
     }),
     db.personnelProfile.count({ where: accessWhere }),
     db.personnelProfile.count({ where: mergeWhere(accessWhere, { currentStatus: "Active" }) }),
-    db.personnelProfile.count({ where: mergeWhere(accessWhere, { primaryBilletId: null }) }),
     db.personnelProfile.count({
       where: mergeWhere(accessWhere, {
+        currentStatus: { in: activeRosterStatuses },
+        primaryBilletId: null,
+      }),
+    }),
+    db.personnelProfile.count({
+      where: mergeWhere(accessWhere, {
+        currentStatus: { in: activeRosterStatuses },
         OR: [{ primaryMos: null }, { primaryMos: "" }],
       }),
     }),
