@@ -6,17 +6,8 @@ const syncButton = document.querySelector("#syncButton");
 const toast = document.querySelector("#toast");
 const currentUserName = document.querySelector("#currentUserName");
 const currentUserMeta = document.querySelector("#currentUserMeta");
-const metricGrid = document.querySelector(".metric-grid");
 const viewAsControl = document.querySelector("#viewAsControl");
 const viewAsSelect = document.querySelector("#viewAsSelect");
-const dashboardActivePersonnel = document.querySelector("#dashboardActivePersonnel");
-const dashboardActivePersonnelMeta = document.querySelector("#dashboardActivePersonnelMeta");
-const dashboardApplications = document.querySelector("#dashboardApplications");
-const dashboardApplicationsMeta = document.querySelector("#dashboardApplicationsMeta");
-const dashboardAttendanceReview = document.querySelector("#dashboardAttendanceReview");
-const dashboardAttendanceReviewMeta = document.querySelector("#dashboardAttendanceReviewMeta");
-const dashboardAuditEvents = document.querySelector("#dashboardAuditEvents");
-const dashboardAuditEventsMeta = document.querySelector("#dashboardAuditEventsMeta");
 const applicantDashboardState = document.querySelector("#applicantDashboardState");
 const memberDashboardState = document.querySelector("#memberDashboardState");
 const staffDashboardState = document.querySelector("#staffDashboardState");
@@ -380,10 +371,6 @@ function applyRole() {
     panel.classList.toggle("visible", visiblePanels.has(panel.dataset.rolePanel));
   });
 
-  if (metricGrid) {
-    metricGrid.hidden = role !== "command";
-  }
-
   syncEventRolePanels();
 
   syncButton.disabled = true;
@@ -419,32 +406,8 @@ async function loadDashboardSummary() {
 function renderDashboardSummary() {
   const summary = dashboardSummary || {};
   const personnelSummary = summary.personnel || {};
-  const applicationSummary = summary.applications || {};
   const attendanceSummary = summary.attendance || {};
-  const auditSummary = summary.audit || {};
   const workflows = summary.workflows || {};
-
-  dashboardActivePersonnel.textContent = formatCount(personnelSummary.active);
-  dashboardActivePersonnelMeta.textContent = dashboardSummaryError
-    ? dashboardSummaryError
-    : `${formatCount(personnelSummary.total)} total profiles; ${formatCount(personnelSummary.missingBillet)} missing billet; ${formatCount(
-        personnelSummary.missingPrimaryMos,
-      )} missing Primary MOS`;
-
-  dashboardApplications.textContent = formatCount(applicationSummary.active);
-  dashboardApplicationsMeta.textContent = dashboardSummaryError
-    ? "Application summary unavailable."
-    : `${formatCount(applicationSummary.total)} total; ${formatCount(applicationSummary.awaitingContact)} awaiting staff contact`;
-
-  dashboardAttendanceReview.textContent = formatCount(attendanceSummary.pendingReview);
-  dashboardAttendanceReviewMeta.textContent = dashboardSummaryError
-    ? "Attendance summary unavailable."
-    : `${formatCount(attendanceSummary.totalEvents)} event records; ${formatCount(attendanceSummary.upcomingEvents)} upcoming`;
-
-  dashboardAuditEvents.textContent = formatCount(auditSummary.thisMonth);
-  dashboardAuditEventsMeta.textContent = dashboardSummaryError
-    ? "Audit summary unavailable."
-    : `${formatCount(auditSummary.total)} total audit events`;
 
   renderApplicantDashboard();
   renderMemberDashboard();
