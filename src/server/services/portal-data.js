@@ -853,6 +853,7 @@ export async function updatePersonnelProfile({
 
   const nextStatus = status && accountStatuses.has(status) ? status : profile.currentStatus;
   const lockAssignmentFields = ["Discharged", "BannedDoNotRehire"].includes(nextStatus);
+  const nextPrimaryUnitId = lockAssignmentFields ? null : primaryUnitId ?? profile.primaryUnitId;
   const nextPrimaryMos = lockAssignmentFields ? null : normalizeText(primaryMos, 160) || null;
   const nextGoodStanding = typeof goodStanding === "boolean" ? goodStanding : profile.goodStanding;
   const nextPrimaryBilletId = lockAssignmentFields ? null : primaryBilletId ?? profile.primaryBilletId;
@@ -862,8 +863,8 @@ export async function updatePersonnelProfile({
       ? [...new Set(staffSectionIds.map((value) => String(value).trim()).filter(Boolean))]
       : profile.staffAssignments.map((assignment) => assignment.staffSectionId);
 
-  if (primaryUnitId) {
-    const unit = await db.unit.findUnique({ where: { id: primaryUnitId }, select: { id: true } });
+  if (nextPrimaryUnitId) {
+    const unit = await db.unit.findUnique({ where: { id: nextPrimaryUnitId }, select: { id: true } });
     if (!unit) {
       const error = new Error("Primary unit not found.");
       error.statusCode = 400;
@@ -897,7 +898,7 @@ export async function updatePersonnelProfile({
     await tx.personnelProfile.update({
       where: { id: profileId },
       data: {
-        primaryUnitId: primaryUnitId ?? profile.primaryUnitId,
+        primaryUnitId: nextPrimaryUnitId,
         primaryBilletId: nextPrimaryBilletId,
         primaryMos: nextPrimaryMos,
         currentStatus: nextStatus,
@@ -943,7 +944,7 @@ export async function updatePersonnelProfile({
           staffSectionIds: profile.staffAssignments.map((assignment) => assignment.staffSectionId),
         },
         newValue: {
-          primaryUnitId: primaryUnitId ?? profile.primaryUnitId,
+          primaryUnitId: nextPrimaryUnitId,
           primaryBilletId: nextPrimaryBilletId,
           primaryMos: nextPrimaryMos,
           currentStatus: nextStatus,

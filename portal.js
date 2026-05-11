@@ -809,7 +809,7 @@ function renderPersonnel() {
               <td>${escapeHtml(member.rank)}</td>
               <td><strong>${escapeHtml(member.alias)}</strong><br><span class="muted">${escapeHtml(member.discord)}</span></td>
               <td>${escapeHtml(member.unit)}</td>
-              <td>${escapeHtml(member.primaryMos || "Missing")}</td>
+              <td>${escapeHtml(member.primaryMos || "None")}</td>
               <td>${escapeHtml(member.billet)}</td>
               <td>${statusPill(member.statusLabel)}</td>
               <td>${escapeHtml(member.flags)}</td>
@@ -865,7 +865,7 @@ function personnelDetailMarkup(member) {
     </div>
     <div class="detail-grid">
       <div><span>Primary Billet</span><strong>${escapeHtml(member.billet)}</strong></div>
-      <div><span>Primary MOS</span><strong>${escapeHtml(member.primaryMos || "Missing")}</strong></div>
+      <div><span>Primary MOS</span><strong>${escapeHtml(member.primaryMos || "None")}</strong></div>
       <div><span>Staff Assignment</span><strong>${escapeHtml(member.staff)}</strong></div>
       <div><span>Discord</span><strong>${escapeHtml(member.discord)}</strong></div>
       <div><span>Steam64</span><strong>${escapeHtml(member.steam64 || "Missing")}</strong></div>
@@ -1727,10 +1727,10 @@ function normalizePersonnel(item) {
   const counts = item?.counts || {};
   const rank = item?.rank?.abbreviation || "Unranked";
   const alias = user.displayAlias || user.discordDisplayName || user.discordUsername || "Unknown Member";
-  const unit = item?.unit?.name || "Unassigned";
   const billet = item?.billet?.name || "";
   const status = item?.status || user.accountStatus || "Unknown";
   const lockedAssignments = ["Discharged", "BannedDoNotRehire"].includes(status);
+  const unit = lockedAssignments ? "None" : item?.unit?.name || "Unassigned";
   const staffAssignments = (item?.staffAssignments || [])
     .map((assignment) => assignment.staffSection?.code || assignment.staffSection?.name)
     .filter(Boolean);
