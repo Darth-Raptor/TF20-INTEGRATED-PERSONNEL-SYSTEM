@@ -795,6 +795,34 @@ tbody tr.selected {
   font-weight: 800;
 }
 
+.checkbox-list {
+  display: grid;
+  gap: 8px;
+}
+
+.checkbox-field {
+  display: flex !important;
+  align-items: start;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--radius);
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.checkbox-field input {
+  width: 18px;
+  min-height: 18px;
+  margin: 2px 0 0;
+}
+
+.checkbox-field span {
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
 .field-hint,
 .field-error,
 .form-feedback {

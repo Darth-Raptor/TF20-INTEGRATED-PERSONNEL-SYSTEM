@@ -68,11 +68,11 @@
         <section class="notice notice-status" aria-label="Portal workflow status">
           <div>
             <strong>Live now</strong>
-            <span>Discord login, session handling, role checks, and database-backed application intake.</span>
+            <span>Discord login, application intake, read-only profile views, LOA, units, support, events, attendance review, and staff personnel updates.</span>
           </div>
           <div>
-            <strong>Still staged</strong>
-            <span>Personnel actions, attendance overrides, Discord sync, and system workflows are visible but not connected for live updates yet.</span>
+            <strong>MVP-light</strong>
+            <span>Training, actions, Discord sync, and systems remain informational while the operational personnel workflows move fully live.</span>
           </div>
         </section>
 
@@ -350,11 +350,54 @@
 
             <section class="panel">
               <div class="panel-heading">
-                <h2>Permission Boundary</h2>
-                <span>Field-level access</span>
+                <h2>Staff Update</h2>
+                <span>Audit-required changes</span>
               </div>
-              <p class="panel-copy">
-                System Admin can manage accounts, OAuth, Discord, RCON, and settings, but does not automatically view LOA details, disciplinary records, promotion justifications, or command notes.
+              <form class="stack-form" id="personnelUpdateForm">
+                <label>
+                  Primary Unit
+                  <select id="personnelEditUnit"></select>
+                </label>
+                <label>
+                  Primary Billet
+                  <select id="personnelEditBillet"></select>
+                </label>
+                <label>
+                  Primary MOS
+                  <input id="personnelEditMos" name="primaryMos" type="text" maxlength="160" placeholder="11B, 18D, 15T..." />
+                </label>
+                <label>
+                  Current Status
+                  <select id="personnelEditStatus">
+                    <option value="Recruit">Recruit</option>
+                    <option value="ProbationaryMember">Probationary Member</option>
+                    <option value="Active">Active</option>
+                    <option value="Reserve">Reserve</option>
+                    <option value="LeaveOfAbsence">Leave of Absence</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Discharged">Discharged</option>
+                    <option value="BannedDoNotRehire">Banned / Do Not Rehire</option>
+                  </select>
+                </label>
+                <label class="checkbox-field">
+                  <input id="personnelEditGoodStanding" type="checkbox" />
+                  <span>In good standing</span>
+                </label>
+                <label>
+                  Staff Sections
+                  <div class="checkbox-list" id="personnelEditSections"></div>
+                </label>
+                <label>
+                  Audit Reason
+                  <textarea id="personnelEditReason" rows="3" placeholder="Why is this personnel update being made?"></textarea>
+                </label>
+                <p class="form-feedback" id="personnelUpdateFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="savePersonnelUpdateButton">Save Personnel Update</button>
+                </div>
+              </form>
+              <p class="section-note">
+                Members cannot edit their own profile here. Staff changes require an audit reason and remain constrained by personnel scope.
               </p>
             </section>
           </div>
@@ -445,7 +488,7 @@
             <section class="panel wide">
               <div class="panel-heading">
                 <h2>Event Calendar and Attendance</h2>
-                <span>Manual oversight with RCON suggestions</span>
+                <span>Live schedule and review queue</span>
               </div>
               <div class="table-wrap">
                 <table>
@@ -454,40 +497,113 @@
                       <th>Event</th>
                       <th>Type</th>
                       <th>Status</th>
-                      <th>RCON Signal</th>
-                      <th>Review</th>
+                      <th>Starts</th>
+                      <th>Attendance</th>
+                      <th>My Record</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr>
-                      <td colspan="5">No event or attendance records have been created yet.</td>
-                    </tr>
-                  </tbody>
+                  <tbody id="eventRows"></tbody>
                 </table>
               </div>
             </section>
 
             <section class="panel">
               <div class="panel-heading">
-                <h2>Attendance Defaults</h2>
-                <span>Draft rules</span>
+                <h2>Event Editor</h2>
+                <span>Staff / command</span>
               </div>
-              <ul class="plain-list">
-                <li>Grace period: 15 minutes</li>
-                <li>Minimum present threshold: 45 minutes</li>
-                <li>Minimum poll hits: 5</li>
-                <li>Minimum match confidence: High</li>
-                <li>Auto-finalize: No</li>
-                <li>Auto-suggest only: Yes</li>
-              </ul>
+              <form class="stack-form" id="eventForm">
+                <label>
+                  Event Title
+                  <input id="eventTitle" type="text" maxlength="160" placeholder="Sunday Operation, Team Training, FTX..." />
+                </label>
+                <label>
+                  Event Type
+                  <input id="eventType" type="text" maxlength="80" placeholder="Operation, FTX, Training, Meeting..." />
+                </label>
+                <label>
+                  Status
+                  <select id="eventStatus">
+                    <option value="Planned">Planned</option>
+                    <option value="Open">Open</option>
+                    <option value="Closed">Closed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </label>
+                <label>
+                  Starts At
+                  <input id="eventStartsAt" type="datetime-local" />
+                </label>
+                <label>
+                  Ends At
+                  <input id="eventEndsAt" type="datetime-local" />
+                </label>
+                <label>
+                  Details
+                  <textarea id="eventDetails" rows="4" placeholder="OPORD summary, attendance requirements, or event notes"></textarea>
+                </label>
+                <p class="form-feedback" id="eventFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="saveEventButton">Save Event</button>
+                  <button class="button ghost" type="button" id="newEventButton">New Event</button>
+                </div>
+              </form>
             </section>
 
             <section class="panel">
               <div class="panel-heading">
-                <h2>Manual Override</h2>
-                <span>Required audit fields</span>
+                <h2>Attendance Review</h2>
+                <span id="attendanceDetailStatus">Select an event</span>
               </div>
-              <p class="panel-copy">Attendance override records are not connected yet.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Unit</th>
+                      <th>Status</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceRows">
+                    <tr><td colspan="4">Select an event to review attendance.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <form class="stack-form" id="attendanceUpdateForm">
+                <label>
+                  Attendance Status
+                  <select id="attendanceStatus">
+                    <option value="PendingReview">Pending Review</option>
+                    <option value="Present">Present</option>
+                    <option value="PresentManual">Present Manual</option>
+                    <option value="Late">Late</option>
+                    <option value="PartialAttendance">Partial Attendance</option>
+                    <option value="LeftEarly">Left Early</option>
+                    <option value="Excused">Excused</option>
+                    <option value="Absent">Absent</option>
+                    <option value="NoShow">No Show</option>
+                    <option value="LOA">LOA</option>
+                    <option value="NotRequired">Not Required</option>
+                  </select>
+                </label>
+                <label>
+                  RSVP Status
+                  <input id="attendanceRsvpStatus" type="text" maxlength="80" placeholder="Attending, Tentative, Unable, No RSVP..." />
+                </label>
+                <label>
+                  Notes
+                  <textarea id="attendanceNotes" rows="3" placeholder="Manual note or attendance clarification"></textarea>
+                </label>
+                <label>
+                  Audit Reason
+                  <textarea id="attendanceReason" rows="3" placeholder="Why is this attendance record being changed?"></textarea>
+                </label>
+                <p class="form-feedback" id="attendanceFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="saveAttendanceButton">Save Attendance Record</button>
+                </div>
+              </form>
             </section>
           </div>
         </section>

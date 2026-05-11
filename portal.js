@@ -45,8 +45,38 @@ const personnelStatusFilter = document.querySelector("#personnelStatusFilter");
 const personnelRows = document.querySelector("#personnelRows");
 const personnelDetail = document.querySelector("#personnelDetail");
 const personnelDetailStatus = document.querySelector("#personnelDetailStatus");
+const personnelUpdateForm = document.querySelector("#personnelUpdateForm");
+const personnelEditUnit = document.querySelector("#personnelEditUnit");
+const personnelEditBillet = document.querySelector("#personnelEditBillet");
+const personnelEditMos = document.querySelector("#personnelEditMos");
+const personnelEditStatus = document.querySelector("#personnelEditStatus");
+const personnelEditGoodStanding = document.querySelector("#personnelEditGoodStanding");
+const personnelEditSections = document.querySelector("#personnelEditSections");
+const personnelEditReason = document.querySelector("#personnelEditReason");
+const personnelUpdateFeedback = document.querySelector("#personnelUpdateFeedback");
+const savePersonnelUpdateButton = document.querySelector("#savePersonnelUpdateButton");
 const profileDetail = document.querySelector("#profileDetail");
 const profileDetailStatus = document.querySelector("#profileDetailStatus");
+const eventRows = document.querySelector("#eventRows");
+const eventForm = document.querySelector("#eventForm");
+const eventTitle = document.querySelector("#eventTitle");
+const eventType = document.querySelector("#eventType");
+const eventStatus = document.querySelector("#eventStatus");
+const eventStartsAt = document.querySelector("#eventStartsAt");
+const eventEndsAt = document.querySelector("#eventEndsAt");
+const eventDetails = document.querySelector("#eventDetails");
+const eventFormFeedback = document.querySelector("#eventFormFeedback");
+const saveEventButton = document.querySelector("#saveEventButton");
+const newEventButton = document.querySelector("#newEventButton");
+const attendanceDetailStatus = document.querySelector("#attendanceDetailStatus");
+const attendanceRows = document.querySelector("#attendanceRows");
+const attendanceUpdateForm = document.querySelector("#attendanceUpdateForm");
+const attendanceStatus = document.querySelector("#attendanceStatus");
+const attendanceRsvpStatus = document.querySelector("#attendanceRsvpStatus");
+const attendanceNotes = document.querySelector("#attendanceNotes");
+const attendanceReason = document.querySelector("#attendanceReason");
+const attendanceFormFeedback = document.querySelector("#attendanceFormFeedback");
+const saveAttendanceButton = document.querySelector("#saveAttendanceButton");
 const loaForm = document.querySelector("#loaForm");
 const loaStartDate = document.querySelector("#loaStartDate");
 const loaEndDate = document.querySelector("#loaEndDate");
@@ -141,10 +171,19 @@ let unitsData = null;
 let unitsLoadError = "";
 let supportTickets = [];
 let supportLoadError = "";
+let personnelLookups = null;
+let personnelLookupError = "";
+let events = [];
+let eventsLoadError = "";
+let attendanceEvent = null;
+let attendanceRecords = [];
+let attendanceLoadError = "";
 
 let currentView = "dashboard";
 let selectedApplicationId = null;
 let selectedPersonnelId = null;
+let selectedEventId = null;
+let selectedAttendanceRecordId = null;
 let currentUser = null;
 let activeAccessRole = "applicant";
 let portalUsers = [];
@@ -190,6 +229,16 @@ Object.entries(applicationFieldMap).forEach(([key, field]) => {
 });
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
+personnelUpdateForm?.addEventListener("submit", submitPersonnelUpdateForm);
+eventForm?.addEventListener("submit", submitEventForm);
+newEventButton?.addEventListener("click", () => {
+  selectedEventId = null;
+  attendanceEvent = null;
+  attendanceRecords = [];
+  selectedAttendanceRecordId = null;
+  renderEvents();
+});
+attendanceUpdateForm?.addEventListener("submit", submitAttendanceUpdateForm);
 loaForm?.addEventListener("submit", submitLoaForm);
 supportForm?.addEventListener("submit", submitSupportForm);
 
@@ -221,7 +270,17 @@ async function initPortal() {
     activeAccessRole = deriveAccessRole(currentUser);
     updateSessionSummary();
     applyRole();
-    await Promise.all([loadDashboardSummary(), loadApplications(), loadPersonnel(), loadLoaRequests(), loadUnits(), loadSupportTickets(), loadAuditLogs()]);
+    await Promise.all([
+      loadDashboardSummary(),
+      loadApplications(),
+      loadPersonnel(),
+      loadPersonnelLookups(),
+      loadEvents(),
+      loadLoaRequests(),
+      loadUnits(),
+      loadSupportTickets(),
+      loadAuditLogs(),
+    ]);
     renderAllRecords();
     setView(currentView);
 
@@ -280,6 +339,7 @@ function renderAllRecords() {
   renderApplications();
   renderPersonnel();
   renderProfileView();
+  renderEvents();
   renderLoaRequests();
   renderUnits();
   renderSupportTickets();
@@ -379,6 +439,9 @@ function renderApplicantDashboard() {
 
 function renderMemberDashboard() {
   const member = personnel.find((item) => item.userId === currentUser?.id) || personnel[0] || null;
+  const nextEvent = [...events]
+    .filter((item) => item.status !== "Cancelled")
+    .sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime())[0];
 
   if (!member) {
     memberDashboardState.innerHTML = `<p class="panel-copy">No personnel profile is available for this account.</p>`;
@@ -395,7 +458,7 @@ function renderMemberDashboard() {
     </div>
     <div class="status-row">
       <span>Upcoming Event</span>
-      <strong>No event records connected</strong>
+      <strong>${escapeHtml(nextEvent ? `${nextEvent.title} | ${formatDate(nextEvent.startsAt)}` : "No event records connected")}</strong>
     </div>
     <div class="status-row">
       <span>Qualifications</span>
@@ -589,6 +652,79 @@ async function loadSupportTickets() {
   renderSupportTickets();
 }
 
+async function loadPersonnelLookups() {
+  if (!personnelEditUnit || !personnelEditBillet || !personnelEditSections) return;
+
+  personnelLookupError = "";
+  if (!canManagePersonnelUpdates()) {
+    personnelLookups = null;
+    renderPersonnelEditor();
+    return;
+  }
+
+  try {
+    personnelLookups = await fetchJson("/api/lookups/personnel");
+  } catch (error) {
+    console.error(error);
+    personnelLookups = null;
+    personnelLookupError = error.message || "Unable to load personnel lookup data.";
+  }
+
+  renderPersonnelEditor();
+}
+
+async function loadEvents() {
+  if (!eventRows) return;
+
+  eventsLoadError = "";
+  eventRows.innerHTML = `<tr><td colspan="6">Loading event records...</td></tr>`;
+
+  try {
+    const response = await fetchJson("/api/events?limit=100");
+    events = response.items || [];
+    if (!events.some((item) => item.id === selectedEventId)) {
+      selectedEventId = events[0]?.id || null;
+    }
+  } catch (error) {
+    console.error(error);
+    events = [];
+    selectedEventId = null;
+    eventsLoadError = error.message || "Unable to load events.";
+  }
+
+  await loadAttendanceForSelectedEvent();
+  renderEvents();
+}
+
+async function loadAttendanceForSelectedEvent() {
+  if (!attendanceRows) return;
+
+  attendanceLoadError = "";
+  attendanceEvent = null;
+  selectedAttendanceRecordId = null;
+
+  if (!selectedEventId) {
+    attendanceRecords = [];
+    renderAttendanceRecords();
+    return;
+  }
+
+  attendanceRows.innerHTML = `<tr><td colspan="4">Loading attendance records...</td></tr>`;
+  try {
+    const response = await fetchJson(`/api/events/${encodeURIComponent(selectedEventId)}/attendance`);
+    attendanceEvent = response.event || null;
+    attendanceRecords = response.items || [];
+    selectedAttendanceRecordId = attendanceRecords[0]?.id || null;
+  } catch (error) {
+    console.error(error);
+    attendanceEvent = null;
+    attendanceRecords = [];
+    attendanceLoadError = error.message || "Unable to load attendance records.";
+  }
+
+  renderAttendanceRecords();
+}
+
 function renderApplicationDetail() {
   const application = selectedApplication();
   const role = activeAccessRole;
@@ -694,8 +830,7 @@ function renderPersonnel() {
 
 function renderPersonnelDetail() {
   const member = selectedPersonnel();
-  const role = activeAccessRole;
-  const canEdit = ["staff", "command", "system"].includes(role) || hasPermission("personnel:write");
+  const canEdit = canManagePersonnelUpdates();
 
   if (!member) {
     personnelDetailStatus.textContent = "No profile";
@@ -705,6 +840,7 @@ function renderPersonnelDetail() {
     [flagTrainingButton, recommendPromotionButton].forEach((button) => {
       button.disabled = true;
     });
+    renderPersonnelEditor();
     return;
   }
 
@@ -714,6 +850,7 @@ function renderPersonnelDetail() {
   [flagTrainingButton, recommendPromotionButton].forEach((button) => {
     button.disabled = !canEdit;
   });
+  renderPersonnelEditor();
 }
 
 function personnelDetailMarkup(member) {
@@ -775,13 +912,192 @@ function renderProfileView() {
         <div><span>Account Status</span><strong>${escapeHtml(accountStatusLabel(currentUser?.accountStatus || "Authenticated"))}</strong></div>
         <div><span>Roles</span><strong>${escapeHtml(roleNames)}</strong></div>
       </div>
-      <p class="detail-copy">${escapeHtml(personnelLoadError || "This account is authenticated, but no personnel profile is linked yet.")}</p>
+      <p class="detail-copy">${escapeHtml(personnelLoadError || "This account is authenticated, but no personnel profile is linked yet. Submit a support request so staff can correct the roster link.")}</p>
     `;
     return;
   }
 
   profileDetailStatus.textContent = member.statusLabel;
   profileDetail.innerHTML = personnelDetailMarkup(member);
+}
+
+function renderPersonnelEditor() {
+  if (!personnelUpdateForm || !personnelUpdateFeedback) return;
+
+  const member = selectedPersonnel();
+  const canEdit = canManagePersonnelUpdates();
+  personnelUpdateForm.hidden = !canEdit;
+
+  if (!canEdit) {
+    setPersonnelUpdateFeedback("Staff-only personnel updates appear here when your account has write access.", "");
+    return;
+  }
+
+  if (!member) {
+    populateSelect(personnelEditUnit, [], "", "Select a personnel profile");
+    populateSelect(personnelEditBillet, [], "", "Select a personnel profile");
+    personnelEditMos.value = "";
+    personnelEditStatus.value = "Active";
+    personnelEditGoodStanding.checked = true;
+    personnelEditSections.innerHTML = `<p class="section-note">Select a profile to load staff section options.</p>`;
+    savePersonnelUpdateButton.disabled = true;
+    setPersonnelUpdateFeedback(personnelLookupError || "Select a profile to edit.", personnelLookupError ? "error" : "");
+    return;
+  }
+
+  savePersonnelUpdateButton.disabled = false;
+  const unitOptions = (personnelLookups?.units || []).map((unit) => ({
+    value: unit.id,
+    label: `${unit.name} (${unit.type})`,
+  }));
+  const billetOptions = (personnelLookups?.billets || []).map((billet) => ({
+    value: billet.id,
+    label: billet.unitName ? `${billet.name} | ${billet.unitName}` : billet.name,
+  }));
+
+  populateSelect(personnelEditUnit, unitOptions, member.unitId, "Select primary unit");
+  populateSelect(personnelEditBillet, billetOptions, member.billetId, "Select primary billet");
+  personnelEditMos.value = member.primaryMos || "";
+  personnelEditStatus.value = member.status || "Active";
+  personnelEditGoodStanding.checked = member.goodStanding !== false;
+
+  personnelEditSections.innerHTML = (personnelLookups?.staffSections || []).length
+    ? personnelLookups.staffSections
+        .map((section) => {
+          const isChecked = member.staffSectionIds.includes(section.id);
+          const label = section.code ? `${section.code} | ${section.name}` : section.name;
+          return `
+            <label class="checkbox-field">
+              <input type="checkbox" value="${escapeHtml(section.id)}" ${isChecked ? "checked" : ""} />
+              <span>${escapeHtml(label)}</span>
+            </label>
+          `;
+        })
+        .join("")
+    : `<p class="section-note">${escapeHtml(personnelLookupError || "No staff sections are currently seeded.")}</p>`;
+
+  setPersonnelUpdateFeedback(
+    personnelLookupError || "Changes here update the selected profile and write an audit entry.",
+    personnelLookupError ? "error" : "",
+  );
+}
+
+function renderEvents() {
+  if (!eventRows) return;
+
+  if (eventsLoadError) {
+    eventRows.innerHTML = `<tr><td colspan="6">${escapeHtml(eventsLoadError)}</td></tr>`;
+    renderAttendanceRecords();
+    renderEventEditor();
+    return;
+  }
+
+  eventRows.innerHTML = events.length
+    ? events
+        .map(
+          (item) => `
+            <tr data-event-id="${escapeHtml(item.id)}" class="${item.id === selectedEventId ? "selected" : ""}">
+              <td><strong>${escapeHtml(item.title)}</strong><br><span class="muted">${escapeHtml(item.details || "No details recorded")}</span></td>
+              <td>${escapeHtml(item.type)}</td>
+              <td>${statusPill(item.status)}</td>
+              <td>${escapeHtml(formatDate(item.startsAt))}</td>
+              <td>${escapeHtml(formatCount(item.attendanceCount))} records</td>
+              <td>${item.ownAttendance ? statusPill(item.ownAttendance.status) : `<span class="muted">No personal attendance record</span>`}</td>
+            </tr>
+          `,
+        )
+        .join("")
+    : `<tr><td colspan="6">No events have been created yet.</td></tr>`;
+
+  eventRows.querySelectorAll("[data-event-id]").forEach((row) => {
+    row.addEventListener("click", async () => {
+      selectedEventId = row.dataset.eventId;
+      renderEvents();
+      await loadAttendanceForSelectedEvent();
+      renderEventEditor();
+    });
+  });
+
+  renderAttendanceRecords();
+  renderEventEditor();
+}
+
+function renderEventEditor() {
+  if (!eventForm || !eventFormFeedback) return;
+
+  const canEdit = canManageEvents();
+  const item = selectedEvent();
+  eventForm.hidden = !canEdit;
+
+  if (!canEdit) {
+    setEventFeedback("Staff and command accounts can create or update events here.", "");
+    return;
+  }
+
+  eventTitle.value = item?.title || "";
+  eventType.value = item?.type || "";
+  eventStatus.value = item?.status || "Planned";
+  eventStartsAt.value = item?.startsAt ? toDateTimeLocal(item.startsAt) : "";
+  eventEndsAt.value = item?.endsAt ? toDateTimeLocal(item.endsAt) : "";
+  eventDetails.value = item?.details || "";
+  setEventFeedback(item ? "Editing selected event." : "Create the first event record for the live calendar.", "");
+}
+
+function renderAttendanceRecords() {
+  if (!attendanceRows || !attendanceDetailStatus) return;
+
+  const canEdit = canManageEvents();
+  attendanceUpdateForm.hidden = !canEdit;
+
+  if (attendanceLoadError) {
+    attendanceDetailStatus.textContent = "Attendance unavailable";
+    attendanceRows.innerHTML = `<tr><td colspan="4">${escapeHtml(attendanceLoadError)}</td></tr>`;
+    setAttendanceFeedback(attendanceLoadError, "error");
+    return;
+  }
+
+  if (!selectedEventId || !attendanceEvent) {
+    attendanceDetailStatus.textContent = "Select an event";
+    attendanceRows.innerHTML = `<tr><td colspan="4">Select an event to review attendance.</td></tr>`;
+    setAttendanceFeedback(canEdit ? "Attendance edits require an event selection." : "Attendance review is read-only for members.", "");
+    return;
+  }
+
+  attendanceDetailStatus.textContent = `${attendanceEvent.title} | ${formatDate(attendanceEvent.startsAt)}`;
+  if (!attendanceRecords.length) {
+    attendanceRows.innerHTML = `<tr><td colspan="4">No attendance records are available for this event.</td></tr>`;
+  } else {
+    attendanceRows.innerHTML = attendanceRecords
+      .map(
+        (record) => `
+          <tr data-attendance-id="${escapeHtml(record.id)}" class="${record.id === selectedAttendanceRecordId ? "selected" : ""}">
+            <td><strong>${escapeHtml(record.member || "Unknown Member")}</strong><br><span class="muted">${escapeHtml(record.rank)}</span></td>
+            <td>${escapeHtml(record.unit)}<br><span class="muted">${escapeHtml(record.billet)}</span></td>
+            <td>${statusPill(record.status)}</td>
+            <td>${escapeHtml(record.notes || record.overrideReason || "No notes recorded")}</td>
+          </tr>
+        `,
+      )
+      .join("");
+  }
+
+  attendanceRows.querySelectorAll("[data-attendance-id]").forEach((row) => {
+    row.addEventListener("click", () => {
+      selectedAttendanceRecordId = row.dataset.attendanceId;
+      renderAttendanceRecords();
+    });
+  });
+
+  const selectedRecord = selectedAttendanceRecord();
+  if (!canEdit) {
+    setAttendanceFeedback("Members can view only their own attendance record here.", "");
+    return;
+  }
+
+  attendanceStatus.value = selectedRecord?.status || "PendingReview";
+  attendanceRsvpStatus.value = selectedRecord?.rsvpStatus || "";
+  attendanceNotes.value = selectedRecord?.notes || "";
+  setAttendanceFeedback(selectedRecord ? "Attendance updates require an audit reason." : "Select an attendance record to update.", "");
 }
 
 function renderLoaRequests() {
@@ -984,6 +1300,131 @@ async function submitSupportForm(event) {
   }
 }
 
+async function submitPersonnelUpdateForm(event) {
+  event.preventDefault();
+  const member = selectedPersonnel();
+  if (!member || !savePersonnelUpdateButton) return;
+
+  savePersonnelUpdateButton.disabled = true;
+  setPersonnelUpdateFeedback("", "");
+
+  try {
+    const response = await fetchJson(`/api/personnel/${encodeURIComponent(member.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        primaryUnitId: personnelEditUnit?.value || null,
+        primaryBilletId: personnelEditBillet?.value || null,
+        primaryMos: personnelEditMos?.value || "",
+        status: personnelEditStatus?.value || member.status,
+        goodStanding: Boolean(personnelEditGoodStanding?.checked),
+        staffSectionIds: [...personnelEditSections.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value),
+        reason: personnelEditReason?.value || "",
+      }),
+    });
+
+    const updated = normalizePersonnel(response.item);
+    personnel = personnel.map((item) => (item.id === updated.id ? updated : item));
+    personnelEditReason.value = "";
+    renderPersonnel();
+    renderProfileView();
+    await Promise.all([loadDashboardSummary(), loadAuditLogs()]);
+    setPersonnelUpdateFeedback("Personnel profile updated and audited.", "success");
+    showToast(`${updated.alias} updated.`);
+  } catch (error) {
+    console.error(error);
+    setPersonnelUpdateFeedback(error.message || "Unable to update personnel profile.", "error");
+  } finally {
+    savePersonnelUpdateButton.disabled = false;
+  }
+}
+
+async function submitEventForm(event) {
+  event.preventDefault();
+  if (!saveEventButton) return;
+
+  saveEventButton.disabled = true;
+  setEventFeedback("", "");
+
+  try {
+    const selected = selectedEvent();
+    const endpoint = selected ? `/api/events/${encodeURIComponent(selected.id)}` : "/api/events";
+    const method = selected ? "PATCH" : "POST";
+    const response = await fetchJson(endpoint, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: eventTitle?.value,
+        type: eventType?.value,
+        status: eventStatus?.value,
+        startsAt: eventStartsAt?.value,
+        endsAt: eventEndsAt?.value,
+        details: eventDetails?.value,
+      }),
+    });
+
+    const updated = response.item;
+    events = selected
+      ? events.map((item) => (item.id === updated.id ? updated : item))
+      : [updated, ...events.filter((item) => item.id !== updated.id)];
+    selectedEventId = updated.id;
+    await loadAttendanceForSelectedEvent();
+    renderEvents();
+    await Promise.all([loadDashboardSummary(), loadAuditLogs()]);
+    setEventFeedback(selected ? "Event updated." : "Event created.", "success");
+    showToast(selected ? "Event updated." : "Event created.");
+  } catch (error) {
+    console.error(error);
+    setEventFeedback(error.message || "Unable to save event.", "error");
+  } finally {
+    saveEventButton.disabled = false;
+  }
+}
+
+async function submitAttendanceUpdateForm(event) {
+  event.preventDefault();
+  const record = selectedAttendanceRecord();
+  if (!record || !saveAttendanceButton) return;
+
+  saveAttendanceButton.disabled = true;
+  setAttendanceFeedback("", "");
+
+  try {
+    const response = await fetchJson(
+      `/api/events/${encodeURIComponent(selectedEventId)}/attendance/${encodeURIComponent(record.id)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: attendanceStatus?.value,
+          rsvpStatus: attendanceRsvpStatus?.value,
+          notes: attendanceNotes?.value,
+          reason: attendanceReason?.value,
+        }),
+      },
+    );
+
+    attendanceRecords = attendanceRecords.map((item) => (item.id === response.item.id ? response.item : item));
+    attendanceReason.value = "";
+    renderAttendanceRecords();
+    const ownProfileId = currentUserPersonnelProfile()?.id || null;
+    events = events.map((item) =>
+      item.id === selectedEventId && ownProfileId === response.item.profileId
+        ? { ...item, ownAttendance: { id: response.item.id, status: response.item.status, rsvpStatus: response.item.rsvpStatus, notes: response.item.notes } }
+        : item,
+    );
+    renderEvents();
+    await Promise.all([loadDashboardSummary(), loadAuditLogs()]);
+    setAttendanceFeedback("Attendance record updated and audited.", "success");
+    showToast("Attendance record updated.");
+  } catch (error) {
+    console.error(error);
+    setAttendanceFeedback(error.message || "Unable to update attendance record.", "error");
+  } finally {
+    saveAttendanceButton.disabled = false;
+  }
+}
+
 function renderAudit() {
   if (!auditRows) return;
 
@@ -1175,7 +1616,7 @@ async function saveSelectedUserRoles() {
       activeAccessRole = deriveAccessRole(currentUser);
       updateSessionSummary();
       applyRole();
-      await loadPersonnel();
+      await Promise.all([loadPersonnel(), loadPersonnelLookups(), loadEvents()]);
     }
 
     showToast(`${displayUserName(response.user)} roles updated.`);
@@ -1300,6 +1741,8 @@ function normalizePersonnel(item) {
   return {
     id: item?.id,
     userId: user.id,
+    unitId: item?.unit?.id || "",
+    billetId: item?.billet?.id || "",
     rank,
     alias,
     discord: user.discordUsername || "Unknown Discord",
@@ -1315,8 +1758,10 @@ function normalizePersonnel(item) {
     billet: billet || "Missing",
     status,
     statusLabel: accountStatusLabel(status),
+    goodStanding: item?.goodStanding !== false,
     flags: flags.length ? flags.join(", ") : "None",
     staff: staffAssignments.length ? staffAssignments.join(", ") : "None",
+    staffSectionIds: (item?.staffAssignments || []).map((assignment) => assignment.staffSection?.id).filter(Boolean),
     qualifications: counts.qualifications ? `${counts.qualifications} qualification records` : "No qualifications recorded",
     attendance: counts.attendanceRecords ? `${counts.attendanceRecords} attendance records` : "No attendance records",
     loa: counts.loaRequests ? `${counts.loaRequests} LOA requests` : "None",
@@ -1411,6 +1856,14 @@ function selectedPersonnel() {
   return personnel.find((member) => member.id === selectedPersonnelId) || null;
 }
 
+function selectedEvent() {
+  return events.find((item) => item.id === selectedEventId) || null;
+}
+
+function selectedAttendanceRecord() {
+  return attendanceRecords.find((item) => item.id === selectedAttendanceRecordId) || null;
+}
+
 function currentUserPersonnelProfile() {
   return personnel.find((member) => member.userId === currentUser?.id) || null;
 }
@@ -1444,6 +1897,14 @@ function deriveAccessRole(user) {
 
 function hasPermission(permission) {
   return currentUser?.permissions?.includes(permission) || false;
+}
+
+function canManagePersonnelUpdates() {
+  return ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("personnel:write");
+}
+
+function canManageEvents() {
+  return ["staff", "command", "system"].includes(activeAccessRole) || hasPermission("personnel:write");
 }
 
 function validateApplicationForm() {
@@ -1571,6 +2032,36 @@ function setSupportFeedback(message, state) {
   }
 }
 
+function setPersonnelUpdateFeedback(message, state) {
+  if (!personnelUpdateFeedback) return;
+
+  personnelUpdateFeedback.textContent = message;
+  personnelUpdateFeedback.classList.remove("error", "success");
+  if (state) {
+    personnelUpdateFeedback.classList.add(state);
+  }
+}
+
+function setEventFeedback(message, state) {
+  if (!eventFormFeedback) return;
+
+  eventFormFeedback.textContent = message;
+  eventFormFeedback.classList.remove("error", "success");
+  if (state) {
+    eventFormFeedback.classList.add(state);
+  }
+}
+
+function setAttendanceFeedback(message, state) {
+  if (!attendanceFormFeedback) return;
+
+  attendanceFormFeedback.textContent = message;
+  attendanceFormFeedback.classList.remove("error", "success");
+  if (state) {
+    attendanceFormFeedback.classList.add(state);
+  }
+}
+
 function canManageUsers() {
   return activeAccessRole === "system" || hasPermission("system:admin");
 }
@@ -1615,6 +2106,20 @@ function updateSessionSummary(error) {
   currentUserMeta.textContent = `${roleText} | ${currentUser.accountStatus}`;
 }
 
+function populateSelect(element, options, selectedValue, placeholder) {
+  if (!element) return;
+
+  const placeholderOption = placeholder ? `<option value="">${escapeHtml(placeholder)}</option>` : "";
+  element.innerHTML =
+    placeholderOption +
+    options
+      .map(
+        (option) =>
+          `<option value="${escapeHtml(option.value)}" ${String(option.value) === String(selectedValue || "") ? "selected" : ""}>${escapeHtml(option.label)}</option>`,
+      )
+      .join("");
+}
+
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, {
     credentials: "same-origin",
@@ -1648,6 +2153,15 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function toDateTimeLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }
 
 function formatCount(value) {

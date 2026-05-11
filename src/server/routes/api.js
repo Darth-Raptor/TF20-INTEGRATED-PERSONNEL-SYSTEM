@@ -5,9 +5,13 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   assertCanAccessPersonnelProfile,
   canAccessPersonnelRoster,
+  createCalendarEvent,
   getPortalSummary,
   listBugReports,
+  listAttendanceRecordsForEvent,
+  listEvents,
   listLoaRequests,
+  listPersonnelLookups,
   listUnits,
   listApplications,
   listAuditLogs,
@@ -18,6 +22,8 @@ import {
   submitApplication,
   submitBugReport,
   submitLoaRequest,
+  updateAttendanceRecord,
+  updateCalendarEvent,
   updatePersonnelProfile,
   updateApplicationStatus,
   writeAuditLog,
@@ -283,6 +289,108 @@ export function apiRouter() {
     asyncRoute(async (req, res) => {
       const item = await listUnits({ actorUser: req.user });
       res.json(item);
+    }),
+  );
+
+  router.get(
+    "/lookups/personnel",
+    requireAuth,
+    requireRole("personnel:read", "staff", "command", "command-staff", "system-admin"),
+    asyncRoute(async (req, res) => {
+      const item = await listPersonnelLookups({ actorUser: req.user });
+      res.json(item);
+    }),
+  );
+
+  router.get(
+    "/events",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      const items = await listEvents({
+        actorUser: req.user,
+        status: req.query.status,
+        limit: parseLimit(req.query.limit),
+      });
+      res.json({ items, next: null });
+    }),
+  );
+
+  router.post(
+    "/events",
+    requireAuth,
+    requireRole("personnel:write", "staff", "command", "command-staff", "system-admin"),
+    asyncRoute(async (req, res) => {
+      const item = await createCalendarEvent({
+        actorUser: req.user,
+        title: req.body.title,
+        type: req.body.type,
+        status: req.body.status,
+        startsAt: req.body.startsAt,
+        endsAt: req.body.endsAt,
+        details: req.body.details,
+        ipSessionMetadata: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
+      res.status(201).json({ item });
+    }),
+  );
+
+  router.patch(
+    "/events/:id",
+    requireAuth,
+    requireRole("personnel:write", "staff", "command", "command-staff", "system-admin"),
+    asyncRoute(async (req, res) => {
+      const item = await updateCalendarEvent({
+        actorUser: req.user,
+        eventId: req.params.id,
+        title: req.body.title,
+        type: req.body.type,
+        status: req.body.status,
+        startsAt: req.body.startsAt,
+        endsAt: req.body.endsAt,
+        details: req.body.details,
+        ipSessionMetadata: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
+      res.json({ item });
+    }),
+  );
+
+  router.get(
+    "/events/:id/attendance",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      const item = await listAttendanceRecordsForEvent({
+        actorUser: req.user,
+        eventId: req.params.id,
+      });
+      res.json(item);
+    }),
+  );
+
+  router.patch(
+    "/events/:id/attendance/:recordId",
+    requireAuth,
+    requireRole("personnel:write", "staff", "command", "command-staff", "system-admin"),
+    asyncRoute(async (req, res) => {
+      const item = await updateAttendanceRecord({
+        actorUser: req.user,
+        eventId: req.params.id,
+        attendanceRecordId: req.params.recordId,
+        status: req.body.status,
+        rsvpStatus: req.body.rsvpStatus,
+        notes: req.body.notes,
+        reason: req.body.reason,
+        ipSessionMetadata: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
+      res.json({ item });
     }),
   );
 

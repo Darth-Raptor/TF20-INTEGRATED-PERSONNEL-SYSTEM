@@ -28,3 +28,6 @@ jobs:
 
       - name: Run syntax checks
         run: npm run check
+
+      - name: Run smoke boot
+        run: npm run smoke

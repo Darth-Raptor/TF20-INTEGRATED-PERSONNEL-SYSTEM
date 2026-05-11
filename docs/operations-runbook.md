@@ -30,15 +30,23 @@ Live app:
 
 1. Pull latest code locally.
 2. Run `npm run check`.
-3. Back up the live files on the VPS before replacing them.
-4. Copy only the changed files or deploy the full updated checkout.
-5. On the VPS, ensure file ownership remains `tf20:tf20` for app files.
-6. Restart the service:
+3. Run `npm run smoke`.
+4. Back up the live files on the VPS before replacing them.
+5. Copy only the changed files or deploy the full updated checkout.
+6. On the VPS, ensure file ownership remains `tf20:tf20` for app files.
+7. Restart the service:
    - `systemctl restart tf20`
-7. Verify:
+8. Verify:
    - `systemctl is-active tf20`
    - `curl -fsS http://127.0.0.1:3000/api/health`
    - browser login flow on `https://taskforce20.com`
+   - member profile view loads
+   - recruiter/staff application queue loads
+   - staff personnel roster loads
+   - LOA queue loads
+   - support queue loads
+   - events page loads and attendance review opens for a selected event
+   - audit log loads for a privileged account
 
 ## Production Environment
 

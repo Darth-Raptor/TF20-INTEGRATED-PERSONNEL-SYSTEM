@@ -30,6 +30,21 @@ const accountStatuses = new Set([
 const auditSeverities = new Set(["Info", "ActionRequired", "Warning", "Critical"]);
 const loaStatuses = new Set(["Submitted", "Approved", "Denied", "Returned", "Cancelled"]);
 const supportSeverities = new Set(["Low", "Medium", "High", "Critical"]);
+const attendanceStatuses = new Set([
+  "Present",
+  "PresentAutoVerified",
+  "PresentManual",
+  "PartialAttendance",
+  "Late",
+  "LeftEarly",
+  "Absent",
+  "Excused",
+  "NoShow",
+  "LOA",
+  "NotRequired",
+  "PendingReview",
+]);
+const eventStatuses = new Set(["Planned", "Open", "Closed", "Cancelled"]);
 const activeApplicationStatuses = [
   "Draft",
   "Submitted",
@@ -40,6 +55,7 @@ const activeApplicationStatuses = [
   "Accepted",
 ];
 const finalApplicationStatuses = new Set(["Denied", "Withdrawn", "ConvertedToRecruit"]);
+const activeRosterStatuses = ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"];
 
 const personnelProfileInclude = {
   user: {
@@ -141,6 +157,14 @@ function canReadScopedPersonnel(user) {
 
 export function canAccessPersonnelRoster(user) {
   return canReadScopedPersonnel(user);
+}
+
+function canManageEvents(user) {
+  return (
+    hasFullPersonnelAccess(user) ||
+    user?.permissions?.includes("personnel:write") ||
+    user?.roles?.some((role) => ["staff", "command-staff", "system-admin"].includes(role))
+  );
 }
 
 function mergeWhere(...clauses) {
@@ -675,7 +699,6 @@ export async function getPortalSummary({ actorUser } = {}) {
   const db = getDb();
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const activeRosterStatuses = ["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"];
   const accessWhere = await personnelAccessWhere(actorUser);
 
   const [
@@ -1212,6 +1235,504 @@ export async function listUnits({ actorUser } = {}) {
     roots: (byParent.get("__root__") || []).map((unit) => unit.id),
     visibility: actorUser?.access?.personnelScope || "self",
   };
+}
+
+export async function listPersonnelLookups({ actorUser } = {}) {
+  assertDatabaseReady();
+
+  if (!canReadScopedPersonnel(actorUser)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const [units, billets, staffSections] = await Promise.all([
+    getDb().unit.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        parentId: true,
+      },
+    }),
+    getDb().billet.findMany({
+      orderBy: [{ name: "asc" }],
+      include: {
+        unit: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    }),
+    getDb().staffSection.findMany({
+      orderBy: [{ sortOrder: "asc" }, { code: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        sortOrder: true,
+      },
+    }),
+  ]);
+
+  return {
+    units,
+    billets: billets.map((billet) => ({
+      id: billet.id,
+      name: billet.name,
+      unitId: billet.unitId,
+      unitName: billet.unit?.name || "",
+      category: billet.category?.name || "Uncategorized",
+    })),
+    staffSections,
+  };
+}
+
+export async function listEvents({ actorUser, limit = 50, status } = {}) {
+  assertDatabaseReady();
+
+  const profileId = actorUser?.profile?.id || null;
+  const where = status && eventStatuses.has(status) ? { status } : {};
+  const items = await getDb().calendarEvent.findMany({
+    where,
+    take: limit,
+    orderBy: [{ startsAt: "asc" }, { title: "asc" }],
+    include: {
+      attendance: profileId
+        ? {
+            where: { profileId },
+            include: {
+              profile: {
+                include: {
+                  user: {
+                    select: {
+                      displayAlias: true,
+                      discordDisplayName: true,
+                      discordUsername: true,
+                    },
+                  },
+                },
+              },
+            },
+          }
+        : false,
+      _count: {
+        select: {
+          attendance: true,
+          observations: true,
+        },
+      },
+    },
+  });
+
+  return items.map((event) => {
+    const ownAttendance = profileId ? event.attendance?.[0] || null : null;
+    return {
+      id: event.id,
+      title: event.title,
+      type: event.type,
+      status: event.status,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      details: event.details,
+      ownerUserId: event.ownerUserId,
+      attendanceCount: event._count.attendance,
+      observationCount: event._count.observations,
+      ownAttendance: ownAttendance
+        ? {
+            id: ownAttendance.id,
+            status: ownAttendance.status,
+            rsvpStatus: ownAttendance.rsvpStatus,
+            notes: ownAttendance.notes,
+          }
+        : null,
+    };
+  });
+}
+
+async function buildAttendanceSeedProfiles(actorUser) {
+  const where = mergeWhere(await personnelAccessWhere(actorUser), {
+    currentStatus: { in: activeRosterStatuses },
+  });
+
+  return getDb().personnelProfile.findMany({
+    where,
+    select: { id: true },
+  });
+}
+
+export async function createCalendarEvent({
+  actorUser,
+  title,
+  type,
+  status,
+  startsAt,
+  endsAt,
+  details,
+  ipSessionMetadata,
+}) {
+  assertDatabaseReady();
+
+  if (!canManageEvents(actorUser)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const cleanedTitle = normalizeText(title, 160);
+  const cleanedType = normalizeText(type, 80);
+  const cleanedStatus = eventStatuses.has(status) ? status : "Planned";
+  const cleanedDetails = normalizeText(details, 4000) || null;
+  const parsedStartsAt = normalizeDate(startsAt);
+  const parsedEndsAt = normalizeDate(endsAt);
+
+  if (!cleanedTitle || !cleanedType || !parsedStartsAt) {
+    const error = new Error("Event title, type, and start date are required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (parsedEndsAt && parsedEndsAt < parsedStartsAt) {
+    const error = new Error("Event end date must be on or after the start date.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const seedProfiles = await buildAttendanceSeedProfiles(actorUser);
+  const created = await getDb().$transaction(async (tx) => {
+    const event = await tx.calendarEvent.create({
+      data: {
+        title: cleanedTitle,
+        type: cleanedType,
+        status: cleanedStatus,
+        startsAt: parsedStartsAt,
+        endsAt: parsedEndsAt,
+        details: cleanedDetails,
+        ownerUserId: actorUser?.id || null,
+      },
+    });
+
+    if (seedProfiles.length) {
+      await tx.attendanceRecord.createMany({
+        data: seedProfiles.map((profile) => ({
+          eventId: event.id,
+          profileId: profile.id,
+          status: "PendingReview",
+        })),
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actorUser?.id,
+        module: "Event",
+        action: "Created Event",
+        newValue: {
+          title: cleanedTitle,
+          type: cleanedType,
+          status: cleanedStatus,
+          startsAt: parsedStartsAt,
+          endsAt: parsedEndsAt,
+          seededAttendance: seedProfiles.length,
+        },
+        reason: "Created event from portal.",
+        relatedRecordId: event.id,
+        severity: "Info",
+        systemGenerated: false,
+        ipSessionMetadata,
+      },
+    });
+
+    return event;
+  });
+
+  return (await listEvents({ actorUser, limit: 100 })).find((item) => item.id === created.id) || null;
+}
+
+export async function updateCalendarEvent({
+  actorUser,
+  eventId,
+  title,
+  type,
+  status,
+  startsAt,
+  endsAt,
+  details,
+  ipSessionMetadata,
+}) {
+  assertDatabaseReady();
+
+  if (!canManageEvents(actorUser)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const db = getDb();
+  const event = await db.calendarEvent.findUnique({
+    where: { id: eventId },
+  });
+
+  if (!event) {
+    const error = new Error("Event not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const nextStartsAt = normalizeDate(startsAt) || event.startsAt;
+  const nextEndsAt = endsAt === "" ? null : normalizeDate(endsAt);
+  if (nextEndsAt && nextEndsAt < nextStartsAt) {
+    const error = new Error("Event end date must be on or after the start date.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const nextTitle = normalizeText(title, 160) || event.title;
+  const nextType = normalizeText(type, 80) || event.type;
+  const nextStatus = eventStatuses.has(status) ? status : event.status;
+  const nextDetails = normalizeText(details, 4000) || null;
+  const seedProfiles = await buildAttendanceSeedProfiles(actorUser);
+
+  await db.$transaction(async (tx) => {
+    await tx.calendarEvent.update({
+      where: { id: eventId },
+      data: {
+        title: nextTitle,
+        type: nextType,
+        status: nextStatus,
+        startsAt: nextStartsAt,
+        endsAt: nextEndsAt,
+        details: nextDetails,
+      },
+    });
+
+    if (seedProfiles.length) {
+      await tx.attendanceRecord.createMany({
+        data: seedProfiles.map((profile) => ({
+          eventId,
+          profileId: profile.id,
+          status: "PendingReview",
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actorUser?.id,
+        module: "Event",
+        action: "Updated Event",
+        oldValue: {
+          title: event.title,
+          type: event.type,
+          status: event.status,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          details: event.details,
+        },
+        newValue: {
+          title: nextTitle,
+          type: nextType,
+          status: nextStatus,
+          startsAt: nextStartsAt,
+          endsAt: nextEndsAt,
+          details: nextDetails,
+        },
+        reason: "Updated event from portal.",
+        relatedRecordId: eventId,
+        severity: "Info",
+        systemGenerated: false,
+        ipSessionMetadata,
+      },
+    });
+  });
+
+  return (await listEvents({ actorUser, limit: 100 })).find((item) => item.id === eventId) || null;
+}
+
+export async function listAttendanceRecordsForEvent({ actorUser, eventId } = {}) {
+  assertDatabaseReady();
+
+  const event = await getDb().calendarEvent.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      status: true,
+      startsAt: true,
+      endsAt: true,
+      details: true,
+    },
+  });
+
+  if (!event) {
+    const error = new Error("Event not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const canReadAll = canManageEvents(actorUser) || canReadScopedPersonnel(actorUser);
+  let where;
+  if (!canReadAll) {
+    where = {
+      eventId,
+      profileId: actorUser?.profile?.id || "__no_profile__",
+    };
+  } else {
+    where = mergeWhere(
+      { eventId },
+      {
+        profile: {
+          is: await personnelAccessWhere(actorUser),
+        },
+      },
+    );
+  }
+
+  const items = await getDb().attendanceRecord.findMany({
+    where,
+    orderBy: [{ profileId: "asc" }, { markedAt: "desc" }],
+    include: {
+      profile: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              discordUsername: true,
+              discordDisplayName: true,
+              displayAlias: true,
+            },
+          },
+          currentRank: true,
+          primaryUnit: true,
+          primaryBillet: true,
+        },
+      },
+    },
+  });
+
+  return {
+    event,
+    items: items.map((record) => ({
+      id: record.id,
+      eventId: record.eventId,
+      profileId: record.profileId,
+      status: record.status,
+      rsvpStatus: record.rsvpStatus,
+      markedById: record.markedById,
+      markedAt: record.markedAt,
+      overrideReason: record.overrideReason,
+      originalStatus: record.originalStatus,
+      notes: record.notes,
+      member: displayUser(record.profile?.user),
+      rank: record.profile?.currentRank?.abbreviation || "Unranked",
+      unit: record.profile?.primaryUnit?.name || "Unassigned",
+      billet: record.profile?.primaryBillet?.name || "Missing",
+    })),
+  };
+}
+
+export async function updateAttendanceRecord({
+  actorUser,
+  eventId,
+  attendanceRecordId,
+  status,
+  rsvpStatus,
+  notes,
+  reason,
+  ipSessionMetadata,
+}) {
+  assertDatabaseReady();
+
+  if (!canManageEvents(actorUser)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!attendanceStatuses.has(status)) {
+    const error = new Error("Invalid attendance status.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const cleanedReason = normalizeText(reason, 1000);
+  if (!cleanedReason) {
+    const error = new Error("Attendance overrides require an audit reason.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const db = getDb();
+  const record = await db.attendanceRecord.findFirst({
+    where: {
+      id: attendanceRecordId,
+      eventId,
+    },
+    include: {
+      profile: true,
+    },
+  });
+
+  if (!record) {
+    const error = new Error("Attendance record not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await assertCanAccessPersonnelProfile(actorUser, record.profileId);
+
+  await db.$transaction(async (tx) => {
+    await tx.attendanceRecord.update({
+      where: { id: attendanceRecordId },
+      data: {
+        status,
+        rsvpStatus: normalizeText(rsvpStatus, 80) || null,
+        notes: normalizeText(notes, 2000) || null,
+        originalStatus: record.status,
+        overrideReason: cleanedReason,
+        markedById: actorUser?.id || null,
+        markedAt: currentTimestamp(),
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actorUser?.id,
+        affectedProfileId: record.profileId,
+        module: "Attendance",
+        action: "Updated Attendance Record",
+        oldValue: {
+          status: record.status,
+          rsvpStatus: record.rsvpStatus,
+          notes: record.notes,
+        },
+        newValue: {
+          status,
+          rsvpStatus: normalizeText(rsvpStatus, 80) || null,
+          notes: normalizeText(notes, 2000) || null,
+        },
+        reason: cleanedReason,
+        relatedRecordId: attendanceRecordId,
+        severity: status === "NoShow" || status === "Absent" ? "Warning" : "Info",
+        systemGenerated: false,
+        ipSessionMetadata,
+      },
+    });
+  });
+
+  const updated = await listAttendanceRecordsForEvent({ actorUser, eventId });
+  return updated.items.find((item) => item.id === attendanceRecordId) || null;
 }
 
 export async function listBugReports({ actorUser, limit = 50 } = {}) {

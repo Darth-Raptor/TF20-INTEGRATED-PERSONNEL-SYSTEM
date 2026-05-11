@@ -22,6 +22,13 @@
 - Approved LOA appears in the queue and profile summary.
 - Return handling updates the request state cleanly.
 
+## Events and Attendance
+
+- Staff/command can create an event.
+- Event list appears live on the Events page.
+- Members can see their own attendance status for a selected event.
+- Staff/command can update an attendance record with an audit reason.
+
 ## Personnel and Units
 
 - Staff sees only the roster allowed by billet scope.
@@ -31,6 +38,7 @@
 
 ## Support and Roles
 
+- Recruiter or staff can review application intake.
 - Members can submit a support/bug report.
 - Staff/system can view the support queue.
 - System admin can update user roles.
