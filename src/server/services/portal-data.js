@@ -1274,12 +1274,11 @@ export async function listPersonnelLookups({ actorUser } = {}) {
       },
     }),
     getDb().staffSection.findMany({
-      orderBy: [{ sortOrder: "asc" }, { code: "asc" }, { name: "asc" }],
+      orderBy: [{ code: "asc" }, { name: "asc" }],
       select: {
         id: true,
         code: true,
         name: true,
-        sortOrder: true,
       },
     }),
   ]);
