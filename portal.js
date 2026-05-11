@@ -229,6 +229,7 @@ Object.entries(applicationFieldMap).forEach(([key, field]) => {
 });
 personnelSearch.addEventListener("input", renderPersonnel);
 personnelStatusFilter.addEventListener("change", renderPersonnel);
+personnelEditUnit?.addEventListener("change", () => syncPersonnelBilletOptions());
 personnelEditStatus?.addEventListener("change", syncPersonnelStatusLocks);
 personnelUpdateForm?.addEventListener("submit", submitPersonnelUpdateForm);
 eventForm?.addEventListener("submit", submitEventForm);
@@ -952,13 +953,9 @@ function renderPersonnelEditor() {
     value: unit.id,
     label: `${unit.name} (${unit.type})`,
   }));
-  const billetOptions = (personnelLookups?.billets || []).map((billet) => ({
-    value: billet.id,
-    label: billet.unitName ? `${billet.name} | ${billet.unitName}` : billet.name,
-  }));
 
   populateSelect(personnelEditUnit, unitOptions, member.unitId, "Select primary unit");
-  populateSelect(personnelEditBillet, billetOptions, member.billetId, "Select primary billet");
+  syncPersonnelBilletOptions(member.billetId);
   personnelEditMos.value = member.primaryMos || "";
   personnelEditStatus.value = member.status || "Active";
   personnelEditGoodStanding.checked = member.goodStanding !== false;
@@ -983,6 +980,38 @@ function renderPersonnelEditor() {
     personnelLookupError ? "error" : "",
   );
   syncPersonnelStatusLocks();
+}
+
+function syncPersonnelBilletOptions(selectedBilletId = null) {
+  if (!personnelEditBillet) return;
+
+  const selectedUnitId = personnelEditUnit?.value || "";
+  const billets = personnelLookups?.billets || [];
+
+  if (!selectedUnitId) {
+    populateSelect(personnelEditBillet, [], "", "Select primary unit first");
+    return;
+  }
+
+  const billetOptions = billets
+    .filter((billet) => billet.unitId === selectedUnitId)
+    .map((billet) => ({
+      value: billet.id,
+      label: billet.name,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+
+  const selectedValue =
+    billetOptions.some((option) => option.value === (selectedBilletId || personnelEditBillet.value))
+      ? selectedBilletId || personnelEditBillet.value
+      : "";
+
+  populateSelect(
+    personnelEditBillet,
+    billetOptions,
+    selectedValue,
+    billetOptions.length ? "Select primary billet" : "No billets for selected unit",
+  );
 }
 
 function renderEvents() {
