@@ -22,6 +22,7 @@ import {
   submitApplication,
   submitBugReport,
   submitLoaRequest,
+  syncApprovedLoaStatuses,
   updateLoaRequest,
   updateAttendanceRecord,
   updateCalendarEvent,
@@ -30,7 +31,7 @@ import {
   withdrawLoaRequest,
   writeAuditLog,
 } from "../services/portal-data.js";
-import { listPortalRoles, listPortalUsers, updatePortalUserRoles } from "../services/users.js";
+import { getSessionUserById, listPortalRoles, listPortalUsers, updatePortalUserRoles } from "../services/users.js";
 
 const asyncRoute = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
@@ -57,12 +58,14 @@ export function apiRouter() {
     });
   });
 
-  router.get("/me", requireAuth, (req, res) => {
+  router.get("/me", requireAuth, asyncRoute(async (req, res) => {
+    await syncApprovedLoaStatuses();
+    const user = await getSessionUserById(req.user?.id);
     res.json({
       authenticated: true,
-      user: req.user,
+      user: user || req.user,
     });
-  });
+  }));
 
   router.get(
     "/summary",

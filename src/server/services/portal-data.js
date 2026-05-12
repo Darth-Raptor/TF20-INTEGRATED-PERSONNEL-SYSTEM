@@ -112,10 +112,77 @@ function currentTimestamp() {
   return new Date();
 }
 
+function startOfDay(date = currentTimestamp()) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
 function normalizeDate(value) {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export async function syncApprovedLoaStatuses() {
+  assertDatabaseReady();
+
+  const db = getDb();
+  const today = startOfDay();
+  const approvedRecords = await db.lOARequest.findMany({
+    where: { status: "Approved" },
+    select: {
+      id: true,
+      profileId: true,
+      startDate: true,
+    },
+  });
+
+  const shouldBeOnLoa = new Set(
+    approvedRecords
+      .filter((record) => {
+        const startDate = normalizeDate(record.startDate);
+        return startDate && startOfDay(startDate) <= today;
+      })
+      .map((record) => record.profileId),
+  );
+
+  const candidateProfileIds = new Set(approvedRecords.map((record) => record.profileId));
+  if (!candidateProfileIds.size) return;
+
+  const profiles = await db.personnelProfile.findMany({
+    where: {
+      OR: [
+        { id: { in: [...candidateProfileIds] } },
+        { currentStatus: "LeaveOfAbsence" },
+      ],
+    },
+    select: {
+      id: true,
+      userId: true,
+      currentStatus: true,
+      user: { select: { accountStatus: true } },
+    },
+  });
+
+  await db.$transaction(async (tx) => {
+    for (const profile of profiles) {
+      const nextStatus = shouldBeOnLoa.has(profile.id) ? "LeaveOfAbsence" : profile.currentStatus === "LeaveOfAbsence" ? "Active" : null;
+      if (!nextStatus || nextStatus === profile.currentStatus) continue;
+
+      await tx.personnelProfile.update({
+        where: { id: profile.id },
+        data: { currentStatus: nextStatus },
+      });
+
+      if (profile.userId && profile.user?.accountStatus !== nextStatus) {
+        await tx.user.update({
+          where: { id: profile.userId },
+          data: { accountStatus: nextStatus },
+        });
+      }
+    }
+  });
 }
 
 function assertCanReadApplication(user, application) {
@@ -699,6 +766,7 @@ export async function updateApplicationStatus({
 
 export async function listPersonnel({ status, search, limit = 50, actorUser } = {}) {
   assertDatabaseReady();
+  await syncApprovedLoaStatuses();
 
   const where = {};
   if (status && accountStatuses.has(status)) {
@@ -729,6 +797,7 @@ export async function listPersonnel({ status, search, limit = 50, actorUser } = 
 
 export async function getPersonnelForUser(userId) {
   assertDatabaseReady();
+  await syncApprovedLoaStatuses();
 
   if (!userId) return null;
 
@@ -742,6 +811,7 @@ export async function getPersonnelForUser(userId) {
 
 export async function getPortalSummary({ actorUser } = {}) {
   assertDatabaseReady();
+  await syncApprovedLoaStatuses();
 
   const db = getDb();
   const now = new Date();
@@ -1031,6 +1101,7 @@ export async function updatePersonnelProfile({
 
 export async function listLoaRequests({ actorUser, limit = 50, status } = {}) {
   assertDatabaseReady();
+  await syncApprovedLoaStatuses();
 
   const statusWhere = status && loaStatuses.has(status) ? { status } : {};
   const records = await getDb().lOARequest.findMany({
@@ -1223,17 +1294,6 @@ export async function reviewLoaRequest({
       },
     });
 
-    if (status === "Approved") {
-      await tx.personnelProfile.update({
-        where: { id: record.profileId },
-        data: { currentStatus: "LeaveOfAbsence" },
-      });
-      await tx.user.update({
-        where: { id: record.profile.userId },
-        data: { accountStatus: "LeaveOfAbsence" },
-      });
-    }
-
     if (status === "Returned" && record.profile.currentStatus === "LeaveOfAbsence") {
       await tx.personnelProfile.update({
         where: { id: record.profileId },
@@ -1261,6 +1321,8 @@ export async function reviewLoaRequest({
       },
     });
   });
+
+  await syncApprovedLoaStatuses();
 
   return (await listLoaRequests({ actorUser, limit: 100 })).find((item) => item.id === loaRequestId);
 }
@@ -1338,6 +1400,8 @@ export async function withdrawLoaRequest({
       },
     });
   });
+
+  await syncApprovedLoaStatuses();
 
   return (await listLoaRequests({ actorUser, limit: 100 })).find((item) => item.id === loaRequestId);
 }
@@ -1454,6 +1518,8 @@ export async function updateLoaRequest({
       },
     });
   });
+
+  await syncApprovedLoaStatuses();
 
   return (await listLoaRequests({ actorUser, limit: 100 })).find((item) => item.id === loaRequestId);
 }
