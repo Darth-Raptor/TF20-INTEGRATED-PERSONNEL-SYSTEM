@@ -1,5 +1,5 @@
 import { getDb, isDbConfigured } from "../db.js";
-import { getStaffScopeUnitName, isCommandStaffBillet } from "./unit-hierarchy.js";
+import { getCommandDashboardBucketName, getStaffScopeUnitName, isCommandStaffBillet } from "./unit-hierarchy.js";
 
 const applicationStatuses = new Set([
   "NotStarted",
@@ -819,6 +819,14 @@ export async function getPortalSummary({ actorUser } = {}) {
     : [];
   const unitNamesById = new Map(units.map((unit) => [unit.id, unit]));
 
+  const commandDashboardCounts = new Map();
+  for (const entry of unitCounts) {
+    const unit = unitNamesById.get(entry.primaryUnitId);
+    const bucketName = getCommandDashboardBucketName(unit?.name);
+    if (!bucketName) continue;
+    commandDashboardCounts.set(bucketName, (commandDashboardCounts.get(bucketName) || 0) + groupedCount(entry));
+  }
+
   return {
     personnel: {
       total: totalPersonnel,
@@ -846,15 +854,16 @@ export async function getPortalSummary({ actorUser } = {}) {
       thisMonth: auditThisMonth,
       total: totalAudit,
     },
-    units: unitCounts.map((entry) => {
-      const unit = unitNamesById.get(entry.primaryUnitId);
-      return {
-        id: entry.primaryUnitId,
-        name: unit?.name || "Unknown Unit",
-        type: unit?.type || "Unit",
-        personnelCount: groupedCount(entry),
-      };
-    }),
+    units: [
+      "A Co, 1/75th Ranger Regiment",
+      "1 Troop, A Squadron, 1st SFOD-Delta",
+      "B Co, 2/160th SOAR",
+    ].map((name) => ({
+      id: name,
+      name,
+      type: "CommandDashboardBucket",
+      personnelCount: commandDashboardCounts.get(name) || 0,
+    })),
     workflows: {
       pendingQualifications,
       openSupport,

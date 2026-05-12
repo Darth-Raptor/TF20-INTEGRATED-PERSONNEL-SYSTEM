@@ -261,6 +261,21 @@ export function getStaffScopeUnitName({ unitName, billetName } = {}) {
   return null;
 }
 
+export function getCommandDashboardBucketName(unitName) {
+  const unit = unitDefinitionForName(unitName);
+  if (!unit) return null;
+
+  let current = unit;
+  while (current) {
+    if (["aco", "sfod", "soar"].includes(current.key)) {
+      return current.name;
+    }
+    current = current.parentKey ? unitDefinitionForKey(current.parentKey) : null;
+  }
+
+  return null;
+}
+
 export function suggestPortalRoleForRosterRecord({ mappedStatus, rawAssignedTo, unitName, billet, shop } = {}) {
   if (!isCurrentMemberStatus(mappedStatus)) return "Applicant";
 
