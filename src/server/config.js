@@ -10,6 +10,8 @@ export const config = {
     clientId: process.env.DISCORD_CLIENT_ID,
     clientSecret: process.env.DISCORD_CLIENT_SECRET,
     callbackUrl: process.env.DISCORD_CALLBACK_URL || "http://localhost:3000/auth/discord/callback",
+    botToken: process.env.DISCORD_BOT_TOKEN,
+    guildId: process.env.DISCORD_GUILD_ID,
   },
   steam: {
     webApiKey: process.env.STEAM_WEB_API_KEY,
@@ -30,5 +32,9 @@ export function validateConfig() {
 
   if (!config.discord.clientId || !config.discord.clientSecret) {
     console.warn("Discord OAuth is not configured. Protected portal routes will return a setup message.");
+  }
+
+  if ((config.discord.botToken && !config.discord.guildId) || (!config.discord.botToken && config.discord.guildId)) {
+    console.warn("Discord guild sync requires both DISCORD_BOT_TOKEN and DISCORD_GUILD_ID.");
   }
 }

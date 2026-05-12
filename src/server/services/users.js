@@ -212,6 +212,10 @@ export async function getSessionUserById(id) {
     include: sessionUserInclude,
   });
 
+  if (!user || user.accountLocked || user.accountDisabled) {
+    return null;
+  }
+
   return toSessionUser(user);
 }
 

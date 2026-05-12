@@ -1,4 +1,5 @@
 import { getDb, isDbConfigured } from "../db.js";
+import { isDiscordGuildSyncConfigured } from "./discord-guild-sync.js";
 import { getCommandDashboardBucketName, getStaffScopeUnitName, isCommandStaffBillet } from "./unit-hierarchy.js";
 
 const applicationStatuses = new Set([
@@ -85,12 +86,22 @@ const personnelProfileInclude = {
       staffSection: true,
     },
   },
+  administrativeNotes: {
+    orderBy: [{ createdAt: "desc" }],
+    take: 3,
+  },
+  disciplinaryRecords: {
+    orderBy: [{ createdAt: "desc" }],
+    take: 3,
+  },
   _count: {
     select: {
       assignments: true,
       qualifications: true,
       attendanceRecords: true,
       loaRequests: true,
+      administrativeNotes: true,
+      disciplinaryRecords: true,
     },
   },
 };
@@ -944,6 +955,7 @@ export async function getPortalSummary({ actorUser } = {}) {
     workflows: {
       pendingQualifications,
       openSupport,
+      discordGuildSyncConfigured: isDiscordGuildSyncConfigured(),
       latestDiscordSync: latestDiscordSync
         ? {
             action: latestDiscordSync.action,
@@ -2304,6 +2316,9 @@ function toPersonnelItem(profile) {
     recruitClass: profile.recruitClass,
     goodStanding: profile.goodStanding,
     primaryMos: profile.primaryMos,
+    separationDate: profile.separationDate,
+    separationType: profile.separationType,
+    rehireEligibility: profile.rehireEligibility,
     user: profile.user,
     rank: profile.currentRank,
     unit: profile.primaryUnit,
@@ -2315,6 +2330,19 @@ function toPersonnelItem(profile) {
       staffSection: assignment.staffSection,
     })),
     counts: profile._count,
+    administrativeNotes: (profile.administrativeNotes || []).map((note) => ({
+      id: note.id,
+      noteType: note.noteType,
+      note: note.note,
+      createdAt: note.createdAt,
+    })),
+    disciplinaryRecords: (profile.disciplinaryRecords || []).map((record) => ({
+      id: record.id,
+      actionType: record.actionType,
+      summary: record.summary,
+      details: record.details,
+      createdAt: record.createdAt,
+    })),
     updatedAt: profile.updatedAt,
   };
 }

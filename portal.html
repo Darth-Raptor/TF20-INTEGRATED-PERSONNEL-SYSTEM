@@ -45,6 +45,7 @@
           <button class="nav-tab" type="button" data-view="profile">Profile</button>
           <button class="nav-tab" type="button" data-view="loa">LOA</button>
           <button class="nav-tab" type="button" data-view="personnel">Personnel</button>
+          <button class="nav-tab" type="button" data-view="records">Records</button>
           <button class="nav-tab" type="button" data-view="events">Events</button>
           <button class="nav-tab" type="button" data-view="training">Training</button>
           <button class="nav-tab" type="button" data-view="users">Users & Roles</button>
@@ -370,6 +371,48 @@
               <p class="section-note">
                 Members cannot edit their own profile here. Staff changes require an audit reason and remain constrained by personnel scope.
               </p>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="records">
+          <div class="section-grid">
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Separated Records</h2>
+                <span>Discharged and banned roster history</span>
+              </div>
+              <div class="toolbar">
+                <input id="recordsSearch" type="search" placeholder="Search alias, Discord, separation type, notes..." aria-label="Search separated records" />
+                <select id="recordsStatusFilter" aria-label="Separated status filter">
+                  <option value="all">All separated statuses</option>
+                  <option value="Discharged">Discharged</option>
+                  <option value="BannedDoNotRehire">Banned</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Alias</th>
+                      <th>Separation</th>
+                      <th>Date</th>
+                      <th>Eligibility</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recordsRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Selected Record</h2>
+                <span id="recordDetailStatus">No selection</span>
+              </div>
+              <div id="recordDetail" class="detail-panel"></div>
             </section>
           </div>
         </section>

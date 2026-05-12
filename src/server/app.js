@@ -9,6 +9,7 @@ import { config, validateConfig } from "./config.js";
 import { configureAuth } from "./middleware/auth.js";
 import { apiRouter } from "./routes/api.js";
 import { pageRouter } from "./routes/pages.js";
+import { startDiscordGuildSync } from "./services/discord-guild-sync.js";
 import { createSessionStore } from "./services/session-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -73,6 +74,7 @@ export function createApp() {
   configureAuth(passport);
   app.use(passport.initialize());
   app.use(passport.session());
+  startDiscordGuildSync();
 
   const loginRateLimit = createSimpleRateLimiter({
     windowMs: 5 * 60 * 1000,
