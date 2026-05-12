@@ -51,6 +51,7 @@ async function createProfileRecordArtifacts(tx, { profileId, actorUserId, action
 
 async function handleGuildMemberJoin(member, options = {}) {
   if (!isDbConfigured()) return;
+  if (member.user?.bot) return;
 
   const mode = options.mode || "live";
   const db = getDb();
@@ -126,6 +127,7 @@ async function handleGuildMemberJoin(member, options = {}) {
 
 async function handleGuildMemberLeave(member) {
   if (!isDbConfigured()) return;
+  if (member.user?.bot) return;
 
   const db = getDb();
   const discordUser = member.user;

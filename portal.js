@@ -195,7 +195,9 @@ const roleAccess = {
 
 let applications = [];
 let personnel = [];
+let records = [];
 let personnelLoadError = "";
+let recordsLoadError = "";
 let dashboardSummary = null;
 let dashboardSummaryError = "";
 let auditLog = [];
@@ -327,6 +329,7 @@ async function initPortal() {
       loadDashboardSummary(),
       loadApplications(),
       loadPersonnel(),
+      loadRecords(),
       loadPersonnelLookups(),
       loadEvents(),
       loadLoaRequests(),
@@ -631,19 +634,36 @@ async function loadPersonnel() {
     if (!personnel.some((member) => member.id === selectedPersonnelId)) {
       selectedPersonnelId = personnel[0]?.id || null;
     }
-    if (!personnel.some((member) => member.id === selectedRecordId && isSeparatedPersonnelStatus(member.status))) {
-      selectedRecordId = personnel.find((member) => isSeparatedPersonnelStatus(member.status))?.id || null;
-    }
   } catch (error) {
     console.error(error);
     personnel = [];
     selectedPersonnelId = null;
-    selectedRecordId = null;
     personnelLoadError = error.message || "Unable to load personnel.";
     showToast(personnelLoadError);
   }
 
   renderPersonnel();
+}
+
+async function loadRecords() {
+  if (!recordsRows || !recordDetail || !recordDetailStatus) return;
+
+  recordsLoadError = "";
+  recordsRows.innerHTML = `<tr><td colspan="6">Loading records...</td></tr>`;
+
+  try {
+    const response = await fetchJson("/api/records?limit=300");
+    records = (response.items || []).filter(Boolean).map(normalizeRecord);
+    if (!records.some((record) => record.id === selectedRecordId)) {
+      selectedRecordId = records[0]?.id || null;
+    }
+  } catch (error) {
+    console.error(error);
+    records = [];
+    selectedRecordId = null;
+    recordsLoadError = error.message || "Unable to load records.";
+  }
+
   renderRecords();
 }
 
@@ -893,26 +913,24 @@ function renderRecords() {
   const query = recordsSearch?.value?.trim().toLowerCase() || "";
   const status = recordsStatusFilter?.value || "all";
 
-  if (personnelLoadError) {
-    recordsRows.innerHTML = `<tr><td colspan="6">${escapeHtml(personnelLoadError)}</td></tr>`;
+  if (recordsLoadError) {
+    recordsRows.innerHTML = `<tr><td colspan="6">${escapeHtml(recordsLoadError)}</td></tr>`;
     renderRecordDetail();
     return;
   }
 
-  const visibleRecords = personnel
-    .filter((member) => isSeparatedPersonnelStatus(member.status))
-    .filter((member) => {
-      const matchesStatus = status === "all" || member.status === status;
+  const visibleRecords = records.filter((record) => {
+      const matchesStatus = status === "all" || record.status === status;
       const searchable = [
-        member.rank,
-        member.alias,
-        member.discord,
-        member.statusLabel,
-        member.separationType,
-        member.rehireEligibility,
-        member.recordSummary,
-        member.latestAdminNote,
-        member.latestDisciplinarySummary,
+        record.recordTypeLabel,
+        record.alias,
+        record.discord,
+        record.statusLabel,
+        record.classification,
+        record.workflowState,
+        record.recordSummary,
+        record.latestAdminNote,
+        record.latestDisciplinarySummary,
       ]
         .join(" ")
         .toLowerCase();
@@ -926,19 +944,19 @@ function renderRecords() {
   recordsRows.innerHTML = visibleRecords.length
     ? visibleRecords
         .map(
-          (member) => `
-            <tr data-record-id="${escapeHtml(member.id)}" class="${member.id === selectedRecordId ? "selected" : ""}">
-              <td>${escapeHtml(member.rank)}</td>
-              <td><strong>${escapeHtml(member.alias)}</strong><br><span class="muted">${escapeHtml(member.discord)}</span></td>
-              <td>${escapeHtml(member.separationType || "Not specified")}</td>
-              <td>${escapeHtml(member.separationDate ? formatDate(member.separationDate) : "Not recorded")}</td>
-              <td>${escapeHtml(member.rehireEligibility || "Not recorded")}</td>
-              <td>${statusPill(member.statusLabel)}</td>
+          (record) => `
+            <tr data-record-id="${escapeHtml(record.id)}" class="${record.id === selectedRecordId ? "selected" : ""}">
+              <td>${escapeHtml(record.recordTypeLabel)}</td>
+              <td><strong>${escapeHtml(record.alias)}</strong><br><span class="muted">${escapeHtml(record.discord)}</span></td>
+              <td>${escapeHtml(record.classification || "Not specified")}</td>
+              <td>${escapeHtml(record.recordDate ? formatDate(record.recordDate) : "Not recorded")}</td>
+              <td>${escapeHtml(record.workflowState || "Not recorded")}</td>
+              <td>${statusPill(record.statusLabel)}</td>
             </tr>
           `,
         )
         .join("")
-    : `<tr><td colspan="6">No discharged or banned records match the current filters.</td></tr>`;
+    : `<tr><td colspan="6">No records match the current filters.</td></tr>`;
 
   recordsRows.querySelectorAll("[data-record-id]").forEach((row) => {
     row.addEventListener("click", () => {
@@ -953,35 +971,35 @@ function renderRecords() {
 function renderRecordDetail() {
   if (!recordDetail || !recordDetailStatus) return;
 
-  const member = personnel.find((item) => item.id === selectedRecordId && isSeparatedPersonnelStatus(item.status)) || null;
-  if (!member) {
+  const record = records.find((item) => item.id === selectedRecordId) || null;
+  if (!record) {
     recordDetailStatus.textContent = "No record";
     recordDetail.innerHTML = `<p class="panel-copy">${escapeHtml(
-      personnelLoadError || "No discharged or banned profile is available for the current filters.",
+      recordsLoadError || "No record is available for the current filters.",
     )}</p>`;
     return;
   }
 
-  recordDetailStatus.textContent = member.statusLabel;
+  recordDetailStatus.textContent = record.statusLabel;
   recordDetail.innerHTML = `
     <div class="detail-title">
       <div>
-        <strong>${escapeHtml(member.rank)} ${escapeHtml(member.alias)}</strong>
-        <span>${escapeHtml(member.statusLabel)} record</span>
+        <strong>${escapeHtml(record.alias)}</strong>
+        <span>${escapeHtml(record.recordTypeLabel)}</span>
       </div>
-      ${statusPill(member.statusLabel)}
+      ${statusPill(record.statusLabel)}
     </div>
     <div class="detail-grid">
-      <div><span>Separation Type</span><strong>${escapeHtml(member.separationType || "Not specified")}</strong></div>
-      <div><span>Separation Date</span><strong>${escapeHtml(member.separationDate ? formatDate(member.separationDate) : "Not recorded")}</strong></div>
-      <div><span>Rehire Eligibility</span><strong>${escapeHtml(member.rehireEligibility || "Not recorded")}</strong></div>
-      <div><span>Discord</span><strong>${escapeHtml(member.discord)}</strong></div>
-      <div><span>Disciplinary Records</span><strong>${escapeHtml(member.disciplinaryRecordCountLabel)}</strong></div>
-      <div><span>Administrative Notes</span><strong>${escapeHtml(member.administrativeNoteCountLabel)}</strong></div>
-      <div><span>Last Disciplinary Summary</span><strong>${escapeHtml(member.latestDisciplinarySummary || "None recorded")}</strong></div>
-      <div><span>Latest Admin Note</span><strong>${escapeHtml(member.latestAdminNote || "None recorded")}</strong></div>
+      <div><span>Classification</span><strong>${escapeHtml(record.classification || "Not specified")}</strong></div>
+      <div><span>Record Date</span><strong>${escapeHtml(record.recordDate ? formatDate(record.recordDate) : "Not recorded")}</strong></div>
+      <div><span>Workflow</span><strong>${escapeHtml(record.workflowState || "Not recorded")}</strong></div>
+      <div><span>Discord</span><strong>${escapeHtml(record.discord)}</strong></div>
+      <div><span>Disciplinary Records</span><strong>${escapeHtml(record.disciplinaryRecordCountLabel)}</strong></div>
+      <div><span>Administrative Notes</span><strong>${escapeHtml(record.administrativeNoteCountLabel)}</strong></div>
+      <div><span>Last Disciplinary Summary</span><strong>${escapeHtml(record.latestDisciplinarySummary || "None recorded")}</strong></div>
+      <div><span>Latest Admin Note</span><strong>${escapeHtml(record.latestAdminNote || "None recorded")}</strong></div>
     </div>
-    <p class="detail-copy">${escapeHtml(member.recordSummary)}</p>
+    <p class="detail-copy">${escapeHtml(record.recordSummary)}</p>
   `;
 }
 
@@ -2078,6 +2096,27 @@ function normalizePersonnel(item) {
     note: `${joinedText}. ${assignmentCount} assignment record${assignmentCount === 1 ? "" : "s"} on file.`,
     recordSummary,
     updatedAt: item?.updatedAt,
+  };
+}
+
+function normalizeRecord(item) {
+  return {
+    id: item?.id,
+    sourceId: item?.sourceId || "",
+    recordType: item?.recordType || "DiscordRecord",
+    recordTypeLabel: item?.recordType === "SeparatedProfile" ? "Separated Profile" : "Discord Record",
+    status: item?.status || "DiscordRecord",
+    statusLabel: item?.statusLabel || accountStatusLabel(item?.status || "DiscordRecord"),
+    alias: item?.alias || "Unknown Record",
+    discord: item?.discord || "Unknown Discord",
+    classification: item?.separationType || "",
+    recordDate: item?.separationDate || null,
+    workflowState: item?.rehireEligibility || "",
+    recordSummary: item?.recordSummary || "No record summary available.",
+    latestAdminNote: item?.latestAdminNote || "",
+    latestDisciplinarySummary: item?.latestDisciplinarySummary || "",
+    disciplinaryRecordCountLabel: item?.disciplinaryRecordCountLabel || "None",
+    administrativeNoteCountLabel: item?.administrativeNoteCountLabel || "None",
   };
 }
 

@@ -591,8 +591,24 @@ export async function submitApplication({
       data: {
         steam64Id: cleanedSteam64Id || undefined,
         timezone: cleanedTimezone || undefined,
+        accountStatus: "Applicant",
       },
     });
+
+    const existingProfile = await tx.personnelProfile.findUnique({
+      where: { userId: actorUserId },
+      select: { id: true, currentStatus: true },
+    });
+
+    if (!existingProfile) {
+      await tx.personnelProfile.create({
+        data: {
+          userId: actorUserId,
+          currentStatus: "Applicant",
+          goodStanding: true,
+        },
+      });
+    }
 
     const oldStatus = existingApplication?.status || null;
     const record = existingApplication
@@ -641,6 +657,7 @@ export async function submitApplication({
         newValue: {
           roleInterest: applicationData.roleInterest,
           availability: applicationData.availability,
+          profileStatus: "Applicant",
         },
         reason: reason || "Applicant submitted application.",
         relatedRecordId: record.id,
@@ -811,6 +828,135 @@ export async function listPersonnel({ status, search, limit = 50, actorUser } = 
   });
 
   return personnel.map(toPersonnelItem);
+}
+
+export async function listPortalRecords({ search, status, limit = 200, actorUser } = {}) {
+  assertDatabaseReady();
+  await syncApprovedLoaStatuses();
+
+  const db = getDb();
+  const normalizedSearch = search ? String(search).trim() : "";
+  const separatedStatuses = ["Discharged", "BannedDoNotRehire"];
+  const recordStatus = status && ["DiscordRecord", ...separatedStatuses].includes(status) ? status : "";
+
+  const [usersWithoutProfiles, separatedProfiles] = await Promise.all([
+    db.user.findMany({
+      where: {
+        profile: { is: null },
+        ...(normalizedSearch
+          ? {
+              OR: [
+                { discordUsername: { contains: normalizedSearch } },
+                { discordDisplayName: { contains: normalizedSearch } },
+                { displayAlias: { contains: normalizedSearch } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: limit,
+      include: {
+        applications: {
+          orderBy: [{ updatedAt: "desc" }],
+          take: 1,
+        },
+      },
+    }),
+    db.personnelProfile.findMany({
+      where: mergeWhere(
+        await personnelAccessWhere(actorUser),
+        {
+          currentStatus: recordStatus && recordStatus !== "DiscordRecord" ? recordStatus : { in: separatedStatuses },
+        },
+        normalizedSearch
+          ? {
+              OR: [
+                { user: { is: { discordUsername: { contains: normalizedSearch } } } },
+                { user: { is: { discordDisplayName: { contains: normalizedSearch } } } },
+                { user: { is: { displayAlias: { contains: normalizedSearch } } } },
+                { separationType: { contains: normalizedSearch } },
+                { rehireEligibility: { contains: normalizedSearch } },
+              ],
+            }
+          : {},
+      ),
+      orderBy: [{ updatedAt: "desc" }],
+      take: limit,
+      include: personnelProfileInclude,
+    }),
+  ]);
+
+  const userIds = usersWithoutProfiles.map((user) => user.id);
+  const latestDiscordLogs = userIds.length
+    ? await db.discordSyncLog.findMany({
+        where: {
+          userId: { in: userIds },
+          action: { in: ["guild-member-backfill", "guild-member-join"] },
+        },
+        orderBy: [{ createdAt: "desc" }],
+      })
+    : [];
+  const latestLogByUserId = new Map();
+  for (const log of latestDiscordLogs) {
+    if (log.userId && !latestLogByUserId.has(log.userId)) {
+      latestLogByUserId.set(log.userId, log);
+    }
+  }
+
+  const discordRecords =
+    recordStatus && recordStatus !== "DiscordRecord"
+      ? []
+      : usersWithoutProfiles.map((user) => {
+          const latestApplication = user.applications?.[0] || null;
+          const latestSync = latestLogByUserId.get(user.id);
+          const joinedAt = latestSync?.expectedRoles?.joinedAt || null;
+          return {
+            id: `user:${user.id}`,
+            sourceId: user.id,
+            recordType: "DiscordRecord",
+            status: "DiscordRecord",
+            statusLabel: "Discord Record",
+            rank: "Pending",
+            alias: user.displayAlias || user.discordDisplayName || user.discordUsername || "Unknown Discord User",
+            discord: user.discordUsername || "Unknown Discord",
+            separationType: "Discord Intake",
+            separationDate: joinedAt || user.createdAt,
+            rehireEligibility: latestApplication?.status ? `Application: ${latestApplication.status}` : "Awaiting enlistment application",
+            recordSummary: latestApplication
+              ? `Discord member record exists. Latest application is ${latestApplication.status}.`
+              : "Discord member record exists and is waiting for an enlistment application submission.",
+            latestAdminNote: "",
+            latestDisciplinarySummary: "",
+            disciplinaryRecordCountLabel: "None",
+            administrativeNoteCountLabel: "None",
+          };
+        });
+
+  const separatedRecords = separatedProfiles.map((profile) => {
+    const item = toPersonnelItem(profile);
+    return {
+      id: `profile:${item.id}`,
+      sourceId: item.id,
+      recordType: "SeparatedProfile",
+      status: item.status,
+      statusLabel: accountStatusLabel(item.status),
+      rank: item.rank?.abbreviation || "Unranked",
+      alias: displayUser(item.user) || "Unknown Member",
+      discord: item.user?.discordUsername || "Unknown Discord",
+      separationType: item.separationType || accountStatusLabel(item.status),
+      separationDate: item.separationDate || null,
+      rehireEligibility: item.rehireEligibility || "Not recorded",
+      recordSummary: buildSeparatedRecordSummary(item),
+      latestAdminNote: item.administrativeNotes?.[0]?.note || "",
+      latestDisciplinarySummary: item.disciplinaryRecords?.[0]?.summary || "",
+      disciplinaryRecordCountLabel: `${item.counts?.disciplinaryRecords || 0} record${item.counts?.disciplinaryRecords === 1 ? "" : "s"}`,
+      administrativeNoteCountLabel: `${item.counts?.administrativeNotes || 0} note${item.counts?.administrativeNotes === 1 ? "" : "s"}`,
+    };
+  });
+
+  return [...discordRecords, ...separatedRecords]
+    .sort((a, b) => new Date(b.separationDate || 0).getTime() - new Date(a.separationDate || 0).getTime())
+    .slice(0, limit);
 }
 
 export async function getPersonnelForUser(userId) {
@@ -2361,6 +2507,29 @@ function sumGroupedCounts(entries) {
 
 function displayUser(user) {
   return user?.displayAlias || user?.discordDisplayName || user?.discordUsername || "";
+}
+
+function accountStatusLabel(status) {
+  const labels = {
+    Applicant: "Applicant",
+    Recruit: "Recruit",
+    ProbationaryMember: "Probationary Member",
+    Active: "Active",
+    Reserve: "Reserve",
+    LeaveOfAbsence: "Leave of Absence",
+    Inactive: "Inactive",
+    Discharged: "Discharged",
+    BannedDoNotRehire: "Banned",
+    DiscordRecord: "Discord Record",
+  };
+  return labels[status] || status || "Unknown";
+}
+
+function buildSeparatedRecordSummary(item) {
+  const disciplinaryCount = item.counts?.disciplinaryRecords || 0;
+  const noteCount = item.counts?.administrativeNotes || 0;
+  const separationType = item.separationType || accountStatusLabel(item.status);
+  return `${separationType} record${item.separationDate ? ` dated ${new Date(item.separationDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}` : ""}. ${noteCount} administrative note${noteCount === 1 ? "" : "s"} and ${disciplinaryCount} disciplinary record${disciplinaryCount === 1 ? "" : "s"} on file.`;
 }
 
 export async function writeAuditLog({

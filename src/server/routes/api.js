@@ -12,6 +12,7 @@ import {
   listAttendanceRecordsForEvent,
   listEvents,
   listLoaRequests,
+  listPortalRecords,
   listPersonnelLookups,
   listUnits,
   listApplications,
@@ -177,6 +178,25 @@ export function apiRouter() {
         },
       });
       res.json({ item });
+    }),
+  );
+
+  router.get(
+    "/records",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+      if (!canAccessPersonnelRoster(req.user)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const items = await listPortalRecords({
+        status: req.query.status,
+        search: req.query.search,
+        limit: parseLimit(req.query.limit, 100, 300),
+        actorUser: req.user,
+      });
+      res.json({ items, next: null });
     }),
   );
 
