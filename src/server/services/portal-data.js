@@ -253,6 +253,13 @@ function isCommandStaffReviewer(actorUser) {
   );
 }
 
+function isLoaSystemAdmin(actorUser) {
+  return (
+    actorUser?.permissions?.includes("system:admin") ||
+    actorUser?.roles?.some((role) => role === "system-admin")
+  );
+}
+
 function getLoaReviewerScopeUnitName(actorUser) {
   if (isCommandStaffReviewer(actorUser)) return "__all__";
 
@@ -1128,11 +1135,12 @@ export async function listLoaRequests({ actorUser, limit = 50, status } = {}) {
   });
 
   const ownProfileId = actorUser?.profile?.id || null;
+  const canDeleteAnyLoa = isLoaSystemAdmin(actorUser);
   const visibleRecords = [];
   for (const record of records) {
     const isOwn = ownProfileId && record.profileId === ownProfileId;
     const canReview = await canActorReviewLoaRecord(actorUser, record);
-    if (!isOwn && !canReview) continue;
+    if (!isOwn && !canReview && !canDeleteAnyLoa) continue;
 
     visibleRecords.push({
       id: record.id,
@@ -1156,6 +1164,7 @@ export async function listLoaRequests({ actorUser, limit = 50, status } = {}) {
       canMarkReturned: isOwn && record.status === "Approved",
       canWithdraw: isOwn && !["Returned", "Cancelled"].includes(record.status),
       canEditResponded: canReview && record.status !== "Submitted",
+      canDelete: canDeleteAnyLoa,
     });
   }
 
@@ -1522,6 +1531,80 @@ export async function updateLoaRequest({
   await syncApprovedLoaStatuses();
 
   return (await listLoaRequests({ actorUser, limit: 100 })).find((item) => item.id === loaRequestId);
+}
+
+export async function deleteLoaRequest({
+  actorUser,
+  loaRequestId,
+  reason,
+  ipSessionMetadata,
+}) {
+  assertDatabaseReady();
+
+  if (!isLoaSystemAdmin(actorUser)) {
+    const error = new Error("Forbidden");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const db = getDb();
+  const record = await db.lOARequest.findUnique({
+    where: { id: loaRequestId },
+    include: {
+      profile: {
+        include: {
+          user: {
+            select: {
+              id: true,
+            },
+          },
+          currentRank: true,
+          primaryUnit: true,
+          primaryBillet: true,
+        },
+      },
+    },
+  });
+
+  if (!record) {
+    const error = new Error("LOA request not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const deleteReason = normalizeText(reason, 1000) || "System admin deleted LOA record from the portal queue.";
+
+  await db.$transaction(async (tx) => {
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actorUser?.id,
+        affectedProfileId: record.profileId,
+        module: "LOA",
+        action: "Deleted LOA Request",
+        oldValue: {
+          status: record.status,
+          startDate: record.startDate,
+          endDate: record.endDate,
+          reasonCategory: record.reasonCategory,
+          details: record.details,
+          leadershipComment: record.leadershipComment,
+          s1Notes: record.s1Notes,
+        },
+        newValue: null,
+        reason: deleteReason,
+        relatedRecordId: loaRequestId,
+        severity: "Warning",
+        systemGenerated: false,
+        ipSessionMetadata,
+      },
+    });
+
+    await tx.lOARequest.delete({
+      where: { id: loaRequestId },
+    });
+  });
+
+  await syncApprovedLoaStatuses();
 }
 
 export async function listUnits({ actorUser } = {}) {

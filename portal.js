@@ -1217,6 +1217,9 @@ function renderLoaRequests() {
       if (record.canWithdraw) {
         buttons.push(`<button class="button ghost" type="button" data-loa-action="withdraw" data-loa-id="${escapeHtml(record.id)}">Withdraw</button>`);
       }
+      if (record.canDelete) {
+        buttons.push(`<button class="button danger" type="button" data-loa-action="delete" data-loa-id="${escapeHtml(record.id)}">Delete</button>`);
+      }
       return `
         <article>
           <strong>${escapeHtml(record.member)} | ${escapeHtml(record.rank)}</strong>
@@ -1304,6 +1307,10 @@ async function reviewLoa(loaId, action) {
   }
   if (action === "withdraw") {
     await withdrawLoaRequest(loaId);
+    return;
+  }
+  if (action === "delete") {
+    await deleteLoaRequest(loaId);
     return;
   }
 
@@ -1401,6 +1408,35 @@ async function editLoaRequest(loaId) {
   } catch (error) {
     console.error(error);
     showToast(error.message || "Unable to update LOA.");
+  }
+}
+
+async function deleteLoaRequest(loaId) {
+  const record = loaRequests.find((item) => item.id === loaId);
+  if (!record) return;
+
+  const reasonInput = window.prompt("Why is this LOA record being deleted?", "System admin deleted LOA record.");
+  if (reasonInput === null) return;
+  const reason = reasonInput.trim();
+
+  const confirmed = window.confirm(`Delete LOA record for ${record.member} from ${formatDate(record.startDate)} to ${formatDate(record.endDate)}?`);
+  if (!confirmed) return;
+
+  try {
+    await fetchJson(`/api/loa/${encodeURIComponent(loaId)}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: reason || "System admin deleted LOA record.",
+      }),
+    });
+    loaRequests = loaRequests.filter((item) => item.id !== loaId);
+    renderLoaRequests();
+    await Promise.all([loadDashboardSummary(), loadPersonnel(), loadAuditLogs()]);
+    showToast("LOA record deleted.");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "Unable to delete LOA record.");
   }
 }
 

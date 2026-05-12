@@ -6,6 +6,7 @@ import {
   assertCanAccessPersonnelProfile,
   canAccessPersonnelRoster,
   createCalendarEvent,
+  deleteLoaRequest,
   getPortalSummary,
   listBugReports,
   listAttendanceRecordsForEvent,
@@ -324,6 +325,24 @@ export function apiRouter() {
         },
       });
       res.json({ item });
+    }),
+  );
+
+  router.delete(
+    "/loa/:id",
+    requireAuth,
+    requireRole("system:admin"),
+    asyncRoute(async (req, res) => {
+      await deleteLoaRequest({
+        actorUser: req.user,
+        loaRequestId: req.params.id,
+        reason: req.body?.reason,
+        ipSessionMetadata: {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        },
+      });
+      res.status(204).end();
     }),
   );
 
