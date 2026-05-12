@@ -412,7 +412,7 @@ function renderDashboardSummary() {
   renderApplicantDashboard();
   renderMemberDashboard();
   renderStaffDashboard(workflows, personnelSummary, attendanceSummary);
-  renderCommandDashboard(summary.units || []);
+  renderCommandDashboard(summary.units || [], personnelSummary.active || 0);
   renderSystemDashboard(workflows);
 }
 
@@ -499,12 +499,18 @@ function renderStaffDashboard(workflows, personnelSummary, attendanceSummary) {
   staffDashboardState.innerHTML = items.map(summaryArticle).join("");
 }
 
-function renderCommandDashboard(units) {
-  commandDashboardState.innerHTML = units.length
-    ? units
-        .map((unit) => summaryArticle([unit.name, `${formatCount(unit.personnelCount)} active roster profile${unit.personnelCount === 1 ? "" : "s"}.`]))
-        .join("")
-    : `<p class="section-note">No primary unit assignments are recorded yet.</p>`;
+function renderCommandDashboard(units, totalActiveMembers) {
+  const countByUnitName = new Map(units.map((unit) => [unit.name, unit.personnelCount]));
+  const commandUnits = [
+    ["Task Force 20", totalActiveMembers],
+    ["A Co, 1/75th Ranger Regiment", countByUnitName.get("A Co, 1/75th Ranger Regiment") || 0],
+    ["1 Troop, A Squadron, 1st SFOD-Delta", countByUnitName.get("1 Troop, A Squadron, 1st SFOD-Delta") || 0],
+    ["B Co, 2/160th SOAR", countByUnitName.get("B Co, 2/160th SOAR") || 0],
+  ];
+
+  commandDashboardState.innerHTML = commandUnits
+    .map(([name, count]) => summaryArticle([name, `${formatCount(count)} active member${count === 1 ? "" : "s"}.`]))
+    .join("");
 }
 
 function renderSystemDashboard(workflows) {
