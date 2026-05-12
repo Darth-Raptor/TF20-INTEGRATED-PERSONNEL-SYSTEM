@@ -49,9 +49,10 @@ async function createProfileRecordArtifacts(tx, { profileId, actorUserId, action
   });
 }
 
-async function handleGuildMemberJoin(member) {
+async function handleGuildMemberJoin(member, options = {}) {
   if (!isDbConfigured()) return;
 
+  const mode = options.mode || "live";
   const db = getDb();
   const discordUser = member.user;
   const currentRoles = serializeGuildRoles(member);
@@ -84,12 +85,19 @@ async function handleGuildMemberJoin(member) {
     },
   });
 
+  const joinedAt = member.joinedAt || member.joinedTimestamp || null;
+  const noteText =
+    mode === "backfill"
+      ? `Discord guild membership backfilled for ${nextDisplayName}.${joinedAt ? ` Joined server on ${new Date(joinedAt).toISOString()}.` : ""}`
+      : `Discord guild join detected for ${nextDisplayName}. Portal access ${shouldEnableAccount ? "enabled" : "left unchanged"} automatically.`;
+
   await db.$transaction(async (tx) => {
     await tx.discordSyncLog.create({
       data: {
         userId: user.id,
-        action: "guild-member-join",
+        action: mode === "backfill" ? "guild-member-backfill" : "guild-member-join",
         status: "Success",
+        expectedRoles: joinedAt ? { joinedAt: new Date(joinedAt).toISOString() } : undefined,
         currentRoles,
       },
     });
@@ -97,9 +105,9 @@ async function handleGuildMemberJoin(member) {
     await createProfileRecordArtifacts(tx, {
       profileId: user.profile?.id,
       actorUserId: user.id,
-      action: "Discord Guild Join Detected",
+      action: mode === "backfill" ? "Discord Guild Membership Backfilled" : "Discord Guild Join Detected",
       noteType: "DiscordServer",
-      note: `Discord guild join detected for ${nextDisplayName}. Portal access ${shouldEnableAccount ? "enabled" : "left unchanged"} automatically.`,
+      note: noteText,
       oldValue: existing
         ? {
             accountDisabled: existing.accountDisabled,
@@ -110,6 +118,7 @@ async function handleGuildMemberJoin(member) {
         accountDisabled: user.accountDisabled,
         accountStatus: user.accountStatus,
         currentRoles,
+        joinedAt: joinedAt ? new Date(joinedAt).toISOString() : null,
       },
     });
   });
@@ -226,4 +235,40 @@ export function startDiscordGuildSync() {
 
 export function isDiscordGuildSyncConfigured() {
   return guildSyncConfigured();
+}
+
+export async function backfillDiscordGuildMembers() {
+  if (!guildSyncConfigured()) {
+    throw new Error("Discord guild sync is not configured. Set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID first.");
+  }
+  if (!isDbConfigured()) {
+    throw new Error("Database is not configured.");
+  }
+
+  const discord = await import("discord.js");
+  const { Client, GatewayIntentBits } = discord;
+  const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  });
+
+  try {
+    await client.login(config.discord.botToken);
+    const guild = await client.guilds.fetch(config.discord.guildId);
+    const members = await guild.members.fetch();
+    let processed = 0;
+
+    for (const member of members.values()) {
+      if (member.user?.bot) continue;
+      await handleGuildMemberJoin(member, { mode: "backfill" });
+      processed += 1;
+    }
+
+    return {
+      guildId: guild.id,
+      guildName: guild.name,
+      processed,
+    };
+  } finally {
+    await client.destroy();
+  }
 }
