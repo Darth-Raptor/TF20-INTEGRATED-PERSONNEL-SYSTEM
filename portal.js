@@ -649,7 +649,7 @@ async function loadRecords() {
   if (!recordsRows || !recordDetail || !recordDetailStatus) return;
 
   recordsLoadError = "";
-  recordsRows.innerHTML = `<tr><td colspan="6">Loading records...</td></tr>`;
+  recordsRows.innerHTML = `<tr><td colspan="4">Loading records...</td></tr>`;
 
   try {
     const response = await fetchJson("/api/records?limit=300");
@@ -914,21 +914,21 @@ function renderRecords() {
   const status = recordsStatusFilter?.value || "all";
 
   if (recordsLoadError) {
-    recordsRows.innerHTML = `<tr><td colspan="6">${escapeHtml(recordsLoadError)}</td></tr>`;
+    recordsRows.innerHTML = `<tr><td colspan="4">${escapeHtml(recordsLoadError)}</td></tr>`;
     renderRecordDetail();
     return;
   }
 
   const visibleRecords = records.filter((record) => {
-      const matchesStatus = status === "all" || record.status === status;
+      const matchesStatus = status === "all" || record.classification === status;
       const searchable = [
-        record.recordTypeLabel,
         record.alias,
         record.discord,
-        record.statusLabel,
         record.classification,
         record.workflowState,
         record.recordSummary,
+        record.joinDate ? formatDate(record.joinDate) : "",
+        record.leaveDate ? formatDate(record.leaveDate) : "",
         record.latestAdminNote,
         record.latestDisciplinarySummary,
       ]
@@ -946,17 +946,15 @@ function renderRecords() {
         .map(
           (record) => `
             <tr data-record-id="${escapeHtml(record.id)}" class="${record.id === selectedRecordId ? "selected" : ""}">
-              <td>${escapeHtml(record.recordTypeLabel)}</td>
-              <td><strong>${escapeHtml(record.alias)}</strong><br><span class="muted">${escapeHtml(record.discord)}</span></td>
+              <td><strong>${escapeHtml(record.alias)}</strong></td>
               <td>${escapeHtml(record.classification || "Not specified")}</td>
-              <td>${escapeHtml(record.recordDate ? formatDate(record.recordDate) : "Not recorded")}</td>
-              <td>${escapeHtml(record.workflowState || "Not recorded")}</td>
-              <td>${statusPill(record.statusLabel)}</td>
+              <td>${escapeHtml(record.joinDate ? formatDate(record.joinDate) : "Not recorded")}</td>
+              <td>${escapeHtml(record.leaveDate ? formatDate(record.leaveDate) : "")}</td>
             </tr>
           `,
         )
         .join("")
-    : `<tr><td colspan="6">No records match the current filters.</td></tr>`;
+    : `<tr><td colspan="4">No records match the current filters.</td></tr>`;
 
   recordsRows.querySelectorAll("[data-record-id]").forEach((row) => {
     row.addEventListener("click", () => {
@@ -985,13 +983,14 @@ function renderRecordDetail() {
     <div class="detail-title">
       <div>
         <strong>${escapeHtml(record.alias)}</strong>
-        <span>${escapeHtml(record.recordTypeLabel)}</span>
+        <span>${escapeHtml(record.discord)}</span>
       </div>
-      ${statusPill(record.statusLabel)}
+      ${statusPill(record.classification || record.statusLabel)}
     </div>
     <div class="detail-grid">
       <div><span>Classification</span><strong>${escapeHtml(record.classification || "Not specified")}</strong></div>
-      <div><span>Record Date</span><strong>${escapeHtml(record.recordDate ? formatDate(record.recordDate) : "Not recorded")}</strong></div>
+      <div><span>Join Date</span><strong>${escapeHtml(record.joinDate ? formatDate(record.joinDate) : "Not recorded")}</strong></div>
+      <div><span>Leave Date</span><strong>${escapeHtml(record.leaveDate ? formatDate(record.leaveDate) : "Not recorded")}</strong></div>
       <div><span>Workflow</span><strong>${escapeHtml(record.workflowState || "Not recorded")}</strong></div>
       <div><span>Discord</span><strong>${escapeHtml(record.discord)}</strong></div>
       <div><span>Disciplinary Records</span><strong>${escapeHtml(record.disciplinaryRecordCountLabel)}</strong></div>
@@ -2100,18 +2099,22 @@ function normalizePersonnel(item) {
 }
 
 function normalizeRecord(item) {
+  const classification = item?.classification || item?.separationType || "Joined";
+
   return {
     id: item?.id,
     sourceId: item?.sourceId || "",
     recordType: item?.recordType || "DiscordRecord",
-    recordTypeLabel: item?.recordType === "SeparatedProfile" ? "Separated Profile" : "Discord Record",
-    status: item?.status || "DiscordRecord",
-    statusLabel: item?.statusLabel || accountStatusLabel(item?.status || "DiscordRecord"),
+    recordTypeLabel:
+      item?.recordType === "SeparatedProfile" ? "Separated Profile" : item?.recordType === "PersonnelProfile" ? "Personnel Profile" : "Discord Record",
+    status: classification,
+    statusLabel: classification,
     alias: item?.alias || "Unknown Record",
     discord: item?.discord || "Unknown Discord",
-    classification: item?.separationType || "",
-    recordDate: item?.separationDate || null,
-    workflowState: item?.rehireEligibility || "",
+    classification,
+    joinDate: item?.joinDate || item?.recordDate || item?.separationDate || null,
+    leaveDate: item?.leaveDate || null,
+    workflowState: item?.workflowState || item?.rehireEligibility || "",
     recordSummary: item?.recordSummary || "No record summary available.",
     latestAdminNote: item?.latestAdminNote || "",
     latestDisciplinarySummary: item?.latestDisciplinarySummary || "",

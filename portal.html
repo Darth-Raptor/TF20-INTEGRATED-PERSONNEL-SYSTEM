@@ -379,28 +379,28 @@
           <div class="section-grid">
             <section class="panel wide">
               <div class="panel-heading">
-                <h2>Separated Records</h2>
-                <span>Discharged and banned roster history</span>
+                <h2>Records</h2>
+                <span>Discord and personnel lifecycle</span>
               </div>
               <div class="toolbar">
-                <input id="recordsSearch" type="search" placeholder="Search alias, Discord, separation type, notes..." aria-label="Search separated records" />
-                <select id="recordsStatusFilter" aria-label="Separated status filter">
+                <input id="recordsSearch" type="search" placeholder="Search alias, classification, Discord, notes..." aria-label="Search records" />
+                <select id="recordsStatusFilter" aria-label="Records classification filter">
                   <option value="all">All records</option>
-                  <option value="DiscordRecord">Discord Record</option>
+                  <option value="Joined">Joined</option>
+                  <option value="Applied">Applied</option>
+                  <option value="Enlisted">Enlisted</option>
                   <option value="Discharged">Discharged</option>
-                  <option value="BannedDoNotRehire">Banned</option>
+                  <option value="Left">Left</option>
                 </select>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>Type</th>
-                      <th>Alias</th>
-                      <th>Classification</th>
-                      <th>Date</th>
-                      <th>Workflow</th>
-                      <th>Status</th>
+                      <th>ALIAS</th>
+                      <th>CLASSIFICATION</th>
+                      <th>JOIN DATE</th>
+                      <th>LEAVE DATE</th>
                     </tr>
                   </thead>
                   <tbody id="recordsRows"></tbody>
