@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  canonicalBilletName,
   inferUnitNameForRosterRecord,
   isCurrentMemberStatus,
   suggestPortalRoleForRosterRecord,
@@ -167,6 +168,8 @@ function normalizeRosterMember(row) {
   const rawRank = cleanText(row.rank).toUpperCase();
   const rawAssignedTo = cleanText(row.assignedTo);
   const callsign = cleanText(row.callsign);
+  const rawBillet = cleanText(row.billet);
+  const billet = canonicalBilletName(rawBillet);
   const primaryMos = cleanText(row.primaryMos || row.primaryMOS || row["Primary MOS"] || row["PRIMARY MOS"] || row.specialty);
   const platoon = cleanText(row.platoon);
   const squad = cleanText(row.squad);
@@ -175,14 +178,14 @@ function normalizeRosterMember(row) {
   const steamId = normalizeSteamId(row.steamId);
   const mappedStatus = mapStatus(rawStatus);
   const mappedRank = mapRank(rawRank);
-  const inferredUnit = inferUnitNameForRosterRecord({ rawAssignedTo, billet: row.billet, platoon, squad, fireTeam, shop: row.shop });
+  const inferredUnit = inferUnitNameForRosterRecord({ rawAssignedTo, billet: rawBillet, platoon, squad, fireTeam, shop: row.shop });
   const shop = normalizeStringList(row.shop);
   const isCurrentMember = isCurrentMemberStatus(mappedStatus);
   const suggestedPortalRole = suggestPortalRoleForRosterRecord({
     mappedStatus,
     rawAssignedTo,
     unitName: inferredUnit,
-    billet: row.billet,
+    billet,
     shop,
   });
 
@@ -190,7 +193,7 @@ function normalizeRosterMember(row) {
   if (!mappedStatus) validationFlags.push("unmapped-status");
   if (!mappedRank) validationFlags.push("unmapped-rank");
   if (!inferredUnit) validationFlags.push("unmapped-unit");
-  if (!cleanText(row.billet)) validationFlags.push("missing-billet");
+  if (!rawBillet) validationFlags.push("missing-billet");
   if (isCurrentMember && !discordId) validationFlags.push("missing-discord-id");
   if (isCurrentMember && !steamId) validationFlags.push("missing-steam-id");
 
@@ -209,7 +212,7 @@ function normalizeRosterMember(row) {
     mappedRank,
     rawAssignedTo,
     inferredUnit,
-    billet: cleanText(row.billet),
+    billet,
     primaryMos,
     specialty: primaryMos,
     platoon,

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-import { standardBilletDefinitions, unitDefinitions, unitNameForKey } from "../src/server/services/unit-hierarchy.js";
+import { canonicalBilletName, standardBilletDefinitions, unitDefinitions, unitNameForKey } from "../src/server/services/unit-hierarchy.js";
 
 const prisma = new PrismaClient();
 
@@ -190,6 +190,56 @@ async function main() {
         unitId: unit.id,
         name: billetDefinition.name,
       },
+    });
+  }
+
+  await normalizeExistingBillets();
+}
+
+async function normalizeExistingBillets() {
+  const billets = await prisma.billet.findMany({
+    select: {
+      id: true,
+      name: true,
+      unitId: true,
+      categoryId: true,
+    },
+    orderBy: [{ unitId: "asc" }, { name: "asc" }],
+  });
+
+  for (const billet of billets) {
+    const nextName = canonicalBilletName(billet.name);
+    if (!nextName || nextName === billet.name) continue;
+
+    const duplicate = await prisma.billet.findFirst({
+      where: {
+        id: { not: billet.id },
+        unitId: billet.unitId,
+        name: nextName,
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      await prisma.$transaction([
+        prisma.personnelProfile.updateMany({
+          where: { primaryBilletId: billet.id },
+          data: { primaryBilletId: duplicate.id },
+        }),
+        prisma.billetHistory.updateMany({
+          where: { billetId: billet.id },
+          data: { billetId: duplicate.id },
+        }),
+        prisma.billet.delete({
+          where: { id: billet.id },
+        }),
+      ]);
+      continue;
+    }
+
+    await prisma.billet.update({
+      where: { id: billet.id },
+      data: { name: nextName },
     });
   }
 }

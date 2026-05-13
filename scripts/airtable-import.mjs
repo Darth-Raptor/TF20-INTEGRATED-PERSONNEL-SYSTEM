@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { fileURLToPath } from "node:url";
 
 import {
+  canonicalBilletName,
   expandUnitNamesWithAncestors,
   unitDefinitionForName,
   unitDefinitions,
@@ -55,7 +56,7 @@ async function importPreview(previewReport, options) {
   const unitNames = [...new Set(records.map((record) => record.inferredUnit).filter(Boolean))];
   const rankCodes = [...new Set(records.map((record) => record.mappedRank).filter(Boolean))];
   const billetKeys = [
-    ...new Set(records.filter((record) => record.billet).map((record) => `${record.inferredUnit || ""}::${record.billet}`)),
+    ...new Set(records.filter((record) => record.billet).map((record) => `${record.inferredUnit || ""}::${canonicalBilletName(record.billet)}`)),
   ];
   const staffCodes = [...new Set(records.flatMap((record) => record.shop || []).filter(Boolean))];
 
@@ -111,7 +112,8 @@ async function importPreview(previewReport, options) {
     const role = roleMap.get(record.suggestedPortalRole);
     const rank = rankMap.get(record.mappedRank);
     const unit = unitMap.get(record.inferredUnit);
-    const billet = record.billet ? billetMap.get(`${record.inferredUnit || ""}::${record.billet}`) : null;
+    const normalizedBilletName = canonicalBilletName(record.billet);
+    const billet = normalizedBilletName ? billetMap.get(`${record.inferredUnit || ""}::${normalizedBilletName}`) : null;
     const userPayload = buildUserPayload(record);
 
     const existingUser = await prisma.user.findUnique({
@@ -256,7 +258,7 @@ async function importPreview(previewReport, options) {
           rank: record.mappedRank,
           status: record.mappedStatus,
           unit: record.inferredUnit,
-          billet: record.billet,
+          billet: normalizedBilletName || null,
           primaryMos: record.primaryMos || record.specialty || null,
           suggestedPortalRole: record.suggestedPortalRole,
           importBatchId,
@@ -447,9 +449,9 @@ async function ensureBillets(records, categoryId, unitMap, commitMode) {
   const desired = records
     .filter((record) => record.billet)
     .map((record) => ({
-      key: `${record.inferredUnit || ""}::${record.billet}`,
+      key: `${record.inferredUnit || ""}::${canonicalBilletName(record.billet)}`,
       unitId: unitMap.get(record.inferredUnit)?.id || null,
-      name: record.billet,
+      name: canonicalBilletName(record.billet),
     }));
 
   const unitIds = [...new Set(desired.map((item) => item.unitId).filter(Boolean))];

@@ -125,25 +125,25 @@ export const unitDefinitions = [
 export const standardBilletDefinitions = [
   { unitKey: "tf20-hhc", name: "Commanding Officer", category: "Command Staff Billets" },
   { unitKey: "tf20-hhc", name: "Executive Officer", category: "Command Staff Billets" },
-  { unitKey: "tf20-hhc", name: "NCOIC", category: "Command Staff Billets" },
+  { unitKey: "tf20-hhc", name: "Noncommissioned Officer in Charge", category: "Command Staff Billets" },
   { unitKey: "aco", name: "Commanding Officer", category: "Staff Billets" },
   { unitKey: "aco", name: "Executive Officer", category: "Staff Billets" },
-  { unitKey: "aco-1plt", name: "1st Platoon Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt", name: "1st Platoon Sergeant", category: "Staff Billets" },
-  { unitKey: "aco-1plt-1sq", name: "1st Squad Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt-2sq", name: "2nd Squad Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt-1sq-a", name: "A Team Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt-1sq-b", name: "B Team Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt-2sq-a", name: "A Team Leader", category: "Staff Billets" },
-  { unitKey: "aco-1plt-2sq-b", name: "B Team Leader", category: "Staff Billets" },
-  { unitKey: "sfod-a", name: "A Team Leader", category: "Staff Billets" },
-  { unitKey: "sfod-a", name: "A Assistant Team Leader", category: "Staff Billets" },
-  { unitKey: "sfod-b", name: "B Team Leader", category: "Staff Billets" },
-  { unitKey: "sfod-b", name: "B Assistant Team Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt", name: "Platoon Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt", name: "Platoon Sergeant", category: "Staff Billets" },
+  { unitKey: "aco-1plt-1sq", name: "Squad Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt-2sq", name: "Squad Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt-1sq-a", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt-1sq-b", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt-2sq-a", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "aco-1plt-2sq-b", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "sfod-a", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "sfod-a", name: "Assistant Team Leader", category: "Staff Billets" },
+  { unitKey: "sfod-b", name: "Team Leader", category: "Staff Billets" },
+  { unitKey: "sfod-b", name: "Assistant Team Leader", category: "Staff Billets" },
   { unitKey: "soar", name: "Commanding Officer", category: "Staff Billets" },
   { unitKey: "soar", name: "Executive Officer", category: "Staff Billets" },
   { unitKey: "soar", name: "Aviator", category: "Staff Billets" },
-  { unitKey: "soar", name: "Air Crew Member", category: "Staff Billets" },
+  { unitKey: "soar", name: "Aircrew Member", category: "Staff Billets" },
 ];
 
 const definitionsByKey = new Map(unitDefinitions.map((definition) => [definition.key, definition]));
@@ -160,6 +160,53 @@ const platoonStaffBillets = new Set(["pl", "platoonleader", "psg", "platoonserge
 const squadStaffBillets = new Set(["sl", "squadleader"]);
 const teamStaffBillets = new Set(["tl", "teamleader", "atl", "assistantteamleader", "assistantteamlead"]);
 const staffSectionKeys = new Set(["s1", "s2", "s3", "s4", "s6", "j1", "j2", "j3", "j4", "j6", "staff"]);
+const canonicalBilletNames = new Map(
+  [
+    ["co", "Commanding Officer"],
+    ["commandingofficer", "Commanding Officer"],
+    ["commander", "Commanding Officer"],
+    ["xo", "Executive Officer"],
+    ["executiveofficer", "Executive Officer"],
+    ["ncoic", "Noncommissioned Officer in Charge"],
+    ["noncommissionedofficerincharge", "Noncommissioned Officer in Charge"],
+    ["noncommissionedofficeric", "Noncommissioned Officer in Charge"],
+    ["pl", "Platoon Leader"],
+    ["1stplatoonleader", "Platoon Leader"],
+    ["platoonleader", "Platoon Leader"],
+    ["psg", "Platoon Sergeant"],
+    ["1stplatoonsergeant", "Platoon Sergeant"],
+    ["platoonsergeant", "Platoon Sergeant"],
+    ["sl", "Squad Leader"],
+    ["1stsquadleader", "Squad Leader"],
+    ["2ndsquadleader", "Squad Leader"],
+    ["squadleader", "Squad Leader"],
+    ["tl", "Team Leader"],
+    ["ateamleader", "Team Leader"],
+    ["bteamleader", "Team Leader"],
+    ["teamleader", "Team Leader"],
+    ["atl", "Assistant Team Leader"],
+    ["aassistantteamleader", "Assistant Team Leader"],
+    ["bassistantteamleader", "Assistant Team Leader"],
+    ["assistantteamleader", "Assistant Team Leader"],
+    ["assistantteamlead", "Assistant Team Leader"],
+    ["rto", "Radio Telephone Operator"],
+    ["radiotelephoneoperator", "Radio Telephone Operator"],
+    ["jtac", "Joint Terminal Attack Controller"],
+    ["jointterminalattackcontroller", "Joint Terminal Attack Controller"],
+    ["rifleman", "Rifleman"],
+    ["autorifleman", "Automatic Rifleman"],
+    ["automaticrifleman", "Automatic Rifleman"],
+    ["grenadier", "Grenadier"],
+    ["medic", "Medic"],
+    ["engineer", "Engineer"],
+    ["aviator", "Aviator"],
+    ["aircrew", "Aircrew Member"],
+    ["aircrewman", "Aircrew Member"],
+    ["aircrewmember", "Aircrew Member"],
+    ["assaulterbreacher", "Assaulter / Breacher"],
+    ["heavyweaponsoperator", "Heavy Weapons Operator"],
+  ].map(([key, value]) => [key, value]),
+);
 
 export function normalizeOrgKey(value) {
   return String(value ?? "")
@@ -167,6 +214,26 @@ export function normalizeOrgKey(value) {
     .toLowerCase()
     .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "");
+}
+
+export function canonicalBilletName(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+
+  const key = normalizeOrgKey(text);
+  const mapped = canonicalBilletNames.get(key);
+  if (mapped) return mapped;
+
+  return text
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, " / ")
+    .split(/(\s+|-|\/)/)
+    .map((part) => {
+      if (!/[a-z0-9]/.test(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join("")
+    .replace(/\s+\/\s+/g, " / ");
 }
 
 export function unitDefinitionForKey(key) {
