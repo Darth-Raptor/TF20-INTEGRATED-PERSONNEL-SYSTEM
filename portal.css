@@ -14,6 +14,8 @@
   --green: #6e8a68;
   --blue: #4e789f;
   --red: #c66a5a;
+  --workbench-line: rgba(241, 205, 90, 0.42);
+  --workbench-line-soft: rgba(232, 226, 210, 0.26);
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
   --radius: 8px;
 }
@@ -225,8 +227,41 @@ textarea:focus {
   padding: 24px;
 }
 
+body[data-portal-page="personnel"] .portal-shell,
+body[data-portal-page="records"] .portal-shell,
+body[data-portal-page="events"] .portal-shell,
+body[data-portal-page="loa"] .portal-shell,
+body[data-portal-page="users"] .portal-shell {
+  height: 100svh;
+  overflow: hidden;
+}
+
+body[data-portal-page="personnel"] .portal-main,
+body[data-portal-page="records"] .portal-main,
+body[data-portal-page="events"] .portal-main,
+body[data-portal-page="loa"] .portal-main,
+body[data-portal-page="users"] .portal-main {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body[data-portal-page="personnel"] .view.active,
+body[data-portal-page="records"] .view.active,
+body[data-portal-page="events"] .view.active,
+body[data-portal-page="loa"] .view.active,
+body[data-portal-page="users"] .view.active {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .topbar {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -409,9 +444,11 @@ h3 {
 .workspace-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: calc(100svh - 122px);
-  border: 1px solid var(--line);
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 2px solid var(--workbench-line);
   background: var(--panel);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .workspace-commandbar,
@@ -419,13 +456,13 @@ h3 {
   display: grid;
   align-items: center;
   gap: 10px;
-  border-color: var(--line);
+  border-color: var(--workbench-line);
   background: #101411;
 }
 
 .workspace-commandbar {
   grid-template-columns: minmax(180px, 1fr) minmax(240px, 420px) minmax(160px, 240px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--workbench-line);
   padding: 10px 12px;
 }
 
@@ -464,18 +501,39 @@ h3 {
 .workspace-inspector {
   min-width: 0;
   min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.workspace-grid::-webkit-scrollbar,
+.workspace-inspector::-webkit-scrollbar,
+.workspace-grid > .table-wrap::-webkit-scrollbar,
+.workspace-section > .table-wrap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .workspace-grid {
-  overflow: auto;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  overflow: hidden;
   background: #0d110e;
+}
+
+.events-workspace-grid {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .workspace-grid > .table-wrap,
 .workspace-section > .table-wrap {
   height: 100%;
+  min-height: 0;
+  overflow: auto;
   border: 0;
   border-radius: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .workspace-grid table,
@@ -486,8 +544,9 @@ h3 {
 .workspace-section {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 280px;
-  border-bottom: 1px solid var(--line);
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 2px solid var(--workbench-line);
 }
 
 .workspace-section:last-child {
@@ -500,7 +559,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--workbench-line-soft);
   padding: 10px 12px;
   background: #111612;
 }
@@ -511,7 +570,7 @@ h3 {
 
 .workspace-inspector {
   overflow: auto;
-  border-left: 1px solid var(--line);
+  border-left: 2px solid var(--workbench-line);
   background: #111612;
 }
 
@@ -533,12 +592,12 @@ h3 {
 }
 
 .inspector-divider {
-  border-top: 1px solid var(--line);
+  border-top: 2px solid var(--workbench-line);
 }
 
 .workspace-statusbar {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
+  border-top: 2px solid var(--workbench-line);
   padding: 7px 12px;
 }
 
@@ -1118,8 +1177,28 @@ textarea {
   }
 
   .workspace-inspector {
-    border-top: 1px solid var(--line);
+    border-top: 2px solid var(--workbench-line);
     border-left: 0;
+  }
+
+  body[data-portal-page="personnel"] .portal-shell,
+  body[data-portal-page="records"] .portal-shell,
+  body[data-portal-page="events"] .portal-shell,
+  body[data-portal-page="loa"] .portal-shell,
+  body[data-portal-page="users"] .portal-shell {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  body[data-portal-page="personnel"] .portal-main,
+  body[data-portal-page="records"] .portal-main,
+  body[data-portal-page="events"] .portal-main,
+  body[data-portal-page="loa"] .portal-main,
+  body[data-portal-page="users"] .portal-main {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
   }
 
   .notice-status {
