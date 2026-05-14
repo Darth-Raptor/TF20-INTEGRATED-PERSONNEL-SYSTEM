@@ -112,6 +112,7 @@ const roleCatalog = document.querySelector("#roleCatalog");
 const titles = {
   dashboard: "Dashboard",
   profile: "Profile",
+  applications: "Applications",
   loa: "Leave of Absence",
   personnel: "Personnel",
   records: "Records",
@@ -161,12 +162,13 @@ const unitMosCatalog = {
 };
 
 const roleAccess = {
-  applicant: ["dashboard", "profile", "support"],
-  member: ["dashboard", "profile", "loa", "events", "training", "support", "audit"],
-  staff: ["dashboard", "profile", "loa", "personnel", "events", "training", "actions", "support", "audit"],
+  applicant: ["dashboard", "profile", "applications", "support"],
+  member: ["dashboard", "profile", "loa", "events", "training", "support"],
+  staff: ["dashboard", "profile", "applications", "loa", "personnel", "events", "training", "actions", "support", "audit"],
   command: [
     "dashboard",
     "profile",
+    "applications",
     "loa",
     "personnel",
     "records",
@@ -180,6 +182,7 @@ const roleAccess = {
   system: [
     "dashboard",
     "profile",
+    "applications",
     "loa",
     "personnel",
     "records",
@@ -214,7 +217,7 @@ let attendanceEvent = null;
 let attendanceRecords = [];
 let attendanceLoadError = "";
 
-let currentView = "dashboard";
+let currentView = document.body?.dataset?.portalPage || window.TF20_PORTAL_PAGE?.id || "dashboard";
 let selectedApplicationId = null;
 let selectedPersonnelId = null;
 let selectedRecordId = null;
@@ -251,26 +254,28 @@ const applicationErrorMap = {
 };
 
 tabs.forEach((tab) => {
-  tab.addEventListener("click", () => setView(tab.dataset.view));
+  if (tab.tagName === "BUTTON") {
+    tab.addEventListener("click", () => setView(tab.dataset.view || tab.dataset.portalPage));
+  }
 });
 
-syncButton.addEventListener("click", () => {
+syncButton?.addEventListener("click", () => {
   showToast(
     dashboardSummary?.workflows?.discordGuildSyncConfigured
       ? "Discord guild sync is live and watching join/leave events."
-      : "Discord guild sync is not configured yet.",
+      : "Discord sync status is available from the Systems page.",
   );
 });
 
-applicationSearch.addEventListener("input", () => loadApplications());
-applicationStatusFilter.addEventListener("change", () => loadApplications());
+applicationSearch?.addEventListener("input", () => loadApplications());
+applicationStatusFilter?.addEventListener("change", () => loadApplications());
 applicationForm?.addEventListener("submit", submitApplicantForm);
 Object.entries(applicationFieldMap).forEach(([key, field]) => {
   field?.addEventListener("input", () => validateApplicationField(key, { silent: true }));
   field?.addEventListener("blur", () => validateApplicationField(key));
 });
-personnelSearch.addEventListener("input", renderPersonnel);
-personnelStatusFilter.addEventListener("change", renderPersonnel);
+personnelSearch?.addEventListener("input", renderPersonnel);
+personnelStatusFilter?.addEventListener("change", renderPersonnel);
 recordsSearch?.addEventListener("input", renderRecords);
 recordsStatusFilter?.addEventListener("change", renderRecords);
 personnelEditUnit?.addEventListener("change", () => {
@@ -291,15 +296,15 @@ attendanceUpdateForm?.addEventListener("submit", submitAttendanceUpdateForm);
 loaForm?.addEventListener("submit", submitLoaForm);
 supportForm?.addEventListener("submit", submitSupportForm);
 
-markContactedButton.addEventListener("click", () => updateSelectedApplication("Contacted", "Applicant marked contacted"));
-acceptApplicantButton.addEventListener("click", () => updateSelectedApplication("Accepted", "Applicant accepted and recruit conversion queued"));
-denyApplicantButton.addEventListener("click", () => updateSelectedApplication("Denied", "Applicant denied after staff review"));
-flagTrainingButton.addEventListener("click", () => {
+markContactedButton?.addEventListener("click", () => updateSelectedApplication("Contacted", "Applicant marked contacted"));
+acceptApplicantButton?.addEventListener("click", () => updateSelectedApplication("Accepted", "Applicant accepted and recruit conversion queued"));
+denyApplicantButton?.addEventListener("click", () => updateSelectedApplication("Denied", "Applicant denied after staff review"));
+flagTrainingButton?.addEventListener("click", () => {
   const member = selectedPersonnel();
   if (!member) return;
   showToast("Training follow-up actions are not connected yet.");
 });
-recommendPromotionButton.addEventListener("click", () => {
+recommendPromotionButton?.addEventListener("click", () => {
   const member = selectedPersonnel();
   if (!member) return;
   showToast("Promotion recommendations are not connected yet.");
@@ -314,9 +319,12 @@ viewAsSelect?.addEventListener("change", () => {
   setPreviewAccessRole(value);
 });
 
-initPortal();
+window.TF20Portal = {
+  initPage,
+};
 
-async function initPortal() {
+async function initPage(pageName = currentView) {
+  currentView = pageName || currentView;
   try {
     const session = await fetchJson("/api/me");
     currentUser = session.user;
@@ -325,38 +333,35 @@ async function initPortal() {
     activeAccessRole = previewAccessRole || baseAccessRole;
     updateSessionSummary();
     applyRole();
-    await Promise.all([
-      loadDashboardSummary(),
-      loadApplications(),
-      loadPersonnel(),
-      loadRecords(),
-      loadPersonnelLookups(),
-      loadEvents(),
-      loadLoaRequests(),
-      loadSupportTickets(),
-      loadAuditLogs(),
-    ]);
-    renderAllRecords();
+    await loadPageData(currentView);
+    renderCurrentPage();
     setView(currentView);
-
-    if (canManageUsers()) {
-      await loadUserAdmin();
-    }
   } catch (error) {
     console.error(error);
     updateSessionSummary(error);
     applyRole();
-    renderAllRecords();
-    setView("dashboard");
+    renderCurrentPage();
+    setView(currentView);
     showToast("Unable to load your live session. Try signing in again.");
   }
 }
 
 function setView(viewName) {
   currentView = viewName;
-  tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.view === viewName));
+  tabs.forEach((tab) => {
+    const pageName = tab.dataset.portalPage || tab.dataset.view;
+    const isActive = pageName === viewName;
+    tab.classList.toggle("active", isActive);
+    if (isActive) {
+      tab.setAttribute("aria-current", "page");
+    } else {
+      tab.removeAttribute("aria-current");
+    }
+  });
   panels.forEach((panel) => panel.classList.toggle("active", panel.dataset.viewPanel === viewName));
-  viewTitle.textContent = (titles[viewName] || titleCase(viewName)).toUpperCase();
+  if (viewTitle) {
+    viewTitle.textContent = (titles[viewName] || window.TF20_PORTAL_PAGE?.title || titleCase(viewName)).toUpperCase();
+  }
 }
 
 function applyRole() {
@@ -365,16 +370,13 @@ function applyRole() {
   const allowed = roleAccess[role] || roleAccess.staff;
 
   tabs.forEach((tab) => {
-    let isAllowed = allowed.includes(tab.dataset.view);
-    if (tab.dataset.view === "audit" && !canReadAudit()) {
+    const pageName = tab.dataset.portalPage || tab.dataset.view;
+    let isAllowed = allowed.includes(pageName);
+    if (pageName === "audit" && !canReadAudit()) {
       isAllowed = false;
     }
     tab.hidden = !isAllowed;
   });
-
-  if (!allowed.includes(currentView) || (currentView === "audit" && !canReadAudit())) {
-    setView("dashboard");
-  }
 
   const dashboardVisibility = {
     applicant: new Set(["applicant"]),
@@ -390,20 +392,98 @@ function applyRole() {
 
   syncEventRolePanels();
 
-  syncButton.disabled = true;
-  syncButton.textContent = dashboardSummary?.workflows?.discordGuildSyncConfigured ? "Discord Guild Sync Connected" : "Discord Sync Not Connected";
+  if (syncButton) {
+    syncButton.disabled = true;
+    syncButton.textContent = dashboardSummary?.workflows?.discordGuildSyncConfigured ? "Discord Guild Sync Connected" : "Discord Sync Status";
+  }
 }
 
 function renderAllRecords() {
-  renderDashboardSummary();
-  renderApplications();
-  renderPersonnel();
-  renderRecords();
-  renderProfileView();
-  renderEvents();
-  renderLoaRequests();
-  renderSupportTickets();
-  renderAudit();
+  renderCurrentPage();
+}
+
+function renderCurrentPage() {
+  switch (currentView) {
+    case "dashboard":
+      renderDashboardSummary();
+      break;
+    case "profile":
+      renderProfileView();
+      break;
+    case "applications":
+      renderApplications();
+      hydrateApplicationForm();
+      break;
+    case "personnel":
+      renderPersonnel();
+      break;
+    case "records":
+      renderRecords();
+      break;
+    case "events":
+      renderEvents();
+      break;
+    case "loa":
+      renderLoaRequests();
+      break;
+    case "support":
+      renderSupportTickets();
+      break;
+    case "users":
+      renderUsers();
+      renderRoleCatalog();
+      break;
+    case "audit":
+      renderAudit();
+      break;
+    default:
+      break;
+  }
+}
+
+async function loadPageData(pageName) {
+  switch (pageName) {
+    case "dashboard":
+      await Promise.all([
+        loadDashboardSummary(),
+        loadApplications({ force: true }),
+        loadPersonnel({ force: true, ownOnly: true }),
+        loadEvents({ force: true }),
+      ]);
+      break;
+    case "profile":
+      await loadPersonnel({ force: true, ownOnly: true });
+      break;
+    case "applications":
+      await loadApplications();
+      break;
+    case "personnel":
+      await Promise.all([loadPersonnel(), loadPersonnelLookups()]);
+      break;
+    case "records":
+      await loadRecords();
+      break;
+    case "events":
+      await loadEvents();
+      break;
+    case "loa":
+      await Promise.all([loadPersonnel({ force: true, ownOnly: true }), loadLoaRequests()]);
+      break;
+    case "support":
+      await loadSupportTickets();
+      break;
+    case "users":
+      await loadUserAdmin();
+      break;
+    case "audit":
+      await loadAuditLogs();
+      break;
+    case "systems":
+      await loadDashboardSummary();
+      break;
+    default:
+      break;
+  }
 }
 
 async function loadDashboardSummary() {
@@ -419,6 +499,7 @@ async function loadDashboardSummary() {
   }
 
   renderDashboardSummary();
+  applyRole();
 }
 
 function renderDashboardSummary() {
@@ -435,6 +516,8 @@ function renderDashboardSummary() {
 }
 
 function renderApplicantDashboard() {
+  if (!applicantDashboardState) return;
+
   const ownApplication = applications.find((application) => application.userId === currentUser?.id);
   const steam64 = currentUser?.steam64Id || ownApplication?.steam64 || "";
 
@@ -474,6 +557,8 @@ function renderApplicantDashboard() {
 }
 
 function renderMemberDashboard() {
+  if (!memberDashboardState) return;
+
   const member = personnel.find((item) => item.userId === currentUser?.id) || personnel[0] || null;
   const nextEvent = [...events]
     .filter((item) => item.status !== "Cancelled")
@@ -486,7 +571,7 @@ function renderMemberDashboard() {
 
   memberDashboardState.innerHTML = `
     <div class="profile-chip">
-      <img src="assets/tf20-logo.png" alt="" />
+      <img src="/assets/tf20-logo.png" alt="" />
       <div>
         <strong>${escapeHtml(member.rank)} ${escapeHtml(member.alias)}</strong>
         <span>${escapeHtml(member.unit)}</span>
@@ -504,6 +589,8 @@ function renderMemberDashboard() {
 }
 
 function renderStaffDashboard(workflows, personnelSummary, attendanceSummary) {
+  if (!staffDashboardState) return;
+
   const items = [
     ["Missing billet", `${formatCount(personnelSummary.missingBillet)} personnel profile${personnelSummary.missingBillet === 1 ? "" : "s"} need a primary billet.`],
     [
@@ -518,6 +605,8 @@ function renderStaffDashboard(workflows, personnelSummary, attendanceSummary) {
 }
 
 function renderCommandDashboard(units, totalActiveMembers) {
+  if (!commandDashboardState) return;
+
   const countByUnitName = new Map(units.map((unit) => [unit.name, unit.personnelCount]));
   const commandUnits = [
     ["Task Force 20", totalActiveMembers],
@@ -532,6 +621,8 @@ function renderCommandDashboard(units, totalActiveMembers) {
 }
 
 function renderSystemDashboard(workflows) {
+  if (!systemDashboardState) return;
+
   const discordText = workflows.latestDiscordSync
     ? `${workflows.latestDiscordSync.status} ${workflows.latestDiscordSync.action} at ${formatDate(workflows.latestDiscordSync.createdAt)}.`
     : "No Discord sync records are available yet.";
@@ -549,33 +640,43 @@ function summaryArticle([title, body]) {
   return `<article><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`;
 }
 
-async function loadApplications() {
-  if (!applicationRows) return;
+async function loadApplications(options = {}) {
+  if (!applicationRows && !options.force) return;
 
   const params = new URLSearchParams();
-  const query = applicationSearch.value.trim();
-  const status = applicationStatusFilter.value;
+  const query = applicationSearch?.value?.trim() || "";
+  const status = applicationStatusFilter?.value || "all";
   if (query) params.set("search", query);
   if (status && status !== "all") params.set("status", status);
 
-  applicationRows.innerHTML = `<tr><td colspan="5">Loading applications...</td></tr>`;
+  if (applicationRows) {
+    applicationRows.innerHTML = `<tr><td colspan="5">Loading applications...</td></tr>`;
+  }
   try {
     const response = await fetchJson(`/api/applications${params.toString() ? `?${params}` : ""}`);
     applications = (response.items || []).map(normalizeApplication);
     if (!applications.some((application) => application.id === selectedApplicationId)) {
       selectedApplicationId = applications[0]?.id || null;
     }
-    renderApplications();
+    if (applicationRows) {
+      renderApplications();
+    }
     hydrateApplicationForm();
   } catch (error) {
     console.error(error);
-    applicationRows.innerHTML = `<tr><td colspan="5">Unable to load applications.</td></tr>`;
-    applicationDetail.innerHTML = `<p class="panel-copy">Application data is unavailable right now.</p>`;
+    if (applicationRows) {
+      applicationRows.innerHTML = `<tr><td colspan="5">Unable to load applications.</td></tr>`;
+    }
+    if (applicationDetail) {
+      applicationDetail.innerHTML = `<p class="panel-copy">Application data is unavailable right now.</p>`;
+    }
     showToast("Unable to load applications.");
   }
 }
 
 function renderApplications() {
+  if (!applicationRows || !applicationDetail || !applicationDetailStatus) return;
+
   const visibleApplications = canProcessApplications()
     ? applications
     : applications.filter((application) => application.userId === currentUser?.id);
@@ -610,16 +711,18 @@ function renderApplications() {
   renderApplicationDetail();
 }
 
-async function loadPersonnel() {
-  if (!personnelRows) return;
+async function loadPersonnel(options = {}) {
+  if (!personnelRows && !profileDetail && !options.force) return;
 
   personnelLoadError = "";
-  personnelRows.innerHTML = `<tr><td colspan="7">Loading personnel...</td></tr>`;
+  if (personnelRows) {
+    personnelRows.innerHTML = `<tr><td colspan="7">Loading personnel...</td></tr>`;
+  }
 
   try {
     let response;
     try {
-      response = canReadAllPersonnel()
+      response = canReadAllPersonnel() && !options.ownOnly
         ? await fetchJson("/api/personnel?limit=100")
         : { items: [(await fetchJson("/api/personnel/me")).item] };
     } catch (error) {
@@ -642,7 +745,9 @@ async function loadPersonnel() {
     showToast(personnelLoadError);
   }
 
-  renderPersonnel();
+  if (personnelRows) {
+    renderPersonnel();
+  }
 }
 
 async function loadRecords() {
@@ -732,11 +837,13 @@ async function loadPersonnelLookups() {
   renderPersonnelEditor();
 }
 
-async function loadEvents() {
-  if (!eventRows) return;
+async function loadEvents(options = {}) {
+  if (!eventRows && !options.force) return;
 
   eventsLoadError = "";
-  eventRows.innerHTML = `<tr><td colspan="6">Loading event records...</td></tr>`;
+  if (eventRows) {
+    eventRows.innerHTML = `<tr><td colspan="6">Loading event records...</td></tr>`;
+  }
 
   try {
     const response = await fetchJson("/api/events?limit=100");
@@ -751,8 +858,10 @@ async function loadEvents() {
     eventsLoadError = error.message || "Unable to load events.";
   }
 
-  await loadAttendanceForSelectedEvent();
-  renderEvents();
+  if (eventRows) {
+    await loadAttendanceForSelectedEvent();
+    renderEvents();
+  }
 }
 
 async function loadAttendanceForSelectedEvent() {
@@ -785,6 +894,8 @@ async function loadAttendanceForSelectedEvent() {
 }
 
 function renderApplicationDetail() {
+  if (!applicationDetail || !applicationDetailStatus) return;
+
   const application = selectedApplication();
   const canProcess = canProcessApplications();
 
@@ -792,7 +903,7 @@ function renderApplicationDetail() {
     applicationDetailStatus.textContent = "No application";
     applicationDetail.innerHTML = `<p class="panel-copy">Submit an application to create the first intake record for this account.</p>`;
     [markContactedButton, acceptApplicantButton, denyApplicantButton].forEach((button) => {
-      button.disabled = true;
+      if (button) button.disabled = true;
     });
     return;
   }
@@ -821,13 +932,15 @@ function renderApplicationDetail() {
   `;
 
   [markContactedButton, acceptApplicantButton, denyApplicantButton].forEach((button) => {
-    button.disabled = !canProcess || ["Denied", "ConvertedToRecruit", "Withdrawn"].includes(application.status);
+    if (button) button.disabled = !canProcess || ["Denied", "ConvertedToRecruit", "Withdrawn"].includes(application.status);
   });
 }
 
 function renderPersonnel() {
-  const query = personnelSearch.value.trim().toLowerCase();
-  const status = personnelStatusFilter.value;
+  if (!personnelRows || !personnelDetail || !personnelDetailStatus) return;
+
+  const query = personnelSearch?.value?.trim().toLowerCase() || "";
+  const status = personnelStatusFilter?.value || "all";
 
   if (personnelLoadError) {
     personnelRows.innerHTML = `<tr><td colspan="7">${escapeHtml(personnelLoadError)}</td></tr>`;
@@ -900,7 +1013,7 @@ function renderPersonnelDetail() {
       personnelLoadError || "No personnel profile is available for the current filters.",
     )}</p>`;
     [flagTrainingButton, recommendPromotionButton].forEach((button) => {
-      button.disabled = true;
+      if (button) button.disabled = true;
     });
     renderPersonnelEditor();
     return;
@@ -910,7 +1023,7 @@ function renderPersonnelDetail() {
   personnelDetail.innerHTML = personnelDetailMarkup(member);
 
   [flagTrainingButton, recommendPromotionButton].forEach((button) => {
-    button.disabled = !canEdit;
+    if (button) button.disabled = !canEdit;
   });
   renderPersonnelEditor();
 }
@@ -1993,6 +2106,8 @@ async function submitApplicantForm(event) {
 }
 
 function hydrateApplicationForm() {
+  if (!applicationForm || !applicationSteam64) return;
+
   const ownApplication = applications.find((application) => application.userId === currentUser?.id);
   if (!ownApplication) {
     applicationSteam64.value = currentUser?.profile?.steam64Id || "";
@@ -2000,13 +2115,13 @@ function hydrateApplicationForm() {
   }
 
   applicationSteam64.value = ownApplication.steam64 || "";
-  applicationTimezone.value = ownApplication.timezone || "";
-  applicationInterest.value = ownApplication.interest || "";
-  applicationAvailability.value = ownApplication.availability || "";
-  applicationExperience.value = ownApplication.experience || "";
-  applicationReadiness.value = ownApplication.readiness || "";
-  applicationMotivation.value = ownApplication.answer || "";
-  applicationRules.value = ownApplication.answerByKey.rulesAcknowledgement || "";
+  if (applicationTimezone) applicationTimezone.value = ownApplication.timezone || "";
+  if (applicationInterest) applicationInterest.value = ownApplication.interest || "";
+  if (applicationAvailability) applicationAvailability.value = ownApplication.availability || "";
+  if (applicationExperience) applicationExperience.value = ownApplication.experience || "";
+  if (applicationReadiness) applicationReadiness.value = ownApplication.readiness || "";
+  if (applicationMotivation) applicationMotivation.value = ownApplication.answer || "";
+  if (applicationRules) applicationRules.value = ownApplication.answerByKey.rulesAcknowledgement || "";
 }
 
 function normalizeApplication(item) {
@@ -2569,6 +2684,8 @@ function steamProfileLinkMarkup(item) {
 }
 
 function updateSessionSummary(error) {
+  if (!currentUserName || !currentUserMeta) return;
+
   if (!currentUser || error) {
     currentUserName.textContent = "Session unavailable";
     currentUserMeta.textContent = "Refresh or sign in again if the portal does not recover.";
@@ -2662,6 +2779,8 @@ function statusPill(status) {
 }
 
 function showToast(message) {
+  if (!toast) return;
+
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timeout);

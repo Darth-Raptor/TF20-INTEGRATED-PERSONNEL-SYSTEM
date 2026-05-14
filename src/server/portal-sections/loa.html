@@ -1,0 +1,34 @@
+<section class="view active" data-view-panel="loa">
+          <div class="section-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Submit LOA</h2>
+                <span>Member workflow</span>
+              </div>
+              <form class="stack-form" id="loaForm">
+                <label>Start Date <input id="loaStartDate" name="startDate" type="date" /></label>
+                <label>End Date <input id="loaEndDate" name="endDate" type="date" /></label>
+                <label>Reason Category
+                  <select id="loaReasonCategory" name="reasonCategory">
+                    <option>Work</option><option>School</option><option>Family</option><option>Health / Personal</option><option>Military / Real-World Duty</option><option>Technical Issue</option><option>Temporary Burnout</option><option>Other</option>
+                  </select>
+                </label>
+                <label>Details <textarea id="loaDetails" name="details" rows="4" placeholder="Do not over-collect private details."></textarea></label>
+                <p class="form-feedback" id="loaFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="submitLoaButton">Submit LOA</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>LOA Queue</h2>
+                <span>S1 / delegated leadership</span>
+              </div>
+              <div class="queue-list" id="loaQueue">
+                <p class="section-note">Loading LOA records...</p>
+              </div>
+            </section>
+          </div>
+        </section>

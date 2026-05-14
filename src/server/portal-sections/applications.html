@@ -1,0 +1,121 @@
+<section class="view active" data-view-panel="applications">
+          <div class="section-grid">
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Applicant Submission</h2>
+                <span>Database-backed intake</span>
+              </div>
+              <form class="stack-form" id="applicationForm">
+                <label>
+                  Steam64 ID
+                  <input id="applicationSteam64" name="steam64Id" type="text" inputmode="numeric" placeholder="7656119..." />
+                  <small class="field-hint">Optional, but if provided it should be a 17-digit Steam64 ID.</small>
+                  <small class="field-error" id="applicationSteam64Error" aria-live="polite"></small>
+                </label>
+                <label>
+                  Timezone
+                  <input id="applicationTimezone" name="timezone" type="text" placeholder="CST, EST, GMT..." />
+                  <small class="field-hint">Use a short timezone like CST, EST, PST, UTC, or GMT.</small>
+                  <small class="field-error" id="applicationTimezoneError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Role Interest
+                  <input id="applicationInterest" name="roleInterest" type="text" required placeholder="Infantry, aviation, medical, radio, leadership..." />
+                  <small class="field-error" id="applicationInterestError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Availability
+                  <textarea id="applicationAvailability" name="availability" rows="3" required placeholder="Weekly availability, operation days, training constraints"></textarea>
+                  <small class="field-error" id="applicationAvailabilityError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Arma / MILSIM Experience
+                  <textarea id="applicationExperience" name="experience" rows="4" required placeholder="Relevant Arma hours, units, roles, leadership, aviation, medical, radio, or new-player background"></textarea>
+                  <small class="field-error" id="applicationExperienceError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Technical Readiness
+                  <textarea id="applicationReadiness" name="technicalReadiness" rows="3" placeholder="Modpack, TeamSpeak, ACRE/TFAR, microphone, controls, PC/network limitations"></textarea>
+                  <small class="field-error" id="applicationReadinessError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Why Task Force 20?
+                  <textarea id="applicationMotivation" name="motivation" rows="4" placeholder="What you are looking for in the unit"></textarea>
+                  <small class="field-error" id="applicationMotivationError" aria-live="polite"></small>
+                </label>
+                <label>
+                  Rules / Expectations
+                  <textarea id="applicationRules" name="rulesAcknowledgement" rows="3" placeholder="Confirm you understand attendance, maturity, and realism expectations"></textarea>
+                  <small class="field-error" id="applicationRulesError" aria-live="polite"></small>
+                </label>
+                <p class="form-feedback" id="applicationFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="submitApplicationButton">Submit Application</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Application Pipeline</h2>
+                <span>Recruiting staff</span>
+              </div>
+              <div class="toolbar">
+                <input id="applicationSearch" type="search" placeholder="Search applicant, role interest, readiness..." aria-label="Search applications" />
+                <select id="applicationStatusFilter" aria-label="Application status filter">
+                  <option value="all">All statuses</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="UnderReview">Under Review</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="InterviewScheduled">Interview Scheduled</option>
+                  <option value="ConvertedToRecruit">Converted to Recruit</option>
+                  <option value="Denied">Denied</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Applicant</th>
+                      <th>Status</th>
+                      <th>Interest</th>
+                      <th>Availability</th>
+                      <th>Readiness</th>
+                    </tr>
+                  </thead>
+                  <tbody id="applicationRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Selected Application</h2>
+                <span id="applicationDetailStatus">No selection</span>
+              </div>
+              <div id="applicationDetail" class="detail-panel"></div>
+              <div class="action-row">
+                <button class="button" type="button" id="markContactedButton">Mark Contacted</button>
+                <button class="button primary" type="button" id="acceptApplicantButton">Accept</button>
+                <button class="button danger" type="button" id="denyApplicantButton">Deny</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Decision Workflow</h2>
+                <span>Approval chain</span>
+              </div>
+              <ol class="step-list">
+                <li>Recruiter recommends accept or deny.</li>
+                <li>Recruiting leadership, S1, or Command approves.</li>
+                <li>Accepted applicant converts to Recruit.</li>
+                <li>Personnel profile is created and linked to application history.</li>
+                <li>Discord role sync is queued and audited.</li>
+              </ol>
+              <div class="section-note">
+                Application form sections: Account Identity, Basic Applicant Information, Availability, Experience, Role Interest, Technical Readiness, Rules / Expectations, Short-Answer Questions, Final Confirmation.
+              </div>
+            </section>
+          </div>
+        </section>

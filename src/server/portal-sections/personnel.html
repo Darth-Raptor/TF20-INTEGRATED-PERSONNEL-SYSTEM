@@ -1,0 +1,105 @@
+<section class="view active" data-view-panel="personnel">
+          <div class="section-grid">
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Personnel Roster</h2>
+                <span>Source of truth: TF20 database</span>
+              </div>
+              <div class="toolbar">
+                <input id="personnelSearch" type="search" placeholder="Search rank, alias, MOS, billet, unit..." aria-label="Search personnel" />
+                <select id="personnelStatusFilter" aria-label="Status filter">
+                  <option value="all">All statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Recruit">Recruit</option>
+                  <option value="ProbationaryMember">Probationary Member</option>
+                  <option value="LeaveOfAbsence">Leave of Absence</option>
+                  <option value="Reserve">Reserve</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Discharged">Discharged</option>
+                  <option value="BannedDoNotRehire">Banned</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Alias</th>
+                      <th>Primary Unit</th>
+                      <th>Primary MOS</th>
+                      <th>Primary Billet</th>
+                      <th>Status</th>
+                      <th>Flags</th>
+                    </tr>
+                  </thead>
+                  <tbody id="personnelRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Selected Profile</h2>
+                <span id="personnelDetailStatus">No selection</span>
+              </div>
+              <div id="personnelDetail" class="detail-panel"></div>
+              <div class="action-row">
+                <button class="button" type="button" id="flagTrainingButton">Flag Training</button>
+                <button class="button primary" type="button" id="recommendPromotionButton">Recommend Promotion</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Staff Update</h2>
+                <span>Audit-required changes</span>
+              </div>
+              <form class="stack-form" id="personnelUpdateForm">
+                <label>
+                  Primary Unit
+                  <select id="personnelEditUnit"></select>
+                </label>
+                <label>
+                  Primary Billet
+                  <select id="personnelEditBillet"></select>
+                </label>
+                <label>
+                  Primary MOS
+                  <select id="personnelEditMos" name="primaryMos"></select>
+                </label>
+                <label>
+                  Current Status
+                  <select id="personnelEditStatus">
+                    <option value="Recruit">Recruit</option>
+                    <option value="ProbationaryMember">Probationary Member</option>
+                    <option value="Active">Active</option>
+                    <option value="Reserve">Reserve</option>
+                    <option value="LeaveOfAbsence">Leave of Absence</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Discharged">Discharged</option>
+                    <option value="BannedDoNotRehire">Banned</option>
+                  </select>
+                </label>
+                <label class="checkbox-field">
+                  <input id="personnelEditGoodStanding" type="checkbox" />
+                  <span>In good standing</span>
+                </label>
+                <label>
+                  Staff Sections
+                  <div class="checkbox-list" id="personnelEditSections"></div>
+                </label>
+                <label>
+                  Audit Reason
+                  <textarea id="personnelEditReason" rows="3" placeholder="Why is this personnel update being made?"></textarea>
+                </label>
+                <p class="form-feedback" id="personnelUpdateFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="savePersonnelUpdateButton">Save Personnel Update</button>
+                </div>
+              </form>
+              <p class="section-note">
+                Members cannot edit their own profile here. Staff changes require an audit reason and remain constrained by personnel scope.
+              </p>
+            </section>
+          </div>
+        </section>

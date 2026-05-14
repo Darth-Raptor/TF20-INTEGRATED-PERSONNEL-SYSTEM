@@ -3,6 +3,13 @@ import express from "express";
 import passport from "passport";
 
 import { requireAuth } from "../middleware/auth.js";
+import {
+  canAccessPortalPage,
+  getPortalPage,
+  renderForbiddenPortalPage,
+  renderMissingPortalPage,
+  renderPortalPage,
+} from "../services/portal-pages.js";
 
 export function pageRouter(projectRoot) {
   const router = express.Router();
@@ -40,11 +47,27 @@ export function pageRouter(projectRoot) {
   });
 
   router.get("/portal", requireAuth, (req, res) => {
-    res.sendFile(path.join(projectRoot, "portal.html"));
+    res.redirect("/portal/dashboard");
   });
 
   router.get("/portal.html", requireAuth, (req, res) => {
-    res.redirect("/portal");
+    res.redirect("/portal/dashboard");
+  });
+
+  router.get("/portal/:page", requireAuth, (req, res) => {
+    const page = getPortalPage(req.params.page);
+
+    if (!page) {
+      res.status(404).send(renderMissingPortalPage({ projectRoot, requestedPageId: req.params.page, user: req.user }));
+      return;
+    }
+
+    if (!canAccessPortalPage(req.user, page)) {
+      res.status(403).send(renderForbiddenPortalPage({ projectRoot, requestedPage: page, user: req.user }));
+      return;
+    }
+
+    res.send(renderPortalPage({ projectRoot, page, user: req.user }));
   });
 
   return router;

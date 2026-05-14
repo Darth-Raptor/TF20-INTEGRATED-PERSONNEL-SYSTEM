@@ -1,0 +1,124 @@
+<section class="view active" data-view-panel="events">
+          <div class="section-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Event Calendar and Attendance</h2>
+                <span>Live schedule and review queue</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Starts</th>
+                      <th>Attendance</th>
+                      <th>My Record</th>
+                    </tr>
+                  </thead>
+                  <tbody id="eventRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Event Editor</h2>
+                <span>Staff / command</span>
+              </div>
+              <form class="stack-form" id="eventForm">
+                <label>
+                  Event Title
+                  <input id="eventTitle" type="text" maxlength="160" placeholder="Sunday Operation, Team Training, FTX..." />
+                </label>
+                <label>
+                  Event Type
+                  <input id="eventType" type="text" maxlength="80" placeholder="Operation, FTX, Training, Meeting..." />
+                </label>
+                <label>
+                  Status
+                  <select id="eventStatus">
+                    <option value="Planned">Planned</option>
+                    <option value="Open">Open</option>
+                    <option value="Closed">Closed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </label>
+                <label>
+                  Starts At
+                  <input id="eventStartsAt" type="datetime-local" />
+                </label>
+                <label>
+                  Ends At
+                  <input id="eventEndsAt" type="datetime-local" />
+                </label>
+                <label>
+                  Details
+                  <textarea id="eventDetails" rows="4" placeholder="OPORD summary, attendance requirements, or event notes"></textarea>
+                </label>
+                <p class="form-feedback" id="eventFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="saveEventButton">Save Event</button>
+                  <button class="button ghost" type="button" id="newEventButton">New Event</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Attendance Review</h2>
+                <span id="attendanceDetailStatus">Select an event</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Unit</th>
+                      <th>Status</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendanceRows">
+                    <tr><td colspan="4">Select an event to review attendance.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <form class="stack-form" id="attendanceUpdateForm">
+                <label>
+                  Attendance Status
+                  <select id="attendanceStatus">
+                    <option value="PendingReview">Pending Review</option>
+                    <option value="Present">Present</option>
+                    <option value="PresentManual">Present Manual</option>
+                    <option value="Late">Late</option>
+                    <option value="PartialAttendance">Partial Attendance</option>
+                    <option value="LeftEarly">Left Early</option>
+                    <option value="Excused">Excused</option>
+                    <option value="Absent">Absent</option>
+                    <option value="NoShow">No Show</option>
+                    <option value="LOA">LOA</option>
+                    <option value="NotRequired">Not Required</option>
+                  </select>
+                </label>
+                <label>
+                  RSVP Status
+                  <input id="attendanceRsvpStatus" type="text" maxlength="80" placeholder="Attending, Tentative, Unable, No RSVP..." />
+                </label>
+                <label>
+                  Notes
+                  <textarea id="attendanceNotes" rows="3" placeholder="Manual note or attendance clarification"></textarea>
+                </label>
+                <label>
+                  Audit Reason
+                  <textarea id="attendanceReason" rows="3" placeholder="Why is this attendance record being changed?"></textarea>
+                </label>
+                <p class="form-feedback" id="attendanceFormFeedback" role="status" aria-live="polite"></p>
+                <div class="action-row">
+                  <button class="button primary" type="submit" id="saveAttendanceButton">Save Attendance Record</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>

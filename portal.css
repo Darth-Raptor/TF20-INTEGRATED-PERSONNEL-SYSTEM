@@ -201,6 +201,8 @@ textarea:focus {
 }
 
 .nav-tab {
+  display: flex;
+  align-items: center;
   min-height: 42px;
   border: 1px solid transparent;
   border-radius: var(--radius);

@@ -82,7 +82,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (url.pathname === "/portal" || url.pathname === "/portal.html") {
+  if (url.pathname === "/portal" || url.pathname === "/portal.html" || url.pathname.startsWith("/portal/")) {
     res.writeHead(302, { Location: "/login" });
     res.end();
     return;

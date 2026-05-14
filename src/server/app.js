@@ -90,6 +90,7 @@ export function createApp() {
   });
 
   app.use("/assets", express.static(path.join(projectRoot, "assets"), { immutable: true, maxAge: "1d" }));
+  app.use("/portal-scripts", express.static(path.join(projectRoot, "portal-scripts"), { maxAge: "1d" }));
   app.get("/favicon.ico", (req, res) => {
     res.type("png").sendFile(path.join(projectRoot, "assets", "tf20-favicon.png"));
   });
