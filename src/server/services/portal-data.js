@@ -819,8 +819,8 @@ export async function listPersonnel({ status, search, limit = 50, actorUser } = 
   assertDatabaseReady();
   await syncApprovedLoaStatuses();
 
-  const where = {};
-  if (status && accountStatuses.has(status)) {
+  const where = { currentStatus: { in: activeRosterStatuses } };
+  if (status && activeRosterStatuses.includes(status)) {
     where.currentStatus = status;
   }
   if (search) {

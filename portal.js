@@ -286,6 +286,7 @@ const personnelBilletOrder = new Map(
     "None",
   ].map((billet, index) => [personnelSortKey(billet), index + 1]),
 );
+const personnelRosterStatuses = new Set(["Recruit", "ProbationaryMember", "Active", "Reserve", "LeaveOfAbsence"]);
 
 const applicationFieldMap = {
   steam64Id: applicationSteam64,
@@ -810,14 +811,6 @@ async function loadPersonnel(options = {}) {
 async function loadRecords() {
   if (!recordsRows || !recordDetail || !recordDetailStatus) return;
 
-  if (!canAccessRecords()) {
-    records = [];
-    selectedRecordId = null;
-    recordsLoadError = "";
-    renderRecords();
-    return;
-  }
-
   recordsLoadError = "";
   recordsRows.innerHTML = `<tr><td colspan="4">Loading records...</td></tr>`;
 
@@ -831,7 +824,10 @@ async function loadRecords() {
     console.error(error);
     records = [];
     selectedRecordId = null;
-    recordsLoadError = error.message || "Unable to load records.";
+    recordsLoadError =
+      error.status === 403
+        ? "Records are restricted to command and system administrators."
+        : error.message || "Unable to load records.";
   }
 
   renderRecords();
@@ -1061,6 +1057,7 @@ function renderPersonnel() {
 
   const visiblePersonnel = scopedPersonnel
     .filter((member) => {
+      const matchesRosterStatus = personnelRosterStatuses.has(member.status);
       const matchesStatus = status === "all" || member.status === status;
       const searchable = [
         member.rank,
@@ -1076,7 +1073,7 @@ function renderPersonnel() {
       ]
         .join(" ")
         .toLowerCase();
-      return matchesStatus && (!query || searchable.includes(query));
+      return matchesRosterStatus && matchesStatus && (!query || searchable.includes(query));
     })
     .sort((left, right) => comparePersonnel(left, right, sortMode));
 
