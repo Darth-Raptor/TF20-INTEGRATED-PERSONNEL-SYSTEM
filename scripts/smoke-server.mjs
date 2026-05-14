@@ -37,7 +37,7 @@ async function main() {
 
         const scriptResponse = await fetch(`${baseUrl}/portal-scripts/dashboard.js`);
         assert.equal(scriptResponse.status, 200);
-        assert.match(await scriptResponse.text(), /initPage\\("dashboard"\\)/);
+        assert.match(await scriptResponse.text(), /initPage\("dashboard"\)/);
 
         assertPortalAccess();
         server.close((error) => {
