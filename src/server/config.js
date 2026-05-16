@@ -12,6 +12,7 @@ export const config = {
     callbackUrl: process.env.DISCORD_CALLBACK_URL || "http://localhost:3000/auth/discord/callback",
     botToken: process.env.DISCORD_BOT_TOKEN,
     guildId: process.env.DISCORD_GUILD_ID,
+    guildReconcileIntervalMs: Number(process.env.DISCORD_GUILD_RECONCILE_INTERVAL_MS || 15 * 60 * 1000),
   },
   steam: {
     webApiKey: process.env.STEAM_WEB_API_KEY,
