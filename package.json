@@ -3,21 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Task Force 20 public website and protected personnel portal backend scaffold.",
-  "main": "server.js",
+  "description": "Task Force 20 clean-slate PMS backend planning and data-model foundation.",
   "scripts": {
-    "start": "node server.js",
-    "dev": "NODE_ENV=development node server.js",
-    "check": "node --check server.js && node --check cpanel-server.cjs && node --check src/server/app.js && node --check src/server/config.js && node --check src/server/db.js && node --check src/server/middleware/auth.js && node --check src/server/routes/api.js && node --check src/server/routes/pages.js && node --check src/server/services/discord-guild-sync.js && node --check src/server/services/users.js && node --check src/server/services/portal-data.js && node --check src/server/services/portal-pages.js && node --check src/server/services/session-store.js && node --check src/server/services/steam.js && node --check src/server/services/unit-hierarchy.js && node --check prisma/seed.mjs && node --check scripts/airtable-import-preview.mjs && node --check scripts/airtable-import.mjs && node --check scripts/airtable-sync.mjs && node --check scripts/backup-database.mjs && node --check scripts/discord-guild-backfill.mjs && node --check scripts/discord-guild-reconcile.mjs && node --check scripts/portal-access-audit.mjs && node --check scripts/production-readiness-audit.mjs && node --check scripts/roster-csv-to-json.mjs && node --check scripts/smoke-server.mjs && node --check portal.js && for file in portal-scripts/*.js; do node --check \"$file\"; done",
-    "smoke": "node scripts/smoke-server.mjs",
-    "access:audit": "node scripts/portal-access-audit.mjs",
-    "backup:db": "node scripts/backup-database.mjs",
-    "discord:backfill": "node scripts/discord-guild-backfill.mjs",
-    "discord:reconcile": "node scripts/discord-guild-reconcile.mjs",
-    "readiness:audit": "node scripts/production-readiness-audit.mjs",
-    "roster:csv": "node scripts/roster-csv-to-json.mjs",
-    "airtable:preview": "node scripts/airtable-import-preview.mjs",
-    "airtable:import": "node scripts/airtable-import.mjs",
+    "check": "node --check prisma/seed.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:dev": "prisma migrate dev",
@@ -27,13 +15,7 @@
     "node": ">=18.20.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
-    "discord.js": "^14.21.0",
-    "express": "^4.18.3",
-    "express-session": "^1.18.0",
-    "helmet": "^7.1.0",
-    "passport": "^0.7.0",
-    "passport-discord": "^0.1.4"
+    "@prisma/client": "^6.0.0"
   },
   "devDependencies": {
     "prisma": "^6.0.0"

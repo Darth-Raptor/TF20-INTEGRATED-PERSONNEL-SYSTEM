@@ -7,7 +7,6 @@ npm-debug.log*
 logs/
 .cpanel/
 .private/
-data/airtable-roster*.json
 *TOKEN*
 *.rtf
 dist/
