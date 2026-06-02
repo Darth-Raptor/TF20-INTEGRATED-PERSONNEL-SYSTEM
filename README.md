@@ -9,7 +9,7 @@ this branch unless the user explicitly verifies and re-approves them.
 
 ## Current State
 
-Areas 1, 2, and 3 are implemented:
+Areas 1, 2, 3, and 4 are implemented:
 
 - Backend database source-of-truth plan.
 - Clean-slate Prisma data model.
@@ -17,9 +17,12 @@ Areas 1, 2, and 3 are implemented:
 - Portal workflow foundation for applications, personnel changes, LOA,
   events/attendance, training, service records, support, notifications, and
   audit.
+- External-connections foundation for Discord-only login plus guild and
+  notification planning, optional Steam linking and enrichment, and zero legacy
+  runtime integrations.
 - No official unit, rank, billet, staff-section, MOS, role, or permission
   catalog values seeded yet.
-- Area 1, Area 2, and Area 3 validation scripts.
+- Area 1, Area 2, Area 3, and Area 4 validation scripts.
 
 ## Planning Order
 
@@ -39,9 +42,11 @@ node --check prisma/seed.mjs
 node --check scripts/check-area1-model.mjs
 node --check scripts/check-area2-access.mjs
 node --check scripts/check-area3-workflows.mjs
+node --check scripts/check-area4-external-connections.mjs
 node scripts/check-area1-model.mjs
 node scripts/check-area2-access.mjs
 node scripts/check-area3-workflows.mjs
+node scripts/check-area4-external-connections.mjs
 ```
 
 `npm run check` runs the same foundation checks when `npm` is

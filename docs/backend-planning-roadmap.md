@@ -13,7 +13,8 @@ before it becomes implementation material.
    `docs/identity-roles-access.md` and `prisma/schema.prisma`.
 3. Portal workflows: implemented in `docs/portal-workflows.md` and
    `prisma/schema.prisma`.
-4. External connections.
+4. External connections: implemented in `docs/external-connections.md` and
+   `prisma/schema.prisma`.
 5. API and frontend contract.
 6. Operations, security, and testing.
 
