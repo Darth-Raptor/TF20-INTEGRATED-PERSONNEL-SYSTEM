@@ -5,20 +5,23 @@
   "type": "module",
   "description": "Task Force 20 clean-slate PMS backend planning and data-model foundation.",
   "scripts": {
-    "check": "node --check prisma/catalog-source.mjs && node --check prisma/seed.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node --check scripts/check-area5-api-frontend-contract.mjs && node --check scripts/check-area6-operations-security-testing.mjs && node --check scripts/check-catalog-source.mjs && node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs && node scripts/check-area5-api-frontend-contract.mjs && node scripts/check-area6-operations-security-testing.mjs && node scripts/check-catalog-source.mjs",
+    "check": "node --check prisma/catalog-source.mjs && node --check prisma/seed.mjs && node --check src/server/config.mjs && node --check src/server/db.mjs && node --check src/server/errors.mjs && node --check src/server/cookies.mjs && node --check src/server/access.mjs && node --check src/server/auth-service.mjs && node --check src/server/middleware.mjs && node --check src/server/views.mjs && node --check src/server/app.mjs && node --check src/server/index.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node --check scripts/check-area5-api-frontend-contract.mjs && node --check scripts/check-area6-operations-security-testing.mjs && node --check scripts/check-catalog-source.mjs && node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs && node scripts/check-area5-api-frontend-contract.mjs && node scripts/check-area6-operations-security-testing.mjs && node scripts/check-catalog-source.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:dev": "prisma migrate dev",
     "db:seed": "node prisma/seed.mjs --mode=bootstrap",
     "catalog:sync": "node prisma/seed.mjs --mode=sync",
     "catalog:check": "node scripts/check-catalog-source.mjs",
+    "start": "node src/server/index.mjs",
+    "dev": "node --watch src/server/index.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=18.20.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0"
+    "@prisma/client": "^6.0.0",
+    "express": "^5.1.0"
   },
   "devDependencies": {
     "prisma": "^6.0.0"

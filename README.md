@@ -28,6 +28,8 @@ Areas 1, 2, 3, 4, 5, and 6 are implemented:
   verification, and incident-response expectations.
 - Authoritative catalog source plus bootstrap/sync path for official TF20
   catalogs and future additive catalog growth.
+- Initial runtime backend/auth foundation for Express, Prisma, Discord auth,
+  DB-backed sessions, gate screens, and health/bootstrap routes.
 - Area 1, Area 2, Area 3, Area 4, Area 5, and Area 6 validation scripts.
 - Catalog source validation and smoke validation scripts.
 
@@ -45,7 +47,18 @@ Areas 1, 2, 3, 4, 5, and 6 are implemented:
 Run:
 
 ```bash
+node --check prisma/catalog-source.mjs
 node --check prisma/seed.mjs
+node --check src/server/config.mjs
+node --check src/server/db.mjs
+node --check src/server/errors.mjs
+node --check src/server/cookies.mjs
+node --check src/server/access.mjs
+node --check src/server/auth-service.mjs
+node --check src/server/middleware.mjs
+node --check src/server/views.mjs
+node --check src/server/app.mjs
+node --check src/server/index.mjs
 node --check scripts/check-area1-model.mjs
 node --check scripts/check-area2-access.mjs
 node --check scripts/check-area3-workflows.mjs
