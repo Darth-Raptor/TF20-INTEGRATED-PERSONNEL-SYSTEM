@@ -15,7 +15,8 @@ before it becomes implementation material.
    `prisma/schema.prisma`.
 4. External connections: implemented in `docs/external-connections.md` and
    `prisma/schema.prisma`.
-5. API and frontend contract.
+5. API and frontend contract: implemented in
+   `docs/api-frontend-contract.md` and `prisma/schema.prisma`.
 6. Operations, security, and testing.
 
 ## Rule For Future Areas

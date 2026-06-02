@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Task Force 20 clean-slate PMS backend planning and data-model foundation.",
   "scripts": {
-    "check": "node --check prisma/seed.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs",
+    "check": "node --check prisma/seed.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node --check scripts/check-area5-api-frontend-contract.mjs && node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs && node scripts/check-area5-api-frontend-contract.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:dev": "prisma migrate dev",
