@@ -17,7 +17,8 @@ before it becomes implementation material.
    `prisma/schema.prisma`.
 5. API and frontend contract: implemented in
    `docs/api-frontend-contract.md` and `prisma/schema.prisma`.
-6. Operations, security, and testing.
+6. Operations, security, and testing: implemented in
+   `docs/operations-security-testing.md` and `prisma/schema.prisma`.
 
 ## Rule For Future Areas
 

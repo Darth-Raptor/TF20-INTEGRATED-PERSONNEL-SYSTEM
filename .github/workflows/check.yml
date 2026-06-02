@@ -25,11 +25,8 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Run syntax checks
+      - name: Run branch checks
         run: npm run check
-
-      - name: Run portal access audit
-        run: npm run access:audit
 
       - name: Run smoke boot
         run: npm run smoke

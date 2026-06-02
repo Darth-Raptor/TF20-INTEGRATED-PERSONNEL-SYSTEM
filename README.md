@@ -9,7 +9,7 @@ this branch unless the user explicitly verifies and re-approves them.
 
 ## Current State
 
-Areas 1, 2, 3, 4, and 5 are implemented:
+Areas 1, 2, 3, 4, 5, and 6 are implemented:
 
 - Backend database source-of-truth plan.
 - Clean-slate Prisma data model.
@@ -23,9 +23,12 @@ Areas 1, 2, 3, 4, and 5 are implemented:
 - API and frontend contract foundation for hybrid REST route families,
   protected portal plus pending-user/applicant screens, workflow action
   endpoints, and shared response rules.
+- Operations, security, and testing foundation for single-VPS plus systemd
+  deployment, env-only secrets, daily backups, CI quality gates, smoke
+  verification, and incident-response expectations.
 - No official unit, rank, billet, staff-section, MOS, role, or permission
   catalog values seeded yet.
-- Area 1, Area 2, Area 3, Area 4, and Area 5 validation scripts.
+- Area 1, Area 2, Area 3, Area 4, Area 5, and Area 6 validation scripts.
 
 ## Planning Order
 
@@ -47,11 +50,15 @@ node --check scripts/check-area2-access.mjs
 node --check scripts/check-area3-workflows.mjs
 node --check scripts/check-area4-external-connections.mjs
 node --check scripts/check-area5-api-frontend-contract.mjs
+node --check scripts/check-area6-operations-security-testing.mjs
+node --check scripts/smoke.mjs
 node scripts/check-area1-model.mjs
 node scripts/check-area2-access.mjs
 node scripts/check-area3-workflows.mjs
 node scripts/check-area4-external-connections.mjs
 node scripts/check-area5-api-frontend-contract.mjs
+node scripts/check-area6-operations-security-testing.mjs
+node scripts/smoke.mjs
 ```
 
 `npm run check` runs the same foundation checks when `npm` is
