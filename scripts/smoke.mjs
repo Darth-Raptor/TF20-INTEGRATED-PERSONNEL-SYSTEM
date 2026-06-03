@@ -23,6 +23,8 @@ const requiredPaths = [
   path.join(projectRoot, "scripts", "check-area5-api-frontend-contract.mjs"),
   path.join(projectRoot, "scripts", "check-area6-operations-security-testing.mjs"),
   path.join(projectRoot, "scripts", "check-catalog-source.mjs"),
+  path.join(projectRoot, "src", "server", "application-service.mjs"),
+  path.join(projectRoot, "src", "server", "personnel-service.mjs"),
   path.join(projectRoot, "src", "server", "index.mjs"),
   path.join(projectRoot, "src", "server", "app.mjs"),
 ];
