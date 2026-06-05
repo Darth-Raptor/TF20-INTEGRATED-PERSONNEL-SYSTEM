@@ -1,0 +1,10 @@
+shop_key,identifier,name,function
+j_1,J-1,Personnel / Administration,"Manpower, personnel records, awards, promotions, accountability, casualty reporting, admin actions"
+j_2,J-2,Intelligence,"Intelligence, enemy situation, security, threat analysis, collection, intelligence preparation of the battlefield"
+j_3,J-3,Operations,"Current operations, tasking, plans execution, battle tracking, orders production"
+j_4,J-4,Logistics,"Supply, transportation, maintenance, property, sustainment coordination"
+j_5,J-5,Plans / Civil-Military Operations,"Long-range planning, future operations, civil affairs or civil-military coordination depending on unit structure"
+j_6,J-6,Signal / Communications,"Communications, radios, networks, information systems, cyber/IT support"
+j_7,J-7,Training / Information Operations,"Training management, exercises, lessons learned, information operations depending on unit structure"
+j_8,J-8,Resource Management / Finance,"Budget, funds control, contracts coordination, financial/resource management"
+j_9,J-9,Civil Affairs / Civil-Military Operations,"Civil affairs, local population, governance, NGOs, civil considerations"

@@ -1,4 +1,4 @@
-# TF20 PMS Restart
+# TF20 Personnel Management System
 
 ## Current Status
 
@@ -12,7 +12,7 @@ Implemented locally:
 - Area 4 external connections planning is implemented and locked
 - Area 5 API and frontend contract planning is implemented and locked
 - Area 6 operations, security, and testing planning is implemented and locked
-- authoritative catalog source plus bootstrap/sync path
+- CSV-reviewed canonical catalog source plus bootstrap/sync path
 - Express plus Prisma runtime foundation
 - Discord auth, guild verification, DB-backed sessions, and gate handling
 - applicant-to-member workflow:
@@ -25,7 +25,7 @@ Implemented locally:
   - active member self-view
   - scoped staff roster
   - personnel detail
-  - audited personnel updates for name, status, unit, rank, billet, specialty,
+  - audited personnel updates for name, status, unit, rank, billet, MOS,
     and good standing
 
 ## Current Runtime Surface
@@ -59,6 +59,13 @@ Primary local validation commands:
 ```bash
 npm run check
 npm run smoke
+```
+
+Local runtime control:
+
+```bash
+npm start
+npm run stop
 ```
 
 Manual local verification for the current baseline should cover:

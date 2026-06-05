@@ -1,0 +1,29 @@
+rank_key,display_name,abbreviation,grade,rank_precedence
+gen,General,GEN,O-10,2700
+ltg,Lieutenant General,LTG,O-9,2600
+mg,Major General,MG,O-8,2500
+bg,Brigadier General,BG,O-7,2400
+col,Colonel,COL,O-6,2300
+ltc,Lieutenant Colonel,LTC,O-5,2200
+maj,Major,MAJ,O-4,2100
+cpt,Captain,CPT,O-3,2000
+first_lieutenant,First Lieutenant,1LT,O-2,1900
+second_lieutenant,Second Lieutenant,2LT,O-1,1800
+cw5,Chief Warrant Officer 5,CW5,W-5,1700
+cw4,Chief Warrant Officer 4,CW4,W-4,1600
+cw3,Chief Warrant Officer 3,CW3,W-3,1500
+cw2,Chief Warrant Officer 2,CW2,W-2,1400
+wo1,Warrant Officer 1,WO1,W-1,1300
+sma,Sergeant Major of the Army,SMA,E-9,1200
+csm,Command Sergeant Major,CSM,E-9,1100
+sgm,Sergeant Major,SGM,E-9,1000
+first_sergeant,First Sergeant,1SG,E-8,900
+msg,Master Sergeant,MSG,E-8,800
+sfc,Sergeant First Class,SFC,E-7,700
+ssg,Staff Sergeant,SSG,E-6,600
+sgt,Sergeant,SGT,E-5,500
+cpl,Corporal,CPL,E-4,400
+spc,Specialist,SPC,E-4,300
+pfc,Private First Class,PFC,E-3,200
+pv2,Private,PV2,E-2,100
+pvt,Private,PVT,E-1,0

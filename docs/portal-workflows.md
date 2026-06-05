@@ -32,7 +32,7 @@ only. Protected personnel changes remain staff-owned.
 - Members cannot directly edit protected personnel fields.
 - Authorized staff make protected personnel changes directly.
 - Staff changes require reason, history entry, and audit record.
-- Rank, unit, billet, specialty/MOS, staff assignment, service status, and
+- Rank, unit, billet, MOS, staff assignment, service status, and
   good-standing changes retain history.
 - Exceptional admin-created profiles require explicit authorization and audit
   reason.

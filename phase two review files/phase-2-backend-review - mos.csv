@@ -1,0 +1,34 @@
+mos_key,identifier,mos,unit_key
+11_b,11B,INFANTRYMAN,tf20_ranger_a
+11_c,11C,MORTARMAN,tf20_ranger_a
+12_b,12B,COMBAT ENGINEER,tf20_ranger_a
+13_b,13B,CANNON CREWMEMBER,tf20_ranger_a
+13_f,13F,JOINT FIRE SUPPORT SPECIALIST,tf20_ranger_a
+13_z,13Z,FIELD ARTILLERY SENIOR NCO,tf20_ranger_a
+15_w,15W,UNMANNED AERIAL SYSTEMS OPERATOR,tf20_ranger_a
+19_d,19D,CAVALRY SCOUT,tf20_ranger_a
+25_c,25C,RADIO OPERATOR-MAINTAINER,tf20_ranger_a
+25_e,25E,ELECTROMAGNETIC SPECTRUM MANAGER,tf20_ranger_a
+25_u,25U,SIGNAL SUPPORT SYSTEMS SPECIALIST,tf20_ranger_a
+25_x,25X,CHIEF SIGNALS NCO,tf20_ranger_a
+35_f,35F,INTELLIGENCE ANALYST,tf20_ranger_a
+35_m,35M,HUMAN INTELLIGENCE COLLECTOR,tf20_ranger_a
+35_n,35N,SIGNALS INTELLIGENCE ANALYST,tf20_ranger_a
+68_w,68W,COMBAT MEDIC,tf20_ranger_a
+74_d,74D,CBRN SPECIALIST,tf20_ranger_a
+91_b,91B,GROUND VEHICLE MAINTAINER,tf20_ranger_a
+92_y,92Y,UNIT SUPPLY SPECIALIST,tf20_ranger_a
+18_x,18X,Special Forces Candidate,tf20_sfod_1a
+18_b,18B,Special Forces Weapons Sergeant,tf20_sfod_1a
+18_c,18C,Special Forces Engineer Sergeant,tf20_sfod_1a
+18_d,18D,Special Forces Medical Sergeant,tf20_sfod_1a
+18_e,18E,Special Forces Communications Sergeant,tf20_sfod_1a
+18_f,18F,Special Forces Intelligence Sergeant,tf20_sfod_1a
+18_z,18Z,Special Forces Senior Sergeant,tf20_sfod_1a
+180_a,180A,Special Forces Warrant Officer,tf20_sfod_1a
+18_a,18A,Special Forces Officer,tf20_sfod_1a
+11_a,11A,INFANTRY OFFICER,tf20_ranger_a
+12_a,12A,ENGINEER OFFICER,tf20_ranger_a
+13_a,13A,FIELD ARTILLERY OFFICER,tf20_ranger_a
+153_a,153A,Rotary Wing Aviator,tf20_soar_b160
+15t_2_fn1,15T2FN1,AIR CREW CHIEF,tf20_soar_b160

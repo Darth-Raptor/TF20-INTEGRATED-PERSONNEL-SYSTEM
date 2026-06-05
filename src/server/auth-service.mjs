@@ -158,8 +158,8 @@ export async function resolveAuthenticatedAccount({ prisma, config, discordUser,
       },
     });
 
-    const pendingRole = await tx.role.findUnique({
-      where: { key: "pending-user" },
+    const pendingRole = await tx.role.findFirst({
+      where: { key: "pending-user", status: "Active" },
     });
 
     if (pendingRole) {
@@ -219,9 +219,12 @@ export async function resolveAuthenticatedAccount({ prisma, config, discordUser,
 }
 
 export function flattenPermissions(account) {
-  return (account.roleAssignments ?? []).flatMap((assignment) =>
-    (assignment.role?.permissions ?? []).map((grant) => grant.permission),
-  );
+  return (account.roleAssignments ?? []).flatMap((assignment) => {
+    if (assignment.endsAt || assignment.role?.status !== "Active") return [];
+    return (assignment.role?.permissions ?? [])
+      .map((grant) => grant.permission)
+      .filter((permission) => permission?.status === "Active");
+  });
 }
 
 export async function createSession({ prisma, config, account, authIdentity }) {

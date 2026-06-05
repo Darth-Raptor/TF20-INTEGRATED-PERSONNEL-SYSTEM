@@ -17,7 +17,7 @@ const requiredFamilies = [
   "ranks",
   "billets",
   "staffSections",
-  "specialties",
+  "mos",
   "trainingCourses",
   "qualifications",
   "awards",
@@ -31,23 +31,24 @@ for (const family of requiredFamilies) {
 
 assertUnique(catalogSource.roles, "roles", "key");
 assertUnique(catalogSource.permissions, "permissions", "key");
-assertUnique(catalogSource.units, "units", "code");
-assertUnique(catalogSource.ranks, "ranks", "code");
-assertUnique(catalogSource.billets, "billets", "code");
-assertUnique(catalogSource.staffSections, "staffSections", "code");
-assertUnique(catalogSource.specialties, "specialties", "code");
-assertUnique(catalogSource.trainingCourses, "trainingCourses", "code");
-assertUnique(catalogSource.qualifications, "qualifications", "code");
-assertUnique(catalogSource.awards, "awards", "code");
+assertUnique(catalogSource.units, "units", "key");
+assertUnique(catalogSource.ranks, "ranks", "key");
+assertUnique(catalogSource.billets, "billets", "key");
+assertUnique(catalogSource.staffSections, "staffSections", "key");
+assertUnique(catalogSource.mos, "mos", "key");
+assertUnique(catalogSource.trainingCourses, "trainingCourses", "key");
+assertUnique(catalogSource.qualifications, "qualifications", "key");
+assertUnique(catalogSource.awards, "awards", "key");
 
-const unitCodes = new Set(catalogSource.units.map((unit) => unit.code));
+const unitKeys = new Set(catalogSource.units.map((unit) => unit.key));
 for (const unit of catalogSource.units) {
-  if (unit.parentCode && !unitCodes.has(unit.parentCode)) {
-    fail(`Unit ${unit.code} references missing parentCode ${unit.parentCode}.`);
+  if (unit.parentKey && !unitKeys.has(unit.parentKey)) {
+    fail(`Unit ${unit.key} references missing parentKey ${unit.parentKey}.`);
   }
 }
 
 const permissionKeys = new Set(catalogSource.permissions.map((permission) => permission.key));
+const rankKeys = new Set(catalogSource.ranks.map((rank) => rank.key));
 for (const role of catalogSource.roles) {
   for (const permissionKey of role.permissionKeys ?? []) {
     if (!permissionKeys.has(permissionKey)) {
@@ -57,8 +58,17 @@ for (const role of catalogSource.roles) {
 }
 
 for (const billet of catalogSource.billets) {
-  if (billet.unitCode && !unitCodes.has(billet.unitCode)) {
-    fail(`Billet ${billet.code} references missing unitCode ${billet.unitCode}.`);
+  if (billet.unitKey && !unitKeys.has(billet.unitKey)) {
+    fail(`Billet ${billet.key} references missing unitKey ${billet.unitKey}.`);
+  }
+  if (billet.minimumRankKey && !rankKeys.has(billet.minimumRankKey)) {
+    fail(`Billet ${billet.key} references missing minimumRankKey ${billet.minimumRankKey}.`);
+  }
+}
+
+for (const mos of catalogSource.mos) {
+  if (mos.unitKey && !unitKeys.has(mos.unitKey)) {
+    fail(`MOS ${mos.key} references missing unitKey ${mos.unitKey}.`);
   }
 }
 

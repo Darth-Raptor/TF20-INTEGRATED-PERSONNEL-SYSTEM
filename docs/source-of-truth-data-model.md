@@ -15,8 +15,8 @@ roles, and docs must not be treated as source material for this restart.
   `SessionRevocation`, `Role`, `Permission`, `PermissionGrant`,
   `RoleAssignment`, `AccountRecoveryRequest`, `AccessBootstrap`.
 - Organization: hierarchical `Unit`, `Rank`, `Billet`, `StaffSection`,
-  `Specialty`.
-- Personnel: `PersonnelProfile`, status/rank/unit/billet/specialty/staff
+  `MOS`.
+- Personnel: `PersonnelProfile`, status/rank/unit/billet/MOS/staff
   assignment/good-standing history records.
 - Recruiting: `Application`, `ApplicationAnswer`,
   `ApplicationStatusHistory`, `ApplicationReviewNote`.
@@ -44,21 +44,24 @@ roles, and docs must not be treated as source material for this restart.
 
 ## Catalog Policy
 
-Catalog shape is implemented, but official values are intentionally absent until
-the user verifies them:
+Official catalog values are now implemented from the approved Phase 2 review
+CSV files. The repo-tracked canonical source remains `prisma/catalog-source.mjs`,
+which is regenerated from that reviewed Phase 2 input and used by seed/sync.
+
+The authoritative families are:
 
 - roles and permissions
 - units
 - ranks
 - billets
 - staff sections
-- specialties/MOS
+- MOS
 - training courses
 - qualifications
 - awards
 
-The seed script must not introduce official catalog values before that
-verification pass.
+Catalog changes remain repo-driven and validation-backed rather than ad hoc
+runtime edits.
 
 ## Validation
 

@@ -53,15 +53,21 @@ enum CatalogStatus {
 }
 
 enum PersonnelStatus {
+  Applicant
   Recruit
   Probationary
   Active
   Reserve
   LeaveOfAbsence
+  ExtendedLeaveOfAbsence
   Inactive
+  AWOL
   Separated
   Discharged
   DoNotRehire
+  HonorableDischarge
+  OtherThanHonorableDischarge
+  DishonorableDischarge
 }
 
 enum ApplicationStatus {
@@ -156,6 +162,7 @@ enum RequestStatus {
 }
 
 enum VisibilityLevel {
+  Applicant
   Member
   Staff
   Command
@@ -297,6 +304,7 @@ model Role {
   key         String           @unique
   name        String
   description String?
+  precedence  Int              @default(0)
   status      CatalogStatus    @default(Draft)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -400,17 +408,18 @@ model Unit {
   parentId        String?
   parent          Unit?                @relation("UnitTree", fields: [parentId], references: [id])
   children        Unit[]               @relation("UnitTree")
-  code            String?              @unique
+  key             String               @unique
   name            String
-  type            String?
+  type            String
   status          CatalogStatus        @default(Draft)
-  sortOrder       Int                  @default(0)
+  hierarchyBase   Int                  @default(0)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   roleAssignments RoleAssignment[]
   personnel       PersonnelProfile[]
   unitAssignments PersonnelUnitAssignment[]
   billets         Billet[]
+  mos             MOS[]
   targetedApplications Application[]   @relation("ApplicationTargetUnit")
 
   @@index([parentId])
@@ -419,16 +428,17 @@ model Unit {
 
 model Rank {
   id          String                 @id @default(cuid())
-  code        String                 @unique
+  key         String                 @unique
   name        String
   abbreviation String?
-  category    String?
-  sortOrder   Int                    @default(0)
+  grade       String?
+  precedence  Int                    @default(0)
   status      CatalogStatus          @default(Draft)
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   personnel   PersonnelProfile[]
   history     PersonnelRankHistory[]
+  minimumForBillets Billet[]           @relation("BilletMinimumRank")
   promotionRequests PromotionRequest[]
   promotionRecords  PromotionRecord[]
 }
@@ -437,9 +447,12 @@ model Billet {
   id          String                    @id @default(cuid())
   unitId      String?
   unit        Unit?                     @relation(fields: [unitId], references: [id])
-  code        String?                   @unique
+  key         String                    @unique
   name        String
   category    String?
+  minimumRankId String?
+  minimumRank Rank?                     @relation("BilletMinimumRank", fields: [minimumRankId], references: [id])
+  commandPrecedence Int                 @default(0)
   status      CatalogStatus             @default(Draft)
   createdAt   DateTime                  @default(now())
   updatedAt   DateTime                  @updatedAt
@@ -447,14 +460,16 @@ model Billet {
   history     PersonnelBilletAssignment[]
 
   @@index([unitId])
+  @@index([minimumRankId])
   @@index([status])
 }
 
 model StaffSection {
   id              String            @id @default(cuid())
-  code            String            @unique
+  key             String            @unique
+  identifier      String?
   name            String
-  description     String?           @db.Text
+  function        String?           @db.Text
   status          CatalogStatus     @default(Draft)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -462,23 +477,25 @@ model StaffSection {
   assignments     StaffAssignment[]
 }
 
-model Specialty {
+model MOS {
   id        String                    @id @default(cuid())
-  code      String                    @unique
+  key       String                    @unique
+  identifier String
   name      String
-  category  String?
+  unitId    String?
+  unit      Unit?                     @relation(fields: [unitId], references: [id])
   status    CatalogStatus             @default(Draft)
   createdAt DateTime                  @default(now())
   updatedAt DateTime                  @updatedAt
   personnel PersonnelProfile[]
-  history   PersonnelSpecialtyHistory[]
+  history   PersonnelMOSHistory[]
 }
 
 model PersonnelProfile {
   id                    String                      @id @default(cuid())
   accountId             String                      @unique
   account               Account                     @relation(fields: [accountId], references: [id])
-  callsign              String
+  name                  String
   status                PersonnelStatus             @default(Recruit)
   currentRankId         String?
   currentRank           Rank?                       @relation(fields: [currentRankId], references: [id])
@@ -486,8 +503,8 @@ model PersonnelProfile {
   currentUnit           Unit?                       @relation(fields: [currentUnitId], references: [id])
   currentBilletId       String?
   currentBillet         Billet?                     @relation(fields: [currentBilletId], references: [id])
-  currentSpecialtyId    String?
-  currentSpecialty      Specialty?                  @relation(fields: [currentSpecialtyId], references: [id])
+  currentMOSId          String?
+  currentMOS            MOS?                        @relation(fields: [currentMOSId], references: [id])
   goodStanding          Boolean                     @default(true)
   joinedAt              DateTime?
   acceptedAt            DateTime?
@@ -500,7 +517,7 @@ model PersonnelProfile {
   rankHistory           PersonnelRankHistory[]
   unitAssignments       PersonnelUnitAssignment[]
   billetAssignments     PersonnelBilletAssignment[]
-  specialtyHistory      PersonnelSpecialtyHistory[]
+  mosHistory            PersonnelMOSHistory[]
   staffAssignments      StaffAssignment[]
   standingHistory       PersonnelStandingHistory[]
   convertedApplications Application[]               @relation("ApplicationConvertedProfile")
@@ -519,7 +536,7 @@ model PersonnelProfile {
 
   @@index([status])
   @@index([currentUnitId])
-  @@index([callsign])
+  @@index([name])
 }
 
 model PersonnelStatusHistory {
@@ -587,12 +604,12 @@ model PersonnelBilletAssignment {
   @@index([billetId])
 }
 
-model PersonnelSpecialtyHistory {
+model PersonnelMOSHistory {
   id                 String           @id @default(cuid())
   personnelProfileId String
   personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  specialtyId        String
-  specialty          Specialty        @relation(fields: [specialtyId], references: [id])
+  mosId              String
+  mos                MOS              @relation(fields: [mosId], references: [id])
   effectiveAt        DateTime         @default(now())
   endedAt            DateTime?
   changedByAccountId String?
@@ -600,7 +617,7 @@ model PersonnelSpecialtyHistory {
   auditLogId         String?
 
   @@index([personnelProfileId])
-  @@index([specialtyId])
+  @@index([mosId])
 }
 
 model StaffAssignment {
@@ -799,7 +816,7 @@ model LoaRequest {
 
 model TrainingCourse {
   id            String                @id @default(cuid())
-  code          String?               @unique
+  key           String?               @unique
   name          String
   category      String?
   description   String?               @db.Text
@@ -812,7 +829,7 @@ model TrainingCourse {
 
 model Qualification {
   id               String                   @id @default(cuid())
-  code             String                   @unique
+  key              String                   @unique
   name             String
   category         String?
   expiresAfterDays Int?
@@ -905,8 +922,10 @@ model PromotionRecord {
 
 model Award {
   id        String        @id @default(cuid())
-  code      String?       @unique
+  key       String?       @unique
+  abbreviation String?
   name      String
+  type      String?
   category  String?
   status    CatalogStatus @default(Draft)
   createdAt DateTime      @default(now())

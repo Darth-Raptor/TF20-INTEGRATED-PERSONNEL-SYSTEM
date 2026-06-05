@@ -1,0 +1,196 @@
+"row_type","chapter","section","what_you_are_deciding","current_state","keep_as_is","change_to","add","remove","merge_split","reason_notes","final_decision","appendix_ref","snapshot"
+"review","1. Terminology And Naming Review","1.1 Product Terminology","Decide the final product-level words and identifiers the backend should use.","product name currently appears as Task Force 20 Personnel Management System; public/protected split currently appears as public recruiting/front-door site and protected PMS; backend style is currently hybrid REST; operational source of truth is currently described as database-only operational source of truth","","","","","","","",""
+"review","1. Terminology And Naming Review","1.2 Personnel Terminology","Decide the final personnel-facing words and identifiers the backend should use.","personnel identity field is currently name; there is no distinction between schema wording and user-facing wording here; current personnel domain terms include PersonnelStatus, goodStanding, StaffSection, and MOS","","","","","","","",""
+"review","1. Terminology And Naming Review","1.3 Workflow Terminology","Decide the final workflow words and action labels the backend should use.","applicant workflow model is Application; recruiter review action is recommend; target-unit workflow currently uses assign-unit, accept, and reject; LOA wording is LoaRequest and LOA; attendance correction action is correct; support queue wording uses SupportTicket and queueKey","","","","","","","",""
+"review","1. Terminology And Naming Review","1.4 Route And Action Naming","Decide the final route family and action naming used in the backend contract.","current route families already in use are /auth/*, /me/*, /applications/*, and /personnel/*; future route families already planned include /loa/*, /events/*, /attendance/*, /training/*, /qualifications/*, /promotions/*, /awards/*, /support/*, /notifications/*, /audit/*, /access/*, and /bootstrap/*","","","","","","","",""
+"review","1. Terminology And Naming Review","1.5 Permission Namespace Wording","Decide the final permission namespace wording and grouping.","permission keys use the module.action shape; current namespace families include accounts, access, catalogs, applications, personnel, events, attendance, loa, training, serviceRecords, support, audit, notifications, and integrations","","","","","","","",""
+"review","1. Terminology And Naming Review","1.6 Audit And Integration Wording","Decide the final audit and integration wording used by the backend.","audit model is AuditLog; integration model is IntegrationLog; audit severity enum is AuditSeverity; integration status enum is IntegrationLogStatus; protected write marker is protectedWrite","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Identity And Access Models","Decide the final identity and access model structure.","models in this group: Account, AuthIdentity, Session, SessionRevocation, Role, Permission, PermissionGrant, RoleAssignment, AccountRecoveryRequest, AccessBootstrap","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Catalogs And Organization Models","Decide the final catalog and organization model structure.","models in this group: Unit, Rank, Billet, StaffSection, MOS","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Personnel Models","Decide the final personnel model structure.","models in this group: PersonnelProfile, PersonnelStatusHistory, PersonnelRankHistory, PersonnelUnitAssignment, PersonnelBilletAssignment, PersonnelMOSHistory, StaffAssignment, PersonnelStandingHistory","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Recruiting Models","Decide the final recruiting model structure.","models in this group: Application, ApplicationAnswer, ApplicationStatusHistory, ApplicationReviewNote","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 LOA, Events, And Attendance Models","Decide the final LOA, events, and attendance model structure.","models in this group: EventTemplate, Event, EventAttendance, LoaRequest","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Training And Qualifications Models","Decide the final training and qualification model structure.","models in this group: TrainingCourse, Qualification, CourseQualification, TrainingRecord, PersonnelQualification","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Promotions, Awards, And Restricted Records Models","Decide the final promotions, awards, and restricted-record model structure.","models in this group: PromotionRequest, PromotionRecord, Award, AwardRequest, AwardRecord, DisciplinaryRecord, AdministrativeNote","","","","","","","",""
+"review","2. Schema And Enum Review","2.1 Support, Notifications, Audit, And Integrations Models","Decide the final support, notification, audit, and integration model structure.","models in this group: SupportTicket, SupportTicketComment, Notification, AuditLog, IntegrationLog","","","","","","","",""
+"review","2. Schema And Enum Review","2.2 Enums","Decide the final enum names and enum values used by the backend.","the backend currently uses enums for account status, auth provider, scope, recovery/bootstrap/session lifecycle, catalogs, personnel, applications, assignments, events, attendance, LOA, qualifications, shared request status, visibility, support, notifications, audit, and integrations; exact current enum values are listed in Appendix A","","","","","","","","A",""
+"review","2. Schema And Enum Review","2.3 Identity And Access Field Changes","Capture important field-level changes for identity and access models.","use this row for field-level changes not already clear from the model-group decisions above","","","","","","","",""
+"review","2. Schema And Enum Review","2.3 Catalogs And Organization Field Changes","Capture important field-level changes for catalog and organization models.","use this row for field-level changes not already clear from the model-group decisions above","","","","","","","",""
+"review","2. Schema And Enum Review","2.3 Personnel Field Changes","Capture important field-level changes for personnel models.","use this row for field-level changes not already clear from the model-group decisions above","","","","","","","",""
+"review","2. Schema And Enum Review","2.3 Recruiting Field Changes","Capture important field-level changes for recruiting models.","use this row for field-level changes not already clear from the model-group decisions above","","","","","","","",""
+"review","2. Schema And Enum Review","2.3 Operations, Training, Support, Audit, And Integrations Field Changes","Capture important field-level changes for the remaining operational model groups.","use this row for field-level changes not already clear from the model-group decisions above","","","","","","","",""
+"review","3. Catalog Review","3.1 Catalog-Wide Rules","Decide the final catalog-wide rules, lifecycle, and change policy.","catalog version is currently 2026-06-02-step1; catalog policy is currently repo-driven, additive by default, and non-destructive for referenced records; catalog lifecycle currently uses Draft, Active, Inactive, and Archived","","","","","","","",""
+"review","3. Catalog Review","3.2 Roles","Decide the final role keys, names, and grant boundaries.","seeded role keys currently are pending-user, member, recruiter, unit-staff, command-staff, trainer, and system-admin","","","","","","","","B",""
+"review","3. Catalog Review","3.3 Permissions","Decide the final permission keys, sensitive categories, and recent-auth requirements.","permissions are currently seeded and grouped under the namespace families listed in Section 1.5; exact current permissions are listed in Appendix B","","","","","","","","B",""
+"review","3. Catalog Review","3.4 Units","Decide the final unit list, codes, hierarchy, and ordering.","current unit tree has TF20, TF20-RANGER-A, TF20-SFOD-A1, and TF20-SOAR-B160","","","","","","","","C",""
+"review","3. Catalog Review","3.5 Ranks","Decide the final rank list, names, abbreviations, categories, and order.","current seeded ranks include officer, warrant officer, and enlisted values; exact current rank entries are listed in Appendix C","","","","","","","","C",""
+"review","3. Catalog Review","3.6 Billets","Decide the final billet inventory, wording, categories, and placement.","billets are currently seeded for the Ranger, SFOD, and SOAR unit entries; exact current billet entries are listed in Appendix D","","","","","","","","D",""
+"review","3. Catalog Review","3.7 Staff Sections","Decide the final staff section list and names.","only one staff section is currently seeded: J2","","","","","","","","E",""
+"review","3. Catalog Review","3.8 MOS","Decide the final MOS list, codes, names, and categories.","MOS entries are currently seeded with infantry, engineer, fires, signal, medical, aviation, and special forces examples; exact current entries are listed in Appendix E","","","","","","","","E",""
+"review","3. Catalog Review","3.9 Training Courses","Decide whether training courses should be seeded now and what their structure should be.","no training courses are currently seeded","","","","","","","","G",""
+"review","3. Catalog Review","3.10 Qualifications","Decide whether qualifications should be seeded now and what their structure should be.","no qualifications are currently seeded","","","","","","","","G",""
+"review","3. Catalog Review","3.11 Awards","Decide whether awards should be seeded now and what their structure should be.","no awards are currently seeded","","","","","","","","G",""
+"review","4. Access And Workflow Contract Review","4.1 Permission Namespace And Sensitive Categories","Decide the final backend-facing access vocabulary.","current namespace families are accounts.*, access.*, catalogs.*, applications.*, personnel.*, events.*, attendance.*, loa.*, training.*, serviceRecords.*, support.*, audit.*, notifications.*, integrations.*; current sensitive categories are identity, recovery, access-management, disciplinary, administrative-notes, private-loa, audit, and integration","","","","","","","",""
+"review","4. Access And Workflow Contract Review","4.2 Route Families","Decide the final backend contract route families.","current contract route families are /auth/*, /me/*, /applications/*, /personnel/*, /loa/*, /events/*, /attendance/*, /training/*, /qualifications/*, /promotions/*, /awards/*, /support/*, /notifications/*, /audit/*, /access/*, and /bootstrap/*","","","","","","","",""
+"review","4. Access And Workflow Contract Review","4.3 Workflow Action Endpoints","Decide the final action names and route shapes used by backend workflows.","current implemented runtime actions already exist for auth, session bootstrap, applicant flow, and personnel updates; planned workflow action endpoints are summarized in Appendix F","","","","","","","","F",""
+"review","4. Access And Workflow Contract Review","4.4 Gate And Blocked-State Wording","Decide the final gate states, blocked-state wording, and pending-user capability boundaries.","current gate concepts are pending, active, locked, disabled, archived, and not-in-guild; pending users currently have access only to application, limited support, and recovery functions","","","","","","","",""
+"signoff","5. Phase 2 Signoff","5.1 Approved Changes","List the changes that implementation should make.","","","","","","","","",""
+"signoff","5. Phase 2 Signoff","5.2 Rejected Changes","List the proposed changes that should not be implemented.","","","","","","","","",""
+"signoff","5. Phase 2 Signoff","5.3 Deferred Items","List the items intentionally deferred beyond Phase 2.","","","","","","","","",""
+"signoff","5. Phase 2 Signoff","5.4 Migration-Risk Items","List the changes that carry migration or compatibility risk.","","","","","","","","",""
+"signoff","5. Phase 2 Signoff","5.5 Finalized Decisions Summary","Summarize the final decisions so implementation does not need to infer intent from scattered notes.","","","","","","","","",""
+"appendix","6. Appendices","Appendix A: Current Enum Snapshot","Reference snapshot of current enum values.","","","","","","","","A","AccountStatus = Pending, Active, Locked, Disabled, Archived
+AuthProvider = Discord
+RoleScopeType = Global, Unit, StaffSection
+RecoveryStatus = Open, Approved, Denied, Completed, Cancelled
+BootstrapStatus = Open, Completed, Expired, Revoked
+SessionRevocationScope = Account, Global
+CatalogStatus = Draft, Active, Inactive, Archived
+PersonnelStatus = Recruit, Probationary, Active, Reserve, LeaveOfAbsence, Inactive, Separated, Discharged, DoNotRehire
+ApplicationStatus = Submitted, RecruiterScreening, RecruiterRecommended, TargetUnitReview, Accepted, Denied, Withdrawn, Closed, Converted
+ApplicationReviewStage = RecruiterScreening, TargetUnitReview, FinalDecision
+AssignmentType = Primary, Secondary, Temporary, Staff
+EventStatus = Draft, Scheduled, RosterFinalized, Completed, Cancelled, Archived
+EventRosterSource = Template, UnitRoster, ManualAdjustment
+AttendanceStatus = Expected, Present, Partial, Late, Excused, Absent, NoShow, LeaveOfAbsence, NotRequired, PendingReview
+LoaStatus = Submitted, UnderReview, Approved, Denied, Cancelled, Withdrawn, Active, Completed, Returned
+LoaApprovalLevel = UnitStaff, Escalated
+QualificationStatus = Recommended, Pending, Active, Expired, Suspended, Revoked, Waived
+RequestStatus = Draft, Submitted, UnderReview, Approved, Denied, Cancelled, Completed, Voided
+VisibilityLevel = Member, Staff, Command, System, Restricted
+SupportTicketStatus = Open, PendingStaff, PendingMember, Resolved, Closed, Voided
+NotificationStatus = Unread, Read, Archived
+NotificationDeliveryChannel = InApp
+AuditSeverity = Info, Notice, Warning, Critical
+IntegrationLogStatus = Pending, Success, Failure, Voided"
+"appendix","6. Appendices","Appendix B: Current Role Snapshot","Reference snapshot of current seeded roles.","","","","","","","","B","pending-user | Pending User | Active | Guild-verified pending account with limited applicant and recovery access.
+member | Member | Active | Active member baseline access.
+recruiter | Recruiter | Active | Recruiting workflow authority.
+unit-staff | Unit Staff | Active | Scoped personnel and workflow authority for unit staff.
+command-staff | Command Staff | Active | Elevated command oversight authority.
+trainer | Trainer | Active | Training and qualification authority.
+system-admin | System Admin | Active | System-wide administration and recovery authority."
+"appendix","6. Appendices","Appendix B: Current Permission Snapshot","Reference snapshot of current seeded permissions.","","","","","","","","B","accounts.view-self
+access.recovery.request
+access.recovery.review
+access.sessions.revoke
+access.bootstrap.complete
+catalogs.manage
+applications.create-self
+applications.view-self
+applications.review-recruiter
+applications.review-target-unit
+personnel.view-self
+personnel.view-scoped
+personnel.update-scoped
+events.view-self
+events.manage-scoped
+attendance.view-self
+attendance.review-scoped
+loa.create-self
+loa.review-scoped
+training.view-scoped
+training.record-scoped
+serviceRecords.manage-scoped
+support.create-self
+support.manage-queue
+audit.view
+notifications.view-self
+notifications.archive-self
+integrations.view
+integrations.manage"
+"appendix","6. Appendices","Appendix C: Current Unit Snapshot","Reference snapshot of current seeded units.","","","","","","","","C","TF20 | Task Force 20 | type=Task Force | parent=null | status=Active | sortOrder=0
+TF20-RANGER-A | A Co, 1/75th Ranger Regiment | type=Unit | parent=TF20 | status=Active | sortOrder=10
+TF20-SFOD-A1 | 1 Troop, A Squadron, 1st SFOD-Delta | type=Unit | parent=TF20 | status=Active | sortOrder=20
+TF20-SOAR-B160 | B Co, 2/160th SOAR | type=Unit | parent=TF20 | status=Active | sortOrder=30"
+"appendix","6. Appendices","Appendix C: Current Rank Snapshot","Reference snapshot of current seeded ranks.","","","","","","","","C","COL | Colonel | abbreviation=COL | category=Officer | sortOrder=10 | status=Active
+CPT | Captain | abbreviation=CPT | category=Officer | sortOrder=20 | status=Active
+1LT | First Lieutenant | abbreviation=1LT | category=Officer | sortOrder=30 | status=Active
+CW3 | Chief Warrant Officer 3 | abbreviation=CW3 | category=Warrant Officer | sortOrder=40 | status=Active
+SGM | Sergeant Major | abbreviation=SGM | category=Enlisted | sortOrder=50 | status=Active
+MSG | Master Sergeant | abbreviation=MSG | category=Enlisted | sortOrder=60 | status=Active
+SFC | Sergeant First Class | abbreviation=SFC | category=Enlisted | sortOrder=70 | status=Active
+SSG | Staff Sergeant | abbreviation=SSG | category=Enlisted | sortOrder=80 | status=Active
+SGT | Sergeant | abbreviation=SGT | category=Enlisted | sortOrder=90 | status=Active
+SPC | Specialist | abbreviation=SPC | category=Enlisted | sortOrder=100 | status=Active
+PFC | Private First Class | abbreviation=PFC | category=Enlisted | sortOrder=110 | status=Active
+PV2 | Private | abbreviation=PV2 | category=Enlisted | sortOrder=120 | status=Active"
+"appendix","6. Appendices","Appendix D: Current Billet Snapshot","Reference snapshot of current seeded billets.","","","","","","","","D","RANGER-COMPANY-COMMANDER | unit=TF20-RANGER-A | Company Commander | category=Command | status=Active
+RANGER-1PLT-PL | unit=TF20-RANGER-A | 1PLT PL | category=Leadership | status=Active
+RANGER-1PLT-RTO | unit=TF20-RANGER-A | 1PLT RTO | category=Support | status=Active
+RANGER-1PLT-ASST-MEDIC | unit=TF20-RANGER-A | 1PLT Asst Medic | category=Medical | status=Active
+RANGER-1PLT-ENGINEER | unit=TF20-RANGER-A | 1PLT Engineer | category=Engineer | status=Active
+RANGER-1PLT-JTAC | unit=TF20-RANGER-A | 1PLT JTAC | category=Fires | status=Active
+RANGER-1PLT-MEDIC | unit=TF20-RANGER-A | 1PLT Medic | category=Medical | status=Active
+RANGER-1PLT-1SQD-SL | unit=TF20-RANGER-A | 1PLT, 1SQD SL | category=Leadership | status=Active
+RANGER-1PLT-1SQD-A-AUTORIFLEMAN | unit=TF20-RANGER-A | 1PLT, 1SQD, A, AutoRifleman | category=Rifle | status=Active
+RANGER-1PLT-1SQD-A-GRENADIER | unit=TF20-RANGER-A | 1PLT, 1SQD, A, Grenadier | category=Rifle | status=Active
+RANGER-1PLT-1SQD-A-RIFLEMAN | unit=TF20-RANGER-A | 1PLT, 1SQD, A, Rifleman | category=Rifle | status=Active
+RANGER-1PLT-1SQD-A-TL | unit=TF20-RANGER-A | 1PLT, 1SQD, A, TL | category=Leadership | status=Active
+RANGER-1PLT-1SQD-B-RIFLEMAN | unit=TF20-RANGER-A | 1PLT, 1SQD, B, Rifleman | category=Rifle | status=Active
+RANGER-1PLT-1SQD-B-TL | unit=TF20-RANGER-A | 1PLT, 1SQD, B, TL | category=Leadership | status=Active
+SFOD-CO | unit=TF20-SFOD-A1 | CO | category=Command | status=Active
+SFOD-TL | unit=TF20-SFOD-A1 | TL | category=Leadership | status=Active
+SFOD-ATL-PM | unit=TF20-SFOD-A1 | ATL/Precision Marksman | category=Leadership | status=Active
+SFOD-ASSAULTER-BREACHER | unit=TF20-SFOD-A1 | Assaulter/Breacher | category=Assaulter | status=Active
+SFOD-ASSAULTER-GAY-CANADIAN | unit=TF20-SFOD-A1 | Assaulter/Gay Canadian | category=Assaulter | status=Active
+SFOD-ASSAULTER-PM | unit=TF20-SFOD-A1 | Assaulter/Precision Marksman | category=Assaulter | status=Active
+SFOD-HWO | unit=TF20-SFOD-A1 | Heavy Weapons Operator | category=Weapons | status=Active
+SOAR-CO | unit=TF20-SOAR-B160 | Commanding Officer | category=Command | status=Active
+SOAR-XO | unit=TF20-SOAR-B160 | Executive Officer | category=Command | status=Active
+SOAR-AVIATOR | unit=TF20-SOAR-B160 | Aviator | category=Flight | status=Active
+SOAR-AIR-CREW | unit=TF20-SOAR-B160 | Air Crew Member | category=Flight | status=Active"
+"appendix","6. Appendices","Appendix E: Current Staff Section Snapshot","Reference snapshot of current seeded staff sections.","","","","","","","","E","J2 | J2 | description=Intelligence staff section. | status=Active"
+"appendix","6. Appendices","Appendix E: Current MOS Snapshot","Reference snapshot of current seeded MOS entries.","","","","","","","","E","11A | Infantry Officer | category=Infantry | status=Active
+11B | Infantryman | category=Infantry | status=Active
+12B | Combat Engineer | category=Engineer | status=Active
+13F | Joint Fire Support Specialist | category=Fires | status=Active
+25C | Radio Operator | category=Signal | status=Active
+68W | Combat Medic | category=Medical | status=Active
+153A | Special Operations Rotary Wing Aviator | category=Aviation | status=Active
+18A | Special Forces Officer | category=Special Forces | status=Active
+18B | Special Forces Weapons Sergeant | category=Special Forces | status=Active
+18Z | Special Forces Operations Sergeant | category=Special Forces | status=Active"
+"appendix","6. Appendices","Appendix F: Implemented Runtime Actions","Reference snapshot of current implemented runtime actions.","","","","","","","","F","GET /auth/discord/start
+GET /auth/discord/callback
+GET /auth/logout
+POST /auth/recent-auth
+GET /auth/blocked
+GET /me
+GET /me/gate
+GET /me/modules
+GET /applications/me
+POST /applications
+GET /applications/review
+GET /applications/:id
+POST /applications/:id/recommend
+POST /applications/:id/assign-unit
+POST /applications/:id/accept
+POST /applications/:id/reject
+GET /personnel/self
+GET /personnel
+GET /personnel/:id
+PATCH /personnel/:id
+POST /personnel/:id/update"
+"appendix","6. Appendices","Appendix F: Planned Workflow Action Endpoints","Reference snapshot of planned workflow action endpoints.","","","","","","","","F","POST /applications/{id}/recommend
+POST /applications/{id}/decision
+PATCH /personnel/{id}
+POST /loa/{id}/approve
+POST /loa/{id}/deny
+POST /loa/{id}/withdraw
+POST /loa/{id}/cancel
+POST /loa/{id}/return
+POST /events/{id}/attendance/finalize
+POST /attendance/{id}/correct
+POST /support/{id}/assign
+POST /support/{id}/resolve
+POST /support/{id}/close
+POST /support/{id}/void
+POST /access/recovery/{id}/approve
+POST /access/recovery/{id}/deny
+POST /access/recovery/{id}/complete
+POST /access/sessions/{id}/revoke
+POST /access/sessions/revoke-all"
+"appendix","6. Appendices","Appendix G: Current Seed Gaps","Reference snapshot of currently empty seeded catalog families.","","","","","","","","G","trainingCourses = []
+qualifications = []
+awards = []"

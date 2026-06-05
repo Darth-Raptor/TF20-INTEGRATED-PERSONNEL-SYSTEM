@@ -1,13 +1,19 @@
 const PERSONNEL_STATUS_OPTIONS = [
+  "Applicant",
   "Recruit",
   "Probationary",
   "Active",
   "Reserve",
   "LeaveOfAbsence",
+  "ExtendedLeaveOfAbsence",
   "Inactive",
+  "AWOL",
   "Separated",
   "Discharged",
   "DoNotRehire",
+  "HonorableDischarge",
+  "OtherThanHonorableDischarge",
+  "DishonorableDischarge",
 ];
 
 export function canViewOwnPersonnel(account) {
@@ -65,7 +71,7 @@ export async function listScopedPersonnel(prisma, actor, filters = {}) {
 
   const items = await prisma.personnelProfile.findMany({
     where,
-    orderBy: [{ status: "asc" }, { callsign: "asc" }],
+    orderBy: [{ status: "asc" }, { name: "asc" }],
     include: rosterListInclude(),
   });
 
@@ -73,26 +79,26 @@ export async function listScopedPersonnel(prisma, actor, filters = {}) {
 }
 
 export async function getPersonnelLookupData(prisma) {
-  const [units, ranks, billets, specialties] = await Promise.all([
+  const [units, ranks, billets, mos] = await Promise.all([
     prisma.unit.findMany({
       where: { status: "Active" },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, code: true, name: true, parentId: true },
+      orderBy: [{ hierarchyBase: "desc" }, { name: "asc" }],
+      select: { id: true, key: true, name: true, parentId: true },
     }),
     prisma.rank.findMany({
       where: { status: "Active" },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, code: true, name: true },
+      orderBy: [{ precedence: "desc" }, { name: "asc" }],
+      select: { id: true, key: true, abbreviation: true, name: true, precedence: true },
     }),
     prisma.billet.findMany({
       where: { status: "Active" },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, code: true, name: true, unitId: true },
+      orderBy: [{ commandPrecedence: "desc" }, { name: "asc" }],
+      select: { id: true, key: true, name: true, unitId: true, commandPrecedence: true },
     }),
-    prisma.specialty.findMany({
+    prisma.mOS.findMany({
       where: { status: "Active" },
-      orderBy: [{ code: "asc" }],
-      select: { id: true, code: true, name: true },
+      orderBy: [{ identifier: "asc" }, { name: "asc" }],
+      select: { id: true, key: true, identifier: true, name: true },
     }),
   ]);
 
@@ -100,7 +106,7 @@ export async function getPersonnelLookupData(prisma) {
     units,
     ranks,
     billets,
-    specialties,
+    mos,
     statuses: [...PERSONNEL_STATUS_OPTIONS],
   };
 }
@@ -113,8 +119,8 @@ export async function getScopedUnitFilters(prisma, actor) {
 
   const allUnits = await prisma.unit.findMany({
     where: { status: "Active" },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, code: true, name: true },
+    orderBy: [{ hierarchyBase: "desc" }, { name: "asc" }],
+    select: { id: true, key: true, name: true },
   });
 
   const units = scope.unitIds
@@ -170,18 +176,18 @@ export async function updatePersonnelProfile({
   const nextUnitId = normalizeNullableForeignKey(body.currentUnitId);
   const nextRankId = normalizeNullableForeignKey(body.currentRankId);
   const nextBilletId = normalizeNullableForeignKey(body.currentBilletId);
-  const nextSpecialtyId = normalizeNullableForeignKey(body.currentSpecialtyId);
+  const nextMOSId = normalizeNullableForeignKey(body.currentMOSId);
   const nextGoodStanding = parseBooleanLike(body.goodStanding);
 
   if (nextGoodStanding === null) {
     return failure("validation_error", "Good standing selection is required.");
   }
 
-  const [nextUnit, nextRank, nextBillet, nextSpecialty] = await Promise.all([
+  const [nextUnit, nextRank, nextBillet, nextMOS] = await Promise.all([
     fetchActiveUnit(prisma, nextUnitId),
     fetchActiveRank(prisma, nextRankId),
     fetchActiveBillet(prisma, nextBilletId),
-    fetchActiveSpecialty(prisma, nextSpecialtyId),
+    fetchActiveMOS(prisma, nextMOSId),
   ]);
 
   if (nextUnitId && !nextUnit) {
@@ -193,8 +199,8 @@ export async function updatePersonnelProfile({
   if (nextBilletId && !nextBillet) {
     return failure("validation_error", "Selected billet is invalid.");
   }
-  if (nextSpecialtyId && !nextSpecialty) {
-    return failure("validation_error", "Selected specialty is invalid.");
+  if (nextMOSId && !nextMOS) {
+    return failure("validation_error", "Selected MOS is invalid.");
   }
 
   if (scope.unitIds && nextUnitId && !scope.unitIds.includes(nextUnitId)) {
@@ -205,6 +211,13 @@ export async function updatePersonnelProfile({
     return failure("validation_error", "Selected billet does not belong to the selected unit.");
   }
 
+  if (nextBillet?.minimumRank && (!nextRank || nextRank.precedence < nextBillet.minimumRank.precedence)) {
+    return failure(
+      "validation_error",
+      `Selected billet requires rank ${nextBillet.minimumRank.name}.`,
+    );
+  }
+
   const oldValue = serializePersonnelProfile(existing);
   const newValue = {
     name: nextName,
@@ -212,17 +225,17 @@ export async function updatePersonnelProfile({
     currentUnitId: nextUnitId,
     currentRankId: nextRankId,
     currentBilletId: nextBilletId,
-    currentSpecialtyId: nextSpecialtyId,
+    currentMOSId: nextMOSId,
     goodStanding: nextGoodStanding,
   };
 
   const changed =
-    existing.callsign !== nextName ||
+    existing.name !== nextName ||
     existing.status !== nextStatus ||
     existing.currentUnitId !== nextUnitId ||
     existing.currentRankId !== nextRankId ||
     existing.currentBilletId !== nextBilletId ||
-    existing.currentSpecialtyId !== nextSpecialtyId ||
+    existing.currentMOSId !== nextMOSId ||
     existing.goodStanding !== nextGoodStanding;
 
   if (!changed) {
@@ -304,11 +317,11 @@ export async function updatePersonnelProfile({
 
     await syncAssignmentHistory({
       tx,
-      modelName: "personnelSpecialtyHistory",
+      modelName: "personnelMOSHistory",
       personnelProfileId: existing.id,
-      currentId: existing.currentSpecialtyId,
-      nextId: nextSpecialtyId,
-      relationField: "specialtyId",
+      currentId: existing.currentMOSId,
+      nextId: nextMOSId,
+      relationField: "mosId",
       actorId: actor.id,
       reason,
       auditLogId: audit.id,
@@ -333,12 +346,12 @@ export async function updatePersonnelProfile({
     await tx.personnelProfile.update({
       where: { id: existing.id },
       data: {
-        callsign: nextName,
+        name: nextName,
         status: nextStatus,
         currentUnitId: nextUnitId,
         currentRankId: nextRankId,
         currentBilletId: nextBilletId,
-        currentSpecialtyId: nextSpecialtyId,
+        currentMOSId: nextMOSId,
         goodStanding: nextGoodStanding,
       },
     });
@@ -362,7 +375,7 @@ function rosterListInclude() {
     currentRank: true,
     currentUnit: true,
     currentBillet: true,
-    currentSpecialty: true,
+    currentMOS: true,
   };
 }
 
@@ -376,7 +389,7 @@ function personnelProfileInclude() {
     currentRank: true,
     currentUnit: true,
     currentBillet: true,
-    currentSpecialty: true,
+    currentMOS: true,
     statusHistory: {
       orderBy: { effectiveAt: "desc" },
       take: 10,
@@ -396,10 +409,10 @@ function personnelProfileInclude() {
       take: 10,
       include: { billet: true },
     },
-    specialtyHistory: {
+    mosHistory: {
       orderBy: { effectiveAt: "desc" },
       take: 10,
-      include: { specialty: true },
+      include: { mos: true },
     },
     standingHistory: {
       orderBy: { effectiveAt: "desc" },
@@ -414,7 +427,7 @@ async function resolvePersonnelScope(prisma, actor) {
   }
 
   const assignments = (actor.roleAssignments ?? []).filter(
-    (assignment) => !assignment.endsAt && assignment.unitId,
+    (assignment) => isActiveRoleAssignment(assignment) && assignment.unitId,
   );
 
   if (!assignments.length) {
@@ -441,7 +454,7 @@ async function resolvePersonnelScope(prisma, actor) {
 
 function hasGlobalScope(actor) {
   return (actor.roleAssignments ?? []).some(
-    (assignment) => !assignment.endsAt && assignment.scopeType === "Global",
+    (assignment) => isActiveRoleAssignment(assignment) && assignment.scopeType === "Global",
   );
 }
 
@@ -485,7 +498,7 @@ async function fetchActiveRank(prisma, id) {
   if (!id) return null;
   return prisma.rank.findFirst({
     where: { id, status: "Active" },
-    select: { id: true },
+    select: { id: true, key: true, name: true, precedence: true },
   });
 }
 
@@ -493,13 +506,19 @@ async function fetchActiveBillet(prisma, id) {
   if (!id) return null;
   return prisma.billet.findFirst({
     where: { id, status: "Active" },
-    select: { id: true, unitId: true },
+    select: {
+      id: true,
+      unitId: true,
+      minimumRank: {
+        select: { id: true, key: true, name: true, precedence: true },
+      },
+    },
   });
 }
 
-async function fetchActiveSpecialty(prisma, id) {
+async function fetchActiveMOS(prisma, id) {
   if (!id) return null;
-  return prisma.specialty.findFirst({
+  return prisma.mOS.findFirst({
     where: { id, status: "Active" },
     select: { id: true },
   });
@@ -551,12 +570,12 @@ async function syncAssignmentHistory({
 
 function serializePersonnelProfile(profile) {
   return {
-    name: profile.callsign,
+    name: profile.name,
     status: profile.status,
     currentUnitId: profile.currentUnitId,
     currentRankId: profile.currentRankId,
     currentBilletId: profile.currentBilletId,
-    currentSpecialtyId: profile.currentSpecialtyId,
+    currentMOSId: profile.currentMOSId,
     goodStanding: profile.goodStanding,
   };
 }
@@ -582,9 +601,15 @@ function parseBooleanLike(value) {
 
 function hasPermission(account, permissionKey) {
   return (account.roleAssignments ?? []).some((assignment) =>
-    !assignment.endsAt &&
-    (assignment.role?.permissions ?? []).some((grant) => grant.permission?.key === permissionKey),
+    isActiveRoleAssignment(assignment) &&
+    (assignment.role?.permissions ?? []).some((grant) =>
+      grant.permission?.status === "Active" && grant.permission?.key === permissionKey,
+    ),
   );
+}
+
+function isActiveRoleAssignment(assignment) {
+  return !assignment.endsAt && assignment.role?.status === "Active";
 }
 
 function failure(code, message) {

@@ -1,7 +1,9 @@
 function hasPermission(account, permissionKey) {
   return (account.roleAssignments ?? []).some((assignment) =>
-    !assignment.endsAt &&
-    (assignment.role?.permissions ?? []).some((grant) => grant.permission?.key === permissionKey),
+    isActiveRoleAssignment(assignment) &&
+    (assignment.role?.permissions ?? []).some((grant) =>
+      grant.permission?.status === "Active" && grant.permission?.key === permissionKey,
+    ),
   );
 }
 
@@ -22,7 +24,7 @@ function parseTargetUnitId(value) {
 
 function buildApplicantAnswerDefinitions() {
   return [
-    { key: "preferred-callsign", label: "Preferred name", section: "Identity", order: 10 },
+    { key: "preferred-name", label: "Preferred name", section: "Identity", order: 10 },
     { key: "age", label: "Age", section: "Basics", order: 20 },
     { key: "timezone", label: "Timezone", section: "Basics", order: 30 },
     { key: "availability", label: "Availability", section: "Availability", order: 40 },
@@ -56,8 +58,8 @@ export function canReviewApplicationRecord(account, application) {
 export async function getApplicationUnits(prisma) {
   return prisma.unit.findMany({
     where: { status: "Active" },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, code: true, name: true },
+    orderBy: [{ hierarchyBase: "asc" }, { name: "asc" }],
+    select: { id: true, key: true, name: true },
   });
 }
 
@@ -412,11 +414,11 @@ export async function acceptApplication({ prisma, actor, applicationId, reason, 
   }
 
   const memberRole = await prisma.role.findUnique({ where: { key: "member" } });
-  if (!memberRole) {
+  if (!memberRole || memberRole.status !== "Active") {
     return failure("configuration_error", "Member role is missing from the seeded catalog.");
   }
 
-  const preferredCallsign = firstAnswer(application, "preferred-callsign") ||
+  const preferredName = firstAnswer(application, "preferred-name") ||
     application.account.displayName ||
     application.account.authIdentities.find((identity) => identity.provider === "Discord")?.displayName ||
     application.account.authIdentities.find((identity) => identity.provider === "Discord")?.username ||
@@ -453,7 +455,7 @@ export async function acceptApplication({ prisma, actor, applicationId, reason, 
     const profile = await tx.personnelProfile.create({
       data: {
         accountId: application.accountId,
-        callsign: preferredCallsign,
+        name: preferredName,
         status: "Recruit",
         currentUnitId: application.targetUnitId,
         goodStanding: true,
@@ -695,7 +697,7 @@ export async function rejectApplication({ prisma, actor, applicationId, reason, 
 export function applicantFormState(body = {}) {
   return {
     targetUnitId: normalizeText(body.targetUnitId),
-    preferredCallsign: normalizeText(body.preferredCallsign),
+    preferredName: normalizeText(body.preferredName),
     age: normalizeText(body.age),
     timezone: normalizeText(body.timezone),
     availability: normalizeText(body.availability),
@@ -717,8 +719,8 @@ function buildApplicantAnswers(body) {
 
 function readAnswerValue(form, key) {
   switch (key) {
-    case "preferred-callsign":
-      return form.preferredCallsign;
+    case "preferred-name":
+      return form.preferredName;
     default:
       return form[key] ?? "";
   }
@@ -730,13 +732,13 @@ function firstAnswer(application, key) {
 
 function activeUnitScopeIds(account) {
   return (account.roleAssignments ?? [])
-    .filter((assignment) => !assignment.endsAt && assignment.unitId)
+    .filter((assignment) => isActiveRoleAssignment(assignment) && assignment.unitId)
     .map((assignment) => assignment.unitId);
 }
 
 function isUnitInActorScope(actor, unitId) {
   return (actor.roleAssignments ?? []).some((assignment) => {
-    if (assignment.endsAt) return false;
+    if (!isActiveRoleAssignment(assignment)) return false;
     if (assignment.scopeType === "Global") return true;
     return assignment.unitId === unitId;
   });
@@ -744,8 +746,12 @@ function isUnitInActorScope(actor, unitId) {
 
 function hasGlobalReviewOverride(actor) {
   return (actor.roleAssignments ?? []).some(
-    (assignment) => !assignment.endsAt && assignment.scopeType === "Global",
+    (assignment) => isActiveRoleAssignment(assignment) && assignment.scopeType === "Global",
   );
+}
+
+function isActiveRoleAssignment(assignment) {
+  return !assignment.endsAt && assignment.role?.status === "Active";
 }
 
 function failure(code, message) {

@@ -1,0 +1,8 @@
+role_key,display_name,role_precedence
+pending-user,Pending User,0
+member,Member,5
+recruiter,Recruiter,10
+trainer,Trainer,10
+unit-staff,Unit Staff,15
+command-staff,Command Staff,20
+system-admin,System Admin,25

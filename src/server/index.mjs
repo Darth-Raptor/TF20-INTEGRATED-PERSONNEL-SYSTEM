@@ -6,7 +6,14 @@ import { getPrismaClient } from "./db.mjs";
 
 const config = loadConfig();
 const prisma = getPrismaClient();
-const app = createApp({ prisma, config });
+let shuttingDown = false;
+const app = createApp({
+  prisma,
+  config,
+  requestShutdown: (reason) => {
+    void shutdown(reason);
+  },
+});
 const server = createServer(app);
 
 server.listen(config.port, () => {
@@ -16,8 +23,18 @@ server.listen(config.port, () => {
 });
 
 const shutdown = async (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
   console.log(`Received ${signal}, shutting down.`);
-  server.close(async () => {
+  server.close(async (error) => {
+    if (error) {
+      console.error("Server close failed.", error);
+      await prisma.$disconnect();
+      process.exit(1);
+    }
+
     await prisma.$disconnect();
     process.exit(0);
   });

@@ -3,8 +3,9 @@
 ## Summary
 
 Official TF20 catalogs are repo-driven. The authoritative source lives in
-`prisma/catalog-source.mjs`. Initial bootstrap and future catalog expansion use
-the same source and the same validation path.
+`prisma/catalog-source.mjs`. That file is regenerated from the approved Phase 2
+review CSV set, then used for initial bootstrap and future catalog expansion
+through the same validation path.
 
 ## Catalog Update Rules
 
@@ -27,7 +28,7 @@ The authoritative source governs:
 - ranks
 - billets
 - staff sections
-- specialties/MOS
+- MOS
 - training courses
 - qualifications
 - awards

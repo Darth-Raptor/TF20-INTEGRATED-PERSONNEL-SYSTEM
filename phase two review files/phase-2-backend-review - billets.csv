@@ -1,0 +1,82 @@
+billet_key,display_name,category,unit_key,minimum_rank_key,command_precedence
+tf20_co,COMMANDING OFFICER,command,tf20_hhc,col,9100
+tf20_xo,EXECUTIVE OFFICER,command,tf20_hhc,maj,9090
+tf20_ops,OPERATIONS OFFICER,command,tf20_hhc,cpt,9080
+tf20_ncoic,NONCOMMISSIONED OFFICER IN CHARGE,command,tf20_hhc,sgm,9075
+tf20_rangerA_co,COMMANDING OFFICER,command,tf20_ranger_a,cpt,7100
+tf20_rangerA_xo,EXECUTIVE OFFICER,command,tf20_ranger_a,first_lieutenant,7090
+tf20_rangerA_rto,RADIO TELEPHONE OPERATOR,support,tf20_ranger_a,spc,7010
+tf20_rangerA_fo,FORWARD OBSERVER,support,tf20_ranger_a,spc,7010
+tf20_rangerA_smed,SENIOR MEDIC,support,tf20_ranger_a,spc,7010
+tf20_rangerA_jtac,JOINT TACTICAL AIR CONTROLLER,support,tf20_ranger_a,spc,7010
+tf20_rangerA_cbrn,CBRN SPECIALIST,support,tf20_ranger_a,spc,7010
+tf20_rangerA_1p_pl,PLATOON LEADER,leadership,tf20_ranger_a_1p,first_lieutenant,5070
+tf20_rangerA_1p_fsg,FIRST SERGEANT,leadership,tf20_ranger_a_1p,first_sergeant,5068
+tf20_rangerA_1p_ps,PLATOON SERGEANT,leadership,tf20_ranger_a_1p,sfc,5065
+tf20_rangerA_1p_rto,RADIO TELEPHONE OPERATOR,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_fo,FORWARD OBSERVER,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_jtac,JOINT TACTICAL AIR CONTROLLER,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_med,MEDIC,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_cbrn,CBRN SPECIALIST,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_1s_sl,SQUAD LEADER,leadership,tf20_ranger_a_1p_1s,ssg,3055
+tf20_rangerA_1p_1s_sgun,SENIOR GUNNER,weapons,tf20_ranger_a_1p_1s,spc,3010
+tf20_rangerA_1p_1s_at_tl,TEAM LEADER,leadership,tf20_ranger_a_1p_1s_at,sgt,1045
+tf20_rangerA_1p_1s_at_ar,AUTOMATIC RIFLEMAN,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_gr,GRENADIER,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_rif,RIFLEMAN,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_mar,MARKSMAN,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_gun,GUNNER,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_asg,ASSISTANT GUNNER,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_mort,MORTARMAN,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_at_asmort,ASSISTANT MORTARMAN,weapons,tf20_ranger_a_1p_1s_at,pfc,1010
+tf20_rangerA_1p_1s_bt_tl,TEAM LEADER,leadership,tf20_ranger_a_1p_1s_bt,sgt,1045
+tf20_rangerA_1p_1s_bt_ar,AUTOMATIC RIFLEMAN,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_gr,GRENADIER,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_rif,RIFLEMAN,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_mar,MARKSMAN,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_gun,GUNNER,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_asg,ASSISTANT GUNNER,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_mort,MORTARMAN,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_1s_bt_asmort,ASSISTANT MORTARMAN,weapons,tf20_ranger_a_1p_1s_bt,pfc,1010
+tf20_rangerA_1p_2s_sl,SQUAD LEADER,leadership,tf20_ranger_a_1p_2s,ssg,3055
+tf20_rangerA_1p_2s_sgun,SENIOR GUNNER,weapons,tf20_ranger_a_1p_2s,spc,3010
+tf20_rangerA_1p_2s_at_tl,TEAM LEADER,leadership,tf20_ranger_a_1p_2s_at,sgt,1045
+tf20_rangerA_1p_2s_at_ar,AUTOMATIC RIFLEMAN,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_gr,GRENADIER,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_rif,RIFLEMAN,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_mar,MARKSMAN,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_gun,GUNNER,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_asg,ASSISTANT GUNNER,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_mort,MORTARMAN,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_at_asmort,ASSISTANT MORTARMAN,weapons,tf20_ranger_a_1p_2s_at,pfc,1010
+tf20_rangerA_1p_2s_bt_tl,TEAM LEADER,leadership,tf20_ranger_a_1p_2s_bt,sgt,1045
+tf20_rangerA_1p_2s_bt_ar,AUTOMATIC RIFLEMAN,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_gr,GRENADIER,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_rif,RIFLEMAN,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_mar,MARKSMAN,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_gun,GUNNER,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_asg,ASSISTANT GUNNER,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_mort,MORTARMAN,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_rangerA_1p_2s_bt_asmort,ASSISTANT MORTARMAN,weapons,tf20_ranger_a_1p_2s_bt,pfc,1010
+tf20_sfod_1a_co,COMMANDING OFFICER,command,tf20_sfod_1a,cpt,7100
+tf20_sfod_1a_a_sftl,SPECIAL FORCES TEAM LEADER,leadership,tf20_sfod_1a,msg,7090
+tf20_sfod_1a_a_sfatl,SPECIAL FORCES ASSISTANT TEAM LEADER,leadership,tf20_sfod_1a,sfc,7080
+tf20_sfod_1a_a_rto,RADIO TELEPHONE OPERATOR,support,tf20_sfod_1a_a,sgt,5010
+tf20_sfod_1a_a_asslt,ASSAULTER,weapons,tf20_sfod_1a_a,sgt,5010
+tf20_sfod_1a_a_brch,BREACHER,weapons,tf20_sfod_1a_a,sgt,5010
+tf20_sfod_1a_a_hwo,HEAVY WEAPONS OPERATOR,weapons,tf20_sfod_1a_a,sgt,5010
+tf20_sfod_1a_a_mar,MARKSMAN,weapons,tf20_sfod_1a_a,sgt,5010
+tf20_soar_b160_co,COMMANDING OFFICER,command,tf20_soar_b160,cpt,7100
+tf20_soar_b160_xo,EXECUTIVE OFFICER,command,tf20_soar_b160,first_lieutenant,7090
+tf20_soar_b160_ops,OPERATIONS OFFICER,command,tf20_soar_b160,second_lieutenant,7080
+tf20_soar_b160_sp,STANDARDIZATION PILOT,leadership,tf20_soar_b160,cw4,7060
+tf20_soar_b160_1p_pl,PLATOON LEADER,leadership,tf20_soar_b161_1p,first_lieutenant,5070
+tf20_soar_b160_1p_fsg,FIRST SERGEANT,leadership,tf20_soar_b161_1p,first_sergeant,5068
+tf20_soar_b160_1p_ip,INSTRUCTOR PILOT,leadership,tf20_soar_b161_1p,cw3,5050
+tf20_soar_b160_1p_avi,AVIATOR,flight,tf20_soar_b161_1p,wo1,5010
+tf20_soar_b160_1p_acc,AIR CREW CHIEF,flight,tf20_soar_b161_1p,sgt,5010
+tf20_soar_b160_2p_pl,PLATOON LEADER,leadership,tf20_soar_b161_2p,first_lieutenant,5070
+tf20_soar_b160_2p_fsg,FIRST SERGEANT,leadership,tf20_soar_b161_2p,first_sergeant,5068
+tf20_soar_b160_2p_ip,INSTRUCTOR PILOT,leadership,tf20_soar_b161_2p,cw3,5050
+tf20_soar_b160_2p_avi,AVIATOR,flight,tf20_soar_b161_2p,wo1,5010
+tf20_soar_b160_2p_acc,AIR CREW CHIEF,flight,tf20_soar_b161_2p,sgt,5010

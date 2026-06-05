@@ -1,0 +1,208 @@
+award_key,abbreviation,name,type,category
+mcib,MCIB,Master Combat Infantryman Badge,badge,Combat Badge
+mcmb,MCMB,Master Combat Medical Badge,badge,Combat Badge
+mcab,MCAB,Master Combat Action Badge,badge,Combat Badge
+cib,CIB,Combat Infantryman Badge,badge,Combat Badge
+cmb,CMB,Combat Medical Badge,badge,Combat Badge
+cab,CAB,Combat Action Badge,badge,Combat Badge
+eib,EIB,Expert Infantryman Badge,badge,Special Skill Badge
+efmb,EFMB,Expert Field Medical Badge,badge,Special Skill Badge
+esb,ESB,Expert Soldier Badge,badge,Special Skill Badge
+bpb,BPB,Basic Parachutist Badge,badge,Special Skill Badge
+spb,SPB,Senior Parachutist Badge,badge,Special Skill Badge
+mpb,MPB,Master Parachutist Badge,badge,Special Skill Badge
+prb,PRB,Parachute Rigger Badge,badge,Special Skill Badge
+bmffpb,BMFFPB,Basic Military Freefall Parachutist Badge,badge,Special Skill Badge
+mffjmb,MFFJMB,Military Freefall Parachutist Jumpmaster Badge,badge,Special Skill Badge
+bspb,BSPB,Basic Army Space Badge,badge,Special Skill Badge
+sspb,SSPB,Senior Army Space Badge,badge,Special Skill Badge
+mspb,MSPB,Master Army Space Badge,badge,Special Skill Badge
+pfb,PFB,Pathfinder Badge,badge,Special Skill Badge
+aab,AAB,Air Assault Badge,badge,Special Skill Badge
+dtb,DTB,Driver and Technician Badge,badge,Special Skill Badge
+amb,AMB,Army Mountaineering Badge,badge,Special Skill Badge
+bamb,BAMB,Basic Army Mariner Badge,badge,Special Skill Badge
+samb,SAMB,Senior Army Mariner Badge,badge,Special Skill Badge
+mamb,MAMB,Master Army Mariner Badge,badge,Special Skill Badge
+baab,BAAB,Basic Army Aviator Badge,badge,Aviation Badge
+saab,SAAB,Senior Army Aviator Badge,badge,Aviation Badge
+maab,MAAB,Master Army Aviator Badge,badge,Aviation Badge
+bfsb,BFSB,Basic Flight Surgeon Badge,badge,Aviation Badge
+sfsb,SFSB,Senior Flight Surgeon Badge,badge,Aviation Badge
+mfsb,MFSB,Master Flight Surgeon Badge,badge,Aviation Badge
+bavnb,BAVNB,Basic Aviation Badge,badge,Aviation Badge
+savnb,SAVNB,Senior Aviation Badge,badge,Aviation Badge
+mavnb,MAVNB,Master Aviation Badge,badge,Aviation Badge
+beodb,BEODB,Basic Explosive Ordnance Disposal Badge,badge,Explosive Ordnance Disposal Badge
+seodb,SEODB,Senior Explosive Ordnance Disposal Badge,badge,Explosive Ordnance Disposal Badge
+meodb,MEODB,Master Explosive Ordnance Disposal Badge,badge,Explosive Ordnance Disposal Badge
+mdb,MDB,Master Diver Badge,badge,Diver Badge
+fcd,FCD,First-Class Diver Badge,badge,Diver Badge
+sdb,SDB,Salvage Diver Badge,badge,Diver Badge
+scd,SCD,Second-Class Diver Badge,badge,Diver Badge
+sodb,SODB,Special Operations Diver Badge,badge,Diver Badge
+sodsb,SODSB,Special Operations Diving Supervisor Badge,badge,Diver Badge
+psb,PSB,Presidential Service Badge,badge,Identification Badge
+vpsb,VPSB,Vice Presidential Service Badge,badge,Identification Badge
+osdib,OSDIB,Office of the Secretary of Defense Identification Badge,badge,Identification Badge
+jcsib,JCSIB,Joint Chiefs of Staff Identification Badge,badge,Identification Badge
+asib,ASIB,Army Staff Identification Badge,badge,Identification Badge
+gtusib,GTUSIB,"Guard, Tomb of the Unknown Soldier Identification Badge",badge,Identification Badge
+mhib,MHIB,Military Horseman Identification Badge,badge,Identification Badge
+dsib,DSIB,Drill Sergeant Identification Badge,badge,Identification Badge
+barb,BARB,U.S. Army Basic Recruiter Badge,badge,Identification Badge
+garb,GARB,U.S. Army Gold Recruiter Badge,badge,Identification Badge
+marb,MARB,U.S. Army Master Recruiter Badge,badge,Identification Badge
+mgib,MGIB,Master Gunner Identification Badge,badge,Identification Badge
+ccb,CCB,Career Counselor Badge,badge,Identification Badge
+barngrb,BARNGRB,Basic Army National Guard Recruiter Badge,badge,Identification Badge
+sarngrb,SARNGRB,Senior Army National Guard Recruiter Badge,badge,Identification Badge
+marngrb,MARNGRB,Master Army National Guard Recruiter Badge,badge,Identification Badge
+ngbib,NGBIB,National Guard Bureau Identification Badge,badge,Identification Badge
+igib,IGIB,Inspector General Identification Badge,badge,Identification Badge
+emqb,EMQB,Expert Marksmanship Qualification Badge,badge,Marksmanship Badge
+smqb,SMQB,Sharpshooter Marksmanship Qualification Badge,badge,Marksmanship Badge
+mmqb,MMQB,Marksman Marksmanship Qualification Badge,badge,Marksmanship Badge
+dmddb,DMDDB,Distinguished Marksmanship Designation Badge,badge,Marksmanship Badge
+eicb,EICB,Excellence in Competition Badge,badge,Marksmanship Badge
+da4980_1,DA4980-1,Medal of Honor Certificate,certificate,Decoration Certificate
+da4980_2,DA4980-2,Distinguished Service Cross Medal Certificate,certificate,Decoration Certificate
+da4980_3,DA4980-3,Distinguished Service Medal Certificate,certificate,Decoration Certificate
+da4980_4,DA4980-4,Silver Star Medal Certificate,certificate,Decoration Certificate
+da4980_5,DA4980-5,Bronze Star Medal Certificate,certificate,Decoration Certificate
+da4980_6,DA4980-6,Soldier's Medal Certificate,certificate,Decoration Certificate
+da4980_7,DA4980-7,Distinguished Flying Cross Certificate - Heroism,certificate,Decoration Certificate
+da4980_8,DA4980-8,Distinguished Flying Cross Certificate - Achievement,certificate,Decoration Certificate
+da4980_9,DA4980-9,Air Medal Certificate,certificate,Decoration Certificate
+da4980_10,DA4980-10,Purple Heart Medal Certificate,certificate,Decoration Certificate
+da4980_11,DA4980-11,Legion of Merit Certificate,certificate,Decoration Certificate
+da4980_12,DA4980-12,Meritorious Service Medal Certificate,certificate,Decoration Certificate
+da4980_14,DA4980-14,Army Commendation Medal Certificate,certificate,Decoration Certificate
+da4980_18,DA4980-18,Army Achievement Medal Certificate,certificate,Decoration Certificate
+da4980_13,DA4980-13,Presidential Unit Citation Certificate,certificate,Unit Award Certificate
+da4980_16,DA4980-16,Valorous Unit Award Certificate,certificate,Unit Award Certificate
+da4980_17,DA4980-17,Meritorious Unit Commendation Certificate,certificate,Unit Award Certificate
+da4980_19,DA4980-19,Army Superior Unit Award Certificate,certificate,Unit Award Certificate
+da7549,DA7549,Unit Award Citation Certificate,certificate,Unit Award Certificate
+da7777,DA7777,Center for Initial Military Training Graduation Certificate,certificate,Training Certificate
+psc,PSC,Presidential Service Certificate,certificate,Service Certificate
+vpsc,VPSC,Vice Presidential Service Certificate,certificate,Service Certificate
+da2442,DA2442,Certificate of Achievement,certificate,Achievement Certificate
+rc,RC,Recognition Certificate,certificate,Recognition Certificate
+bolc,BOLC,Bronze Oak Leaf Cluster,device,Service Ribbon Appurtenance
+solc,SOLC,Silver Oak Leaf Cluster,device,Service Ribbon Appurtenance
+num,NUM,Numeral,device,Service Ribbon Appurtenance
+cjs,CJS,Combat Jump Star,device,Badge Appurtenance
+mohflag,MOHFLAG,Medal of Honor Flag,device,Medal of Honor Appurtenance
+driver_w,DRIVER-W,Driver-W Component Bar,device,Driver and Technician Badge Component Bar
+driver_t,DRIVER-T,Driver-T Component Bar,device,Driver and Technician Badge Component Bar
+driver_m,DRIVER-M,Driver-M Component Bar,device,Driver and Technician Badge Component Bar
+driver_a,DRIVER-A,Driver-A Component Bar,device,Driver and Technician Badge Component Bar
+tech,TECH,Technician Component Bar,device,Driver and Technician Badge Component Bar
+tech_s,TECH-S,Technician-S Component Bar,device,Driver and Technician Badge Component Bar
+tech_m,TECH-M,Technician-M Component Bar,device,Driver and Technician Badge Component Bar
+operator_s,OPERATOR-S,Operator-S Component Bar,device,Driver and Technician Badge Component Bar
+riflebar,RIFLEBAR,Rifle Marksmanship Bar,device,Marksmanship Badge Component Bar
+pistolbar,PISTOLBAR,Pistol Marksmanship Bar,device,Marksmanship Badge Component Bar
+aaartybar,AAARTYBAR,AA Artillery Marksmanship Bar,device,Marksmanship Badge Component Bar
+autoriflebar,AUTORIFLEBAR,Auto Rifle Marksmanship Bar,device,Marksmanship Badge Component Bar
+mgunbar,MGUNBAR,Machine Gun Marksmanship Bar,device,Marksmanship Badge Component Bar
+fartybar,FARTYBAR,Field Artillery Marksmanship Bar,device,Marksmanship Badge Component Bar
+tankwpnbar,TANKWPNBAR,Tank Weapons Marksmanship Bar,device,Marksmanship Badge Component Bar
+flamethrowerbar,FLAMETHROWERBAR,Flamethrower Marksmanship Bar,device,Marksmanship Badge Component Bar
+smgbar,SMGBAR,Submachine Gun Marksmanship Bar,device,Marksmanship Badge Component Bar
+rocketbar,ROCKETBAR,Rocket Launcher Marksmanship Bar,device,Marksmanship Badge Component Bar
+grenadebar,GRENADEBAR,Grenade Marksmanship Bar,device,Marksmanship Badge Component Bar
+carbinebar,CARBINEBAR,Carbine Marksmanship Bar,device,Marksmanship Badge Component Bar
+recoillessbar,RECOILLESSBAR,Recoilless Rifle Marksmanship Bar,device,Marksmanship Badge Component Bar
+mortarbar,MORTARBAR,Mortar Marksmanship Bar,device,Marksmanship Badge Component Bar
+bayonetbar,BAYONETBAR,Bayonet Marksmanship Bar,device,Marksmanship Badge Component Bar
+smallborebar,SMALLBOREBAR,Small Bore Rifle Marksmanship Bar,device,Marksmanship Badge Component Bar
+missilebar,MISSILEBAR,Missile Marksmanship Bar,device,Marksmanship Badge Component Bar
+aerowpnbar,AEROWPNBAR,Aero-Weapons Marksmanship Bar,device,Marksmanship Badge Component Bar
+vdev,VDEV,V Device,device,Decoration Device
+cdev,CDEV,C Device,device,Decoration Device
+rdev,RDEV,R Device,device,Decoration Device
+mdev,MDEV,M Device,device,Reserve Component Device
+tddev,TDDEV,Ten-Year Device,device,Reserve Component Device
+bss,BSS,Bronze Service Star,device,Service / Campaign Device
+sss,SSS,Silver Service Star,device,Service / Campaign Device
+arhd,ARHD,Arrowhead Device,device,Service / Campaign Device
+clasp,CLASP,Clasp,device,Service / Campaign Device
+bad,BAD,Berlin Airlift Device,device,Service Medal Device
+moh,MOH,Medal of Honor,medal,Decoration - Individual Valor and Achievement
+dsc,DSC,Distinguished Service Cross,medal,Decoration - Individual Valor and Achievement
+ddsm,DDSM,Defense Distinguished Service Medal,medal,Decoration - Individual Valor and Achievement
+dsm,DSM,Army Distinguished Service Medal,medal,Decoration - Individual Valor and Achievement
+ss,SS,Silver Star,medal,Decoration - Individual Valor and Achievement
+dssm,DSSM,Defense Superior Service Medal,medal,Decoration - Individual Valor and Achievement
+lm,LM,Legion of Merit,medal,Decoration - Individual Valor and Achievement
+dfc,DFC,Distinguished Flying Cross,medal,Decoration - Individual Valor and Achievement
+sm,SM,Soldier's Medal,medal,Decoration - Individual Valor and Achievement
+bsm,BSM,Bronze Star Medal,medal,Decoration - Individual Valor and Achievement
+ph,PH,Purple Heart,medal,Decoration - Individual Valor and Achievement
+dmsm,DMSM,Defense Meritorious Service Medal,medal,Decoration - Individual Valor and Achievement
+msm,MSM,Meritorious Service Medal,medal,Decoration - Individual Valor and Achievement
+am,AM,Air Medal,medal,Decoration - Individual Valor and Achievement
+jscm,JSCM,Joint Service Commendation Medal,medal,Decoration - Individual Valor and Achievement
+arcom,ARCOM,Army Commendation Medal,medal,Decoration - Individual Valor and Achievement
+jsam,JSAM,Joint Service Achievement Medal,medal,Decoration - Individual Valor and Achievement
+aam,AAM,Army Achievement Medal,medal,Decoration - Individual Valor and Achievement
+agcm,AGCM,Army Good Conduct Medal,medal,Good Conduct and Reserve Achievement
+arcam,ARCAM,Army Reserve Components Achievement Medal,medal,Good Conduct and Reserve Achievement
+powm,POWM,Prisoner of War Medal,medal,U.S. Service and Campaign Medal
+civwarcm,CIVWARCM,Civil War Campaign Medal,medal,U.S. Service and Campaign Medal
+indiancm,INDIANCM,Indian Campaign Medal,medal,U.S. Service and Campaign Medal
+spancm,SPANCM,Spanish Campaign Medal,medal,U.S. Service and Campaign Medal
+swsm,SWSM,Spanish War Service Medal,medal,U.S. Service and Campaign Medal
+aocubam,AOCUBAM,Army of Cuban Occupation Medal,medal,U.S. Service and Campaign Medal
+aoprm,AOPRM,Army of Puerto Rican Occupation Medal,medal,U.S. Service and Campaign Medal
+philcm,PHILCM,Philippine Campaign Medal,medal,U.S. Service and Campaign Medal
+philcongm,PHILCONGM,Philippine Congressional Medal,medal,U.S. Service and Campaign Medal
+chinacm,CHINACM,China Campaign Medal,medal,U.S. Service and Campaign Medal
+cubapacm,CUBAPACM,Army of Cuban Pacification Medal,medal,U.S. Service and Campaign Medal
+mexsm,MEXSM,Mexican Service Medal,medal,U.S. Service and Campaign Medal
+mbsm,MBSM,Mexican Border Service Medal,medal,U.S. Service and Campaign Medal
+wwivm,WWIVM,World War I Victory Medal,medal,U.S. Service and Campaign Medal
+aogm,AOGM,Army of Occupation of Germany Medal,medal,U.S. Service and Campaign Medal
+adsm,ADSM,American Defense Service Medal,medal,U.S. Service and Campaign Medal
+wacsm,WACSM,Women's Army Corps Service Medal,medal,U.S. Service and Campaign Medal
+acm_wwii,ACM-WWII,American Campaign Medal,medal,U.S. Service and Campaign Medal
+apcm,APCM,Asiatic-Pacific Campaign Medal,medal,U.S. Service and Campaign Medal
+eamecm,EAMECM,European-African-Middle Eastern Campaign Medal,medal,U.S. Service and Campaign Medal
+wwiivm,WWIIVM,World War II Victory Medal,medal,U.S. Service and Campaign Medal
+aom,AOM,Army of Occupation Medal,medal,U.S. Service and Campaign Medal
+mha,MHA,Medal for Humane Action,medal,U.S. Service and Campaign Medal
+ndsm,NDSM,National Defense Service Medal,medal,U.S. Service and Campaign Medal
+ksm,KSM,Korean Service Medal,medal,U.S. Service and Campaign Medal
+asm,ASM,Antarctica Service Medal,medal,U.S. Service and Campaign Medal
+afem,AFEM,Armed Forces Expeditionary Medal,medal,U.S. Service and Campaign Medal
+vsm,VSM,Vietnam Service Medal,medal,U.S. Service and Campaign Medal
+swasm,SWASM,Southwest Asia Service Medal,medal,U.S. Service and Campaign Medal
+kcm,KCM,Kosovo Campaign Medal,medal,U.S. Service and Campaign Medal
+acm_afg,ACM-AFG,Afghanistan Campaign Medal,medal,U.S. Service and Campaign Medal
+icm,ICM,Iraq Campaign Medal,medal,U.S. Service and Campaign Medal
+ircm,IRCM,Inherent Resolve Campaign Medal,medal,U.S. Service and Campaign Medal
+gwotem,GWOTEM,Global War on Terrorism Expeditionary Medal,medal,U.S. Service and Campaign Medal
+gwotsm,GWOTSM,Global War on Terrorism Service Medal,medal,U.S. Service and Campaign Medal
+kdsm,KDSM,Korea Defense Service Medal,medal,U.S. Service and Campaign Medal
+afsm,AFSM,Armed Forces Service Medal,medal,U.S. Service and Campaign Medal
+hsm,HSM,Humanitarian Service Medal,medal,U.S. Service and Campaign Medal
+avcsm,AVCSM,Atomic Veterans Commemorative Service Medal,medal,U.S. Service and Campaign Medal
+movsm,MOVSM,Military Outstanding Volunteer Service Medal,medal,U.S. Service and Campaign Medal
+afrm,AFRM,Armed Forces Reserve Medal,medal,Reserve Component Service Medal/Ribbon
+asdr,ASDR,Army Sea Duty Ribbon,ribbon,U.S. Service Ribbon
+arr,ARR,Army Recruiting Ribbon,ribbon,U.S. Service Ribbon
+ncopdr,NCOPDR,NCO Professional Development Ribbon,ribbon,U.S. Service Ribbon
+asr,ASR,Army Service Ribbon,ribbon,U.S. Service Ribbon
+osr,OSR,Army Overseas Service Ribbon,ribbon,U.S. Service Ribbon
+arcotr,ARCOTR,Army Reserve Components Overseas Training Ribbon,ribbon,Reserve Component Service Medal/Ribbon
+puc,PUC,Presidential Unit Citation,ribbon,Unit Award
+jmua,JMUA,Joint Meritorious Unit Award,ribbon,Unit Award
+vua,VUA,Valorous Unit Award,ribbon,Unit Award
+muc,MUC,Meritorious Unit Commendation,ribbon,Unit Award
+asua,ASUA,Army Superior Unit Award,ribbon,Unit Award
+rtab,RTAB,Ranger Tab,tab,Skill Tab
+sftab,SFTAB,Special Forces Tab,tab,Skill Tab
+stab,STAB,Sapper Tab,tab,Skill Tab
+phtab,PHTAB,President's Hundred Tab,tab,Marksmanship Tab

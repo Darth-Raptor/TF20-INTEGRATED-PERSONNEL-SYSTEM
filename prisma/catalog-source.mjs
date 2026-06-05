@@ -1,574 +1,3861 @@
 export const catalogSource = {
-  version: "2026-06-02-step1",
-  metadata: {
-    description:
-      "Authoritative TF20 catalog source for initial bootstrap and future additive sync updates.",
-    policy:
-      "Catalog changes are repo-driven, additive by default, and non-destructive for referenced records.",
+  "version": "2026-06-04-phase2-subpass3",
+  "metadata": {
+    "description": "Authoritative TF20 catalog source generated from the approved Phase 2 review CSVs.",
+    "policy": "Catalog changes are repo-driven, additive by default, and non-destructive for referenced records.",
+    "generatedFrom": "phase two review files",
+    "enumDisplayLabels": {
+      "PersonnelStatus": {
+        "HonorableDischarge": "Honorable Discharge",
+        "OtherThanHonorableDischarge": "Other Than Honorable Discharge",
+        "DishonorableDischarge": "Dishonorable Discharge"
+      }
+    }
   },
-  roles: [
+  "roles": [
     {
-      key: "pending-user",
-      name: "Pending User",
-      description: "Guild-verified pending account with limited applicant and recovery access.",
-      status: "Active",
-      permissionKeys: [
+      "key": "pending-user",
+      "name": "Pending User",
+      "description": "Guild-verified pending account with limited applicant and recovery access.",
+      "precedence": 0,
+      "status": "Active",
+      "permissionKeys": [
+        "access.recovery.request",
         "accounts.view-self",
         "applications.create-self",
         "applications.view-self",
-        "support.create-self",
-        "notifications.view-self",
         "notifications.archive-self",
+        "notifications.view-self",
+        "support.create-self"
+      ]
+    },
+    {
+      "key": "member",
+      "name": "Member",
+      "description": "Active member baseline access.",
+      "precedence": 5,
+      "status": "Active",
+      "permissionKeys": [
         "access.recovery.request",
-      ],
+        "accounts.view-self",
+        "applications.create-self",
+        "applications.view-self",
+        "attendance.view-self",
+        "events.view-self",
+        "loa.create-self",
+        "notifications.archive-self",
+        "notifications.view-self",
+        "personnel.view-self",
+        "support.create-self"
+      ]
     },
     {
-      key: "member",
-      name: "Member",
-      description: "Active member baseline access.",
-      status: "Active",
-      permissionKeys: [
+      "key": "recruiter",
+      "name": "Recruiter",
+      "description": "Recruiting workflow authority.",
+      "precedence": 10,
+      "status": "Active",
+      "permissionKeys": [
+        "access.recovery.request",
         "accounts.view-self",
-        "applications.view-self",
-        "personnel.view-self",
-        "events.view-self",
-        "attendance.view-self",
-        "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
-        "notifications.archive-self",
-      ],
-    },
-    {
-      key: "recruiter",
-      name: "Recruiter",
-      description: "Recruiting workflow authority.",
-      status: "Active",
-      permissionKeys: [
-        "accounts.view-self",
-        "applications.view-self",
-        "personnel.view-self",
-        "events.view-self",
-        "attendance.view-self",
-        "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
-        "notifications.archive-self",
+        "applications.create-self",
         "applications.review-recruiter",
-      ],
+        "applications.view-self",
+        "attendance.view-self",
+        "events.view-self",
+        "loa.create-self",
+        "notifications.archive-self",
+        "notifications.view-self",
+        "personnel.view-self",
+        "support.create-self"
+      ]
     },
     {
-      key: "unit-staff",
-      name: "Unit Staff",
-      description: "Scoped personnel and workflow authority for unit staff.",
-      status: "Active",
-      permissionKeys: [
+      "key": "trainer",
+      "name": "Trainer",
+      "description": "Training and qualification authority.",
+      "precedence": 10,
+      "status": "Active",
+      "permissionKeys": [
+        "access.recovery.request",
         "accounts.view-self",
+        "applications.create-self",
         "applications.view-self",
-        "personnel.view-self",
-        "events.view-self",
         "attendance.view-self",
-        "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
-        "notifications.archive-self",
-        "personnel.view-scoped",
-        "personnel.update-scoped",
-        "applications.review-target-unit",
-        "loa.review-scoped",
-        "events.manage-scoped",
-        "attendance.review-scoped",
-        "support.manage-queue",
-      ],
-    },
-    {
-      key: "command-staff",
-      name: "Command Staff",
-      description: "Elevated command oversight authority.",
-      status: "Active",
-      permissionKeys: [
-        "accounts.view-self",
-        "applications.view-self",
-        "personnel.view-self",
         "events.view-self",
-        "attendance.view-self",
         "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
         "notifications.archive-self",
-        "personnel.view-scoped",
-        "personnel.update-scoped",
-        "applications.review-target-unit",
-        "loa.review-scoped",
-        "events.manage-scoped",
-        "attendance.review-scoped",
-        "support.manage-queue",
-        "training.view-scoped",
+        "notifications.view-self",
+        "personnel.view-self",
+        "support.create-self",
         "training.record-scoped",
-        "serviceRecords.manage-scoped",
-        "audit.view",
-        "integrations.view",
-      ],
+        "training.view-scoped"
+      ]
     },
     {
-      key: "trainer",
-      name: "Trainer",
-      description: "Training and qualification authority.",
-      status: "Active",
-      permissionKeys: [
+      "key": "unit-staff",
+      "name": "Unit Staff",
+      "description": "Scoped personnel and workflow authority for unit staff.",
+      "precedence": 15,
+      "status": "Active",
+      "permissionKeys": [
+        "access.recovery.request",
         "accounts.view-self",
-        "applications.view-self",
-        "personnel.view-self",
-        "events.view-self",
-        "attendance.view-self",
-        "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
-        "notifications.archive-self",
-        "training.view-scoped",
-        "training.record-scoped",
-      ],
-    },
-    {
-      key: "system-admin",
-      name: "System Admin",
-      description: "System-wide administration and recovery authority.",
-      status: "Active",
-      permissionKeys: [
-        "accounts.view-self",
-        "applications.view-self",
-        "personnel.view-self",
-        "events.view-self",
-        "attendance.view-self",
-        "loa.create-self",
-        "support.create-self",
-        "notifications.view-self",
-        "notifications.archive-self",
+        "applications.create-self",
         "applications.review-recruiter",
         "applications.review-target-unit",
-        "personnel.view-scoped",
-        "personnel.update-scoped",
-        "loa.review-scoped",
-        "events.manage-scoped",
+        "applications.view-self",
         "attendance.review-scoped",
-        "training.view-scoped",
-        "training.record-scoped",
+        "attendance.view-self",
+        "events.manage-scoped",
+        "events.view-self",
+        "loa.create-self",
+        "loa.review-scoped",
+        "notifications.archive-self",
+        "notifications.view-self",
+        "personnel.update-scoped",
+        "personnel.view-scoped",
+        "personnel.view-self",
         "serviceRecords.manage-scoped",
-        "support.manage-queue",
+        "support.create-self",
+        "training.record-scoped",
+        "training.view-scoped"
+      ]
+    },
+    {
+      "key": "command-staff",
+      "name": "Command Staff",
+      "description": "Elevated command oversight authority.",
+      "precedence": 20,
+      "status": "Active",
+      "permissionKeys": [
+        "access.recovery.request",
+        "accounts.view-self",
+        "applications.create-self",
+        "applications.review-recruiter",
+        "applications.review-target-unit",
+        "applications.view-self",
+        "attendance.review-scoped",
+        "attendance.view-self",
         "audit.view",
+        "events.manage-scoped",
+        "events.view-self",
+        "loa.create-self",
+        "loa.review-scoped",
+        "notifications.archive-self",
+        "notifications.view-self",
+        "personnel.update-scoped",
+        "personnel.view-scoped",
+        "personnel.view-self",
+        "serviceRecords.manage-scoped",
+        "support.create-self",
+        "training.record-scoped",
+        "training.view-scoped"
+      ]
+    },
+    {
+      "key": "system-admin",
+      "name": "System Admin",
+      "description": "System-wide administration and recovery authority.",
+      "precedence": 25,
+      "status": "Active",
+      "permissionKeys": [
+        "access.bootstrap.complete",
         "access.recovery.request",
         "access.recovery.review",
         "access.sessions.revoke",
-        "access.bootstrap.complete",
+        "accounts.view-self",
+        "applications.create-self",
+        "applications.review-recruiter",
+        "applications.review-target-unit",
+        "applications.view-self",
+        "attendance.review-scoped",
+        "attendance.view-self",
+        "audit.view",
         "catalogs.manage",
-        "integrations.view",
+        "events.manage-scoped",
+        "events.view-self",
         "integrations.manage",
-      ],
-    },
+        "integrations.view",
+        "loa.create-self",
+        "loa.review-scoped",
+        "notifications.archive-self",
+        "notifications.view-self",
+        "personnel.update-scoped",
+        "personnel.view-scoped",
+        "personnel.view-self",
+        "serviceRecords.manage-scoped",
+        "support.create-self",
+        "support.manage-queue",
+        "training.record-scoped",
+        "training.view-scoped"
+      ]
+    }
   ],
-  permissions: [
+  "permissions": [
     {
-      key: "accounts.view-self",
-      module: "accounts",
-      action: "view-self",
-      name: "View Own Account",
-      description: "Allows a user to view their own account record.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "accounts.view-self",
+      "module": "accounts",
+      "action": "view-self",
+      "name": "View Own Account",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "access.recovery.request",
-      module: "access",
-      action: "recovery-request",
-      name: "Request Recovery",
-      description: "Allows account recovery request submission.",
-      sensitiveCategory: "recovery",
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "access.recovery.request",
+      "module": "access",
+      "action": "recovery-request",
+      "name": "Request Account Recovery",
+      "description": null,
+      "sensitiveCategory": "recovery",
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "access.recovery.review",
-      module: "access",
-      action: "recovery-review",
-      name: "Review Recovery",
-      description: "Allows review and completion of recovery requests.",
-      sensitiveCategory: "recovery",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "access.recovery.review",
+      "module": "access",
+      "action": "recovery-review",
+      "name": "Review Account Recovery",
+      "description": null,
+      "sensitiveCategory": "recovery",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "access.sessions.revoke",
-      module: "access",
-      action: "sessions-revoke",
-      name: "Revoke Sessions",
-      description: "Allows revocation of account or global sessions.",
-      sensitiveCategory: "access-management",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "access.sessions.revoke",
+      "module": "access",
+      "action": "sessions-revoke",
+      "name": "Revoke Sessions",
+      "description": null,
+      "sensitiveCategory": "access-management",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "access.bootstrap.complete",
-      module: "access",
-      action: "bootstrap-complete",
-      name: "Complete Bootstrap",
-      description: "Allows one-time bootstrap completion.",
-      sensitiveCategory: "access-management",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "access.bootstrap.complete",
+      "module": "access",
+      "action": "bootstrap-complete",
+      "name": "Complete Account Bootstrap",
+      "description": null,
+      "sensitiveCategory": "access-management",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "catalogs.manage",
-      module: "catalogs",
-      action: "manage",
-      name: "Manage Catalogs",
-      description: "Allows administrative catalog management.",
-      sensitiveCategory: "access-management",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "catalogs.manage",
+      "module": "catalogs",
+      "action": "manage",
+      "name": "Manage Catalogs",
+      "description": null,
+      "sensitiveCategory": "access-management",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "applications.create-self",
-      module: "applications",
-      action: "create-self",
-      name: "Create Own Application",
-      description: "Allows a pending user to submit their own application.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "applications.create-self",
+      "module": "applications",
+      "action": "create-self",
+      "name": "Create Own Application",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "applications.view-self",
-      module: "applications",
-      action: "view-self",
-      name: "View Own Application",
-      description: "Allows viewing of one's own application records.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "applications.view-self",
+      "module": "applications",
+      "action": "view-self",
+      "name": "View Own Application",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "applications.review-recruiter",
-      module: "applications",
-      action: "review-recruiter",
-      name: "Recruiter Review",
-      description: "Allows recruiter screening and recommendation actions.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "applications.review-recruiter",
+      "module": "applications",
+      "action": "review-recruiter",
+      "name": "Review Applications as Recruiter",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "applications.review-target-unit",
-      module: "applications",
-      action: "review-target-unit",
-      name: "Target Unit Review",
-      description: "Allows target-unit application decision actions.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "applications.review-target-unit",
+      "module": "applications",
+      "action": "review-target-unit",
+      "name": "Review Applications as Target Unit",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "personnel.view-self",
-      module: "personnel",
-      action: "view-self",
-      name: "View Own Personnel",
-      description: "Allows a user to view their own personnel profile.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "personnel.view-self",
+      "module": "personnel",
+      "action": "view-self",
+      "name": "View Own Personnel Record",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "personnel.view-scoped",
-      module: "personnel",
-      action: "view-scoped",
-      name: "View Scoped Personnel",
-      description: "Allows scoped staff personnel views.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "personnel.view-scoped",
+      "module": "personnel",
+      "action": "view-scoped",
+      "name": "View Scoped Personnel Records",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "personnel.update-scoped",
-      module: "personnel",
-      action: "update-scoped",
-      name: "Update Scoped Personnel",
-      description: "Allows protected personnel updates within scope.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "personnel.update-scoped",
+      "module": "personnel",
+      "action": "update-scoped",
+      "name": "Update Scoped Personnel Records",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "events.view-self",
-      module: "events",
-      action: "view-self",
-      name: "View Events",
-      description: "Allows viewing of event records relevant to the account.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "events.view-self",
+      "module": "events",
+      "action": "view-self",
+      "name": "View Own Events",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "events.manage-scoped",
-      module: "events",
-      action: "manage-scoped",
-      name: "Manage Scoped Events",
-      description: "Allows scoped event creation and management.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "events.manage-scoped",
+      "module": "events",
+      "action": "manage-scoped",
+      "name": "Manage Scoped Events",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "attendance.view-self",
-      module: "attendance",
-      action: "view-self",
-      name: "View Own Attendance",
-      description: "Allows viewing of one's own attendance records.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "attendance.view-self",
+      "module": "attendance",
+      "action": "view-self",
+      "name": "View Own Attendance",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "attendance.review-scoped",
-      module: "attendance",
-      action: "review-scoped",
-      name: "Review Scoped Attendance",
-      description: "Allows scoped attendance review and correction.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "attendance.review-scoped",
+      "module": "attendance",
+      "action": "review-scoped",
+      "name": "Review Scoped Attendance",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "loa.create-self",
-      module: "loa",
-      action: "create-self",
-      name: "Create Own LOA",
-      description: "Allows submission of one's own LOA request.",
-      sensitiveCategory: "private-loa",
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "loa.create-self",
+      "module": "loa",
+      "action": "create-self",
+      "name": "Create Own Leave of Absence",
+      "description": null,
+      "sensitiveCategory": "private-loa",
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "loa.review-scoped",
-      module: "loa",
-      action: "review-scoped",
-      name: "Review Scoped LOA",
-      description: "Allows scoped LOA review and decision actions.",
-      sensitiveCategory: "private-loa",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "loa.review-scoped",
+      "module": "loa",
+      "action": "review-scoped",
+      "name": "Review Scoped Leave of Absence",
+      "description": null,
+      "sensitiveCategory": "private-loa",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "training.view-scoped",
-      module: "training",
-      action: "view-scoped",
-      name: "View Scoped Training",
-      description: "Allows viewing of scoped training and qualification records.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "training.view-scoped",
+      "module": "training",
+      "action": "view-scoped",
+      "name": "View Scoped Training",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "training.record-scoped",
-      module: "training",
-      action: "record-scoped",
-      name: "Record Scoped Training",
-      description: "Allows recording of scoped training completions and statuses.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "training.record-scoped",
+      "module": "training",
+      "action": "record-scoped",
+      "name": "Record Scoped Training",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "serviceRecords.manage-scoped",
-      module: "serviceRecords",
-      action: "manage-scoped",
-      name: "Manage Scoped Service Records",
-      description: "Allows scoped promotions, awards, and protected service records.",
-      sensitiveCategory: "disciplinary",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "serviceRecords.manage-scoped",
+      "module": "serviceRecords",
+      "action": "manage-scoped",
+      "name": "Manage Scoped Service Records",
+      "description": null,
+      "sensitiveCategory": "disciplinary",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "support.create-self",
-      module: "support",
-      action: "create-self",
-      name: "Create Own Support Ticket",
-      description: "Allows a user to create their own support tickets.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "support.create-self",
+      "module": "support",
+      "action": "create-self",
+      "name": "Create Own Support Ticket",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "support.manage-queue",
-      module: "support",
-      action: "manage-queue",
-      name: "Manage Support Queue",
-      description: "Allows assignment and workflow management for support tickets.",
-      sensitiveCategory: null,
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "support.manage-queue",
+      "module": "support",
+      "action": "manage-queue",
+      "name": "Manage Support Queue",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "audit.view",
-      module: "audit",
-      action: "view",
-      name: "View Audit",
-      description: "Allows viewing of audit logs.",
-      sensitiveCategory: "audit",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "audit.view",
+      "module": "audit",
+      "action": "view",
+      "name": "View Audit Log",
+      "description": null,
+      "sensitiveCategory": "audit",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "notifications.view-self",
-      module: "notifications",
-      action: "view-self",
-      name: "View Own Notifications",
-      description: "Allows a user to view their own in-app notifications.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "notifications.view-self",
+      "module": "notifications",
+      "action": "view-self",
+      "name": "View Own Notifications",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "notifications.archive-self",
-      module: "notifications",
-      action: "archive-self",
-      name: "Archive Own Notifications",
-      description: "Allows a user to archive their own in-app notifications.",
-      sensitiveCategory: null,
-      requiresRecentAuth: false,
-      status: "Active",
+      "key": "notifications.archive-self",
+      "module": "notifications",
+      "action": "archive-self",
+      "name": "Archive Own Notifications",
+      "description": null,
+      "sensitiveCategory": null,
+      "requiresRecentAuth": false,
+      "status": "Active"
     },
     {
-      key: "integrations.view",
-      module: "integrations",
-      action: "view",
-      name: "View Integrations",
-      description: "Allows viewing of integration state and logs.",
-      sensitiveCategory: "integration",
-      requiresRecentAuth: true,
-      status: "Active",
+      "key": "integrations.view",
+      "module": "integrations",
+      "action": "view",
+      "name": "View Integrations",
+      "description": null,
+      "sensitiveCategory": "integration",
+      "requiresRecentAuth": true,
+      "status": "Active"
     },
     {
-      key: "integrations.manage",
-      module: "integrations",
-      action: "manage",
-      name: "Manage Integrations",
-      description: "Allows management of integration-related operations.",
-      sensitiveCategory: "integration",
-      requiresRecentAuth: true,
-      status: "Active",
-    },
+      "key": "integrations.manage",
+      "module": "integrations",
+      "action": "manage",
+      "name": "Manage Integrations",
+      "description": null,
+      "sensitiveCategory": "integration",
+      "requiresRecentAuth": true,
+      "status": "Active"
+    }
   ],
-  units: [
+  "units": [
     {
-      code: "TF20",
-      name: "Task Force 20",
-      type: "Task Force",
-      parentCode: null,
-      status: "Active",
-      sortOrder: 0,
+      "key": "tf20_hhc",
+      "name": "Task Force 20 HHC",
+      "type": "Task Force",
+      "parentKey": null,
+      "hierarchyBase": 9000,
+      "status": "Active"
     },
     {
-      code: "TF20-RANGER-A",
-      name: "A Co, 1/75th Ranger Regiment",
-      type: "Unit",
-      parentCode: "TF20",
-      status: "Active",
-      sortOrder: 10,
+      "key": "tf20_ranger_a",
+      "name": "A Co, 1/75th Ranger Regiment",
+      "type": "Company",
+      "parentKey": "tf20_hhc",
+      "hierarchyBase": 7000,
+      "status": "Active"
     },
     {
-      code: "TF20-SFOD-A1",
-      name: "1 Troop, A Squadron, 1st SFOD-Delta",
-      type: "Unit",
-      parentCode: "TF20",
-      status: "Active",
-      sortOrder: 20,
+      "key": "tf20_ranger_a_1p",
+      "name": "1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Platoon",
+      "parentKey": "tf20_ranger_a",
+      "hierarchyBase": 5000,
+      "status": "Active"
     },
     {
-      code: "TF20-SOAR-B160",
-      name: "B Co, 2/160th SOAR",
-      type: "Unit",
-      parentCode: "TF20",
-      status: "Active",
-      sortOrder: 30,
+      "key": "tf20_ranger_a_1p_1s",
+      "name": "1st Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Squad",
+      "parentKey": "tf20_ranger_a_1p",
+      "hierarchyBase": 3000,
+      "status": "Active"
     },
+    {
+      "key": "tf20_ranger_a_1p_1s_at",
+      "name": "A, 1st Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Team",
+      "parentKey": "tf20_ranger_a_1p_1s",
+      "hierarchyBase": 1000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ranger_a_1p_1s_bt",
+      "name": "B, 1st Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Team",
+      "parentKey": "tf20_ranger_a_1p_1s",
+      "hierarchyBase": 1000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ranger_a_1p_2s",
+      "name": "2nd Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Squad",
+      "parentKey": "tf20_ranger_a_1p",
+      "hierarchyBase": 3000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ranger_a_1p_2s_at",
+      "name": "A, 2nd Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Team",
+      "parentKey": "tf20_ranger_a_1p_2s",
+      "hierarchyBase": 1000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ranger_a_1p_2s_bt",
+      "name": "B, 2nd Sqd, 1st Plt, A Co, 1/75 Ranger Regiment",
+      "type": "Team",
+      "parentKey": "tf20_ranger_a_1p_2s",
+      "hierarchyBase": 1000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a",
+      "name": "1 Troop, A Squadron, 1st SFOD-Delta",
+      "type": "Troop",
+      "parentKey": "tf20_hhc",
+      "hierarchyBase": 7000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a",
+      "name": "A Team, 1 Troop, A Squadron, 1st SFOD-Delta",
+      "type": "Team",
+      "parentKey": "tf20_sfod_1a",
+      "hierarchyBase": 5000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160",
+      "name": "B Co, 2/160th SOAR",
+      "type": "Company",
+      "parentKey": "tf20_hhc",
+      "hierarchyBase": 7000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b161_1p",
+      "name": "1P, B Co, 2/160th SOAR",
+      "type": "Platoon",
+      "parentKey": "tf20_soar_b160",
+      "hierarchyBase": 5000,
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b161_2p",
+      "name": "2P, B Co, 2/160th SOAR",
+      "type": "Platoon",
+      "parentKey": "tf20_soar_b160",
+      "hierarchyBase": 5000,
+      "status": "Active"
+    }
   ],
-  ranks: [
-    { code: "COL", name: "Colonel", abbreviation: "COL", category: "Officer", sortOrder: 10, status: "Active" },
-    { code: "CPT", name: "Captain", abbreviation: "CPT", category: "Officer", sortOrder: 20, status: "Active" },
-    { code: "1LT", name: "First Lieutenant", abbreviation: "1LT", category: "Officer", sortOrder: 30, status: "Active" },
-    { code: "CW3", name: "Chief Warrant Officer 3", abbreviation: "CW3", category: "Warrant Officer", sortOrder: 40, status: "Active" },
-    { code: "SGM", name: "Sergeant Major", abbreviation: "SGM", category: "Enlisted", sortOrder: 50, status: "Active" },
-    { code: "MSG", name: "Master Sergeant", abbreviation: "MSG", category: "Enlisted", sortOrder: 60, status: "Active" },
-    { code: "SFC", name: "Sergeant First Class", abbreviation: "SFC", category: "Enlisted", sortOrder: 70, status: "Active" },
-    { code: "SSG", name: "Staff Sergeant", abbreviation: "SSG", category: "Enlisted", sortOrder: 80, status: "Active" },
-    { code: "SGT", name: "Sergeant", abbreviation: "SGT", category: "Enlisted", sortOrder: 90, status: "Active" },
-    { code: "SPC", name: "Specialist", abbreviation: "SPC", category: "Enlisted", sortOrder: 100, status: "Active" },
-    { code: "PFC", name: "Private First Class", abbreviation: "PFC", category: "Enlisted", sortOrder: 110, status: "Active" },
-    { code: "PV2", name: "Private", abbreviation: "PV2", category: "Enlisted", sortOrder: 120, status: "Active" },
-  ],
-  staffSections: [
+  "ranks": [
     {
-      code: "J2",
-      name: "J2",
-      description: "Intelligence staff section.",
-      status: "Active",
-    },
-  ],
-  specialties: [
-    { code: "11A", name: "Infantry Officer", category: "Infantry", status: "Active" },
-    { code: "11B", name: "Infantryman", category: "Infantry", status: "Active" },
-    { code: "12B", name: "Combat Engineer", category: "Engineer", status: "Active" },
-    { code: "13F", name: "Joint Fire Support Specialist", category: "Fires", status: "Active" },
-    { code: "25C", name: "Radio Operator", category: "Signal", status: "Active" },
-    { code: "68W", name: "Combat Medic", category: "Medical", status: "Active" },
-    {
-      code: "153A",
-      name: "Special Operations Rotary Wing Aviator",
-      category: "Aviation",
-      status: "Active",
-    },
-    { code: "18A", name: "Special Forces Officer", category: "Special Forces", status: "Active" },
-    {
-      code: "18B",
-      name: "Special Forces Weapons Sergeant",
-      category: "Special Forces",
-      status: "Active",
+      "key": "gen",
+      "name": "General",
+      "abbreviation": "GEN",
+      "grade": "O-10",
+      "precedence": 2700,
+      "status": "Active"
     },
     {
-      code: "18Z",
-      name: "Special Forces Operations Sergeant",
-      category: "Special Forces",
-      status: "Active",
+      "key": "ltg",
+      "name": "Lieutenant General",
+      "abbreviation": "LTG",
+      "grade": "O-9",
+      "precedence": 2600,
+      "status": "Active"
     },
+    {
+      "key": "mg",
+      "name": "Major General",
+      "abbreviation": "MG",
+      "grade": "O-8",
+      "precedence": 2500,
+      "status": "Active"
+    },
+    {
+      "key": "bg",
+      "name": "Brigadier General",
+      "abbreviation": "BG",
+      "grade": "O-7",
+      "precedence": 2400,
+      "status": "Active"
+    },
+    {
+      "key": "col",
+      "name": "Colonel",
+      "abbreviation": "COL",
+      "grade": "O-6",
+      "precedence": 2300,
+      "status": "Active"
+    },
+    {
+      "key": "ltc",
+      "name": "Lieutenant Colonel",
+      "abbreviation": "LTC",
+      "grade": "O-5",
+      "precedence": 2200,
+      "status": "Active"
+    },
+    {
+      "key": "maj",
+      "name": "Major",
+      "abbreviation": "MAJ",
+      "grade": "O-4",
+      "precedence": 2100,
+      "status": "Active"
+    },
+    {
+      "key": "cpt",
+      "name": "Captain",
+      "abbreviation": "CPT",
+      "grade": "O-3",
+      "precedence": 2000,
+      "status": "Active"
+    },
+    {
+      "key": "first_lieutenant",
+      "name": "First Lieutenant",
+      "abbreviation": "1LT",
+      "grade": "O-2",
+      "precedence": 1900,
+      "status": "Active"
+    },
+    {
+      "key": "second_lieutenant",
+      "name": "Second Lieutenant",
+      "abbreviation": "2LT",
+      "grade": "O-1",
+      "precedence": 1800,
+      "status": "Active"
+    },
+    {
+      "key": "cw5",
+      "name": "Chief Warrant Officer 5",
+      "abbreviation": "CW5",
+      "grade": "W-5",
+      "precedence": 1700,
+      "status": "Active"
+    },
+    {
+      "key": "cw4",
+      "name": "Chief Warrant Officer 4",
+      "abbreviation": "CW4",
+      "grade": "W-4",
+      "precedence": 1600,
+      "status": "Active"
+    },
+    {
+      "key": "cw3",
+      "name": "Chief Warrant Officer 3",
+      "abbreviation": "CW3",
+      "grade": "W-3",
+      "precedence": 1500,
+      "status": "Active"
+    },
+    {
+      "key": "cw2",
+      "name": "Chief Warrant Officer 2",
+      "abbreviation": "CW2",
+      "grade": "W-2",
+      "precedence": 1400,
+      "status": "Active"
+    },
+    {
+      "key": "wo1",
+      "name": "Warrant Officer 1",
+      "abbreviation": "WO1",
+      "grade": "W-1",
+      "precedence": 1300,
+      "status": "Active"
+    },
+    {
+      "key": "sma",
+      "name": "Sergeant Major of the Army",
+      "abbreviation": "SMA",
+      "grade": "E-9",
+      "precedence": 1200,
+      "status": "Active"
+    },
+    {
+      "key": "csm",
+      "name": "Command Sergeant Major",
+      "abbreviation": "CSM",
+      "grade": "E-9",
+      "precedence": 1100,
+      "status": "Active"
+    },
+    {
+      "key": "sgm",
+      "name": "Sergeant Major",
+      "abbreviation": "SGM",
+      "grade": "E-9",
+      "precedence": 1000,
+      "status": "Active"
+    },
+    {
+      "key": "first_sergeant",
+      "name": "First Sergeant",
+      "abbreviation": "1SG",
+      "grade": "E-8",
+      "precedence": 900,
+      "status": "Active"
+    },
+    {
+      "key": "msg",
+      "name": "Master Sergeant",
+      "abbreviation": "MSG",
+      "grade": "E-8",
+      "precedence": 800,
+      "status": "Active"
+    },
+    {
+      "key": "sfc",
+      "name": "Sergeant First Class",
+      "abbreviation": "SFC",
+      "grade": "E-7",
+      "precedence": 700,
+      "status": "Active"
+    },
+    {
+      "key": "ssg",
+      "name": "Staff Sergeant",
+      "abbreviation": "SSG",
+      "grade": "E-6",
+      "precedence": 600,
+      "status": "Active"
+    },
+    {
+      "key": "sgt",
+      "name": "Sergeant",
+      "abbreviation": "SGT",
+      "grade": "E-5",
+      "precedence": 500,
+      "status": "Active"
+    },
+    {
+      "key": "cpl",
+      "name": "Corporal",
+      "abbreviation": "CPL",
+      "grade": "E-4",
+      "precedence": 400,
+      "status": "Active"
+    },
+    {
+      "key": "spc",
+      "name": "Specialist",
+      "abbreviation": "SPC",
+      "grade": "E-4",
+      "precedence": 300,
+      "status": "Active"
+    },
+    {
+      "key": "pfc",
+      "name": "Private First Class",
+      "abbreviation": "PFC",
+      "grade": "E-3",
+      "precedence": 200,
+      "status": "Active"
+    },
+    {
+      "key": "pv2",
+      "name": "Private",
+      "abbreviation": "PV2",
+      "grade": "E-2",
+      "precedence": 100,
+      "status": "Active"
+    },
+    {
+      "key": "pvt",
+      "name": "Private",
+      "abbreviation": "PVT",
+      "grade": "E-1",
+      "precedence": 0,
+      "status": "Active"
+    }
   ],
-  billets: [
-    { code: "RANGER-COMPANY-COMMANDER", unitCode: "TF20-RANGER-A", name: "Company Commander", category: "Command", status: "Active" },
-    { code: "RANGER-1PLT-PL", unitCode: "TF20-RANGER-A", name: "1PLT PL", category: "Leadership", status: "Active" },
-    { code: "RANGER-1PLT-RTO", unitCode: "TF20-RANGER-A", name: "1PLT RTO", category: "Support", status: "Active" },
-    { code: "RANGER-1PLT-ASST-MEDIC", unitCode: "TF20-RANGER-A", name: "1PLT Asst Medic", category: "Medical", status: "Active" },
-    { code: "RANGER-1PLT-ENGINEER", unitCode: "TF20-RANGER-A", name: "1PLT Engineer", category: "Engineer", status: "Active" },
-    { code: "RANGER-1PLT-JTAC", unitCode: "TF20-RANGER-A", name: "1PLT JTAC", category: "Fires", status: "Active" },
-    { code: "RANGER-1PLT-MEDIC", unitCode: "TF20-RANGER-A", name: "1PLT Medic", category: "Medical", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-SL", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD SL", category: "Leadership", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-A-AUTORIFLEMAN", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, A, AutoRifleman", category: "Rifle", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-A-GRENADIER", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, A, Grenadier", category: "Rifle", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-A-RIFLEMAN", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, A, Rifleman", category: "Rifle", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-A-TL", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, A, TL", category: "Leadership", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-B-RIFLEMAN", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, B, Rifleman", category: "Rifle", status: "Active" },
-    { code: "RANGER-1PLT-1SQD-B-TL", unitCode: "TF20-RANGER-A", name: "1PLT, 1SQD, B, TL", category: "Leadership", status: "Active" },
-    { code: "SFOD-CO", unitCode: "TF20-SFOD-A1", name: "CO", category: "Command", status: "Active" },
-    { code: "SFOD-TL", unitCode: "TF20-SFOD-A1", name: "TL", category: "Leadership", status: "Active" },
-    { code: "SFOD-ATL-PM", unitCode: "TF20-SFOD-A1", name: "ATL/Precision Marksman", category: "Leadership", status: "Active" },
-    { code: "SFOD-ASSAULTER-BREACHER", unitCode: "TF20-SFOD-A1", name: "Assaulter/Breacher", category: "Assaulter", status: "Active" },
-    { code: "SFOD-ASSAULTER-GAY-CANADIAN", unitCode: "TF20-SFOD-A1", name: "Assaulter/Gay Canadian", category: "Assaulter", status: "Active" },
-    { code: "SFOD-ASSAULTER-PM", unitCode: "TF20-SFOD-A1", name: "Assaulter/Precision Marksman", category: "Assaulter", status: "Active" },
-    { code: "SFOD-HWO", unitCode: "TF20-SFOD-A1", name: "Heavy Weapons Operator", category: "Weapons", status: "Active" },
-    { code: "SOAR-CO", unitCode: "TF20-SOAR-B160", name: "Commanding Officer", category: "Command", status: "Active" },
-    { code: "SOAR-XO", unitCode: "TF20-SOAR-B160", name: "Executive Officer", category: "Command", status: "Active" },
-    { code: "SOAR-AVIATOR", unitCode: "TF20-SOAR-B160", name: "Aviator", category: "Flight", status: "Active" },
-    { code: "SOAR-AIR-CREW", unitCode: "TF20-SOAR-B160", name: "Air Crew Member", category: "Flight", status: "Active" },
+  "billets": [
+    {
+      "key": "tf20_co",
+      "unitKey": "tf20_hhc",
+      "minimumRankKey": "col",
+      "commandPrecedence": 9100,
+      "name": "COMMANDING OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_xo",
+      "unitKey": "tf20_hhc",
+      "minimumRankKey": "maj",
+      "commandPrecedence": 9090,
+      "name": "EXECUTIVE OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ops",
+      "unitKey": "tf20_hhc",
+      "minimumRankKey": "cpt",
+      "commandPrecedence": 9080,
+      "name": "OPERATIONS OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_ncoic",
+      "unitKey": "tf20_hhc",
+      "minimumRankKey": "sgm",
+      "commandPrecedence": 9075,
+      "name": "NONCOMMISSIONED OFFICER IN CHARGE",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_co",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "cpt",
+      "commandPrecedence": 7100,
+      "name": "COMMANDING OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_xo",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "first_lieutenant",
+      "commandPrecedence": 7090,
+      "name": "EXECUTIVE OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_rto",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 7010,
+      "name": "RADIO TELEPHONE OPERATOR",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_fo",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 7010,
+      "name": "FORWARD OBSERVER",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_smed",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 7010,
+      "name": "SENIOR MEDIC",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_jtac",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 7010,
+      "name": "JOINT TACTICAL AIR CONTROLLER",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_cbrn",
+      "unitKey": "tf20_ranger_a",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 7010,
+      "name": "CBRN SPECIALIST",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_pl",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "first_lieutenant",
+      "commandPrecedence": 5070,
+      "name": "PLATOON LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_fsg",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "first_sergeant",
+      "commandPrecedence": 5068,
+      "name": "FIRST SERGEANT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_ps",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "sfc",
+      "commandPrecedence": 5065,
+      "name": "PLATOON SERGEANT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_rto",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 5010,
+      "name": "RADIO TELEPHONE OPERATOR",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_fo",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 5010,
+      "name": "FORWARD OBSERVER",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_jtac",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 5010,
+      "name": "JOINT TACTICAL AIR CONTROLLER",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_med",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 5010,
+      "name": "MEDIC",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_cbrn",
+      "unitKey": "tf20_ranger_a_1p",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 5010,
+      "name": "CBRN SPECIALIST",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_sl",
+      "unitKey": "tf20_ranger_a_1p_1s",
+      "minimumRankKey": "ssg",
+      "commandPrecedence": 3055,
+      "name": "SQUAD LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_sgun",
+      "unitKey": "tf20_ranger_a_1p_1s",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 3010,
+      "name": "SENIOR GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_tl",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 1045,
+      "name": "TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_ar",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "AUTOMATIC RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_gr",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GRENADIER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_rif",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_mar",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MARKSMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_gun",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_asg",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_mort",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_at_asmort",
+      "unitKey": "tf20_ranger_a_1p_1s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_tl",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 1045,
+      "name": "TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_ar",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "AUTOMATIC RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_gr",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GRENADIER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_rif",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_mar",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MARKSMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_gun",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_asg",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_mort",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_1s_bt_asmort",
+      "unitKey": "tf20_ranger_a_1p_1s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_sl",
+      "unitKey": "tf20_ranger_a_1p_2s",
+      "minimumRankKey": "ssg",
+      "commandPrecedence": 3055,
+      "name": "SQUAD LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_sgun",
+      "unitKey": "tf20_ranger_a_1p_2s",
+      "minimumRankKey": "spc",
+      "commandPrecedence": 3010,
+      "name": "SENIOR GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_tl",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 1045,
+      "name": "TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_ar",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "AUTOMATIC RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_gr",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GRENADIER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_rif",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_mar",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MARKSMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_gun",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_asg",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_mort",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_at_asmort",
+      "unitKey": "tf20_ranger_a_1p_2s_at",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_tl",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 1045,
+      "name": "TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_ar",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "AUTOMATIC RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_gr",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GRENADIER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_rif",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "RIFLEMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_mar",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MARKSMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_gun",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_asg",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT GUNNER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_mort",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_rangerA_1p_2s_bt_asmort",
+      "unitKey": "tf20_ranger_a_1p_2s_bt",
+      "minimumRankKey": "pfc",
+      "commandPrecedence": 1010,
+      "name": "ASSISTANT MORTARMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_co",
+      "unitKey": "tf20_sfod_1a",
+      "minimumRankKey": "cpt",
+      "commandPrecedence": 7100,
+      "name": "COMMANDING OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_sftl",
+      "unitKey": "tf20_sfod_1a",
+      "minimumRankKey": "msg",
+      "commandPrecedence": 7090,
+      "name": "SPECIAL FORCES TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_sfatl",
+      "unitKey": "tf20_sfod_1a",
+      "minimumRankKey": "sfc",
+      "commandPrecedence": 7080,
+      "name": "SPECIAL FORCES ASSISTANT TEAM LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_rto",
+      "unitKey": "tf20_sfod_1a_a",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "RADIO TELEPHONE OPERATOR",
+      "category": "support",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_asslt",
+      "unitKey": "tf20_sfod_1a_a",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "ASSAULTER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_brch",
+      "unitKey": "tf20_sfod_1a_a",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "BREACHER",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_hwo",
+      "unitKey": "tf20_sfod_1a_a",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "HEAVY WEAPONS OPERATOR",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_sfod_1a_a_mar",
+      "unitKey": "tf20_sfod_1a_a",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "MARKSMAN",
+      "category": "weapons",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_co",
+      "unitKey": "tf20_soar_b160",
+      "minimumRankKey": "cpt",
+      "commandPrecedence": 7100,
+      "name": "COMMANDING OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_xo",
+      "unitKey": "tf20_soar_b160",
+      "minimumRankKey": "first_lieutenant",
+      "commandPrecedence": 7090,
+      "name": "EXECUTIVE OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_ops",
+      "unitKey": "tf20_soar_b160",
+      "minimumRankKey": "second_lieutenant",
+      "commandPrecedence": 7080,
+      "name": "OPERATIONS OFFICER",
+      "category": "command",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_sp",
+      "unitKey": "tf20_soar_b160",
+      "minimumRankKey": "cw4",
+      "commandPrecedence": 7060,
+      "name": "STANDARDIZATION PILOT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_1p_pl",
+      "unitKey": "tf20_soar_b161_1p",
+      "minimumRankKey": "first_lieutenant",
+      "commandPrecedence": 5070,
+      "name": "PLATOON LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_1p_fsg",
+      "unitKey": "tf20_soar_b161_1p",
+      "minimumRankKey": "first_sergeant",
+      "commandPrecedence": 5068,
+      "name": "FIRST SERGEANT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_1p_ip",
+      "unitKey": "tf20_soar_b161_1p",
+      "minimumRankKey": "cw3",
+      "commandPrecedence": 5050,
+      "name": "INSTRUCTOR PILOT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_1p_avi",
+      "unitKey": "tf20_soar_b161_1p",
+      "minimumRankKey": "wo1",
+      "commandPrecedence": 5010,
+      "name": "AVIATOR",
+      "category": "flight",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_1p_acc",
+      "unitKey": "tf20_soar_b161_1p",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "AIR CREW CHIEF",
+      "category": "flight",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_2p_pl",
+      "unitKey": "tf20_soar_b161_2p",
+      "minimumRankKey": "first_lieutenant",
+      "commandPrecedence": 5070,
+      "name": "PLATOON LEADER",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_2p_fsg",
+      "unitKey": "tf20_soar_b161_2p",
+      "minimumRankKey": "first_sergeant",
+      "commandPrecedence": 5068,
+      "name": "FIRST SERGEANT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_2p_ip",
+      "unitKey": "tf20_soar_b161_2p",
+      "minimumRankKey": "cw3",
+      "commandPrecedence": 5050,
+      "name": "INSTRUCTOR PILOT",
+      "category": "leadership",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_2p_avi",
+      "unitKey": "tf20_soar_b161_2p",
+      "minimumRankKey": "wo1",
+      "commandPrecedence": 5010,
+      "name": "AVIATOR",
+      "category": "flight",
+      "status": "Active"
+    },
+    {
+      "key": "tf20_soar_b160_2p_acc",
+      "unitKey": "tf20_soar_b161_2p",
+      "minimumRankKey": "sgt",
+      "commandPrecedence": 5010,
+      "name": "AIR CREW CHIEF",
+      "category": "flight",
+      "status": "Active"
+    }
   ],
-  trainingCourses: [],
-  qualifications: [],
-  awards: [],
+  "staffSections": [
+    {
+      "key": "j_1",
+      "identifier": "J-1",
+      "name": "Personnel / Administration",
+      "function": "Manpower, personnel records, awards, promotions, accountability, casualty reporting, admin actions",
+      "status": "Active"
+    },
+    {
+      "key": "j_2",
+      "identifier": "J-2",
+      "name": "Intelligence",
+      "function": "Intelligence, enemy situation, security, threat analysis, collection, intelligence preparation of the battlefield",
+      "status": "Active"
+    },
+    {
+      "key": "j_3",
+      "identifier": "J-3",
+      "name": "Operations",
+      "function": "Current operations, tasking, plans execution, battle tracking, orders production",
+      "status": "Active"
+    },
+    {
+      "key": "j_4",
+      "identifier": "J-4",
+      "name": "Logistics",
+      "function": "Supply, transportation, maintenance, property, sustainment coordination",
+      "status": "Active"
+    },
+    {
+      "key": "j_5",
+      "identifier": "J-5",
+      "name": "Plans / Civil-Military Operations",
+      "function": "Long-range planning, future operations, civil affairs or civil-military coordination depending on unit structure",
+      "status": "Active"
+    },
+    {
+      "key": "j_6",
+      "identifier": "J-6",
+      "name": "Signal / Communications",
+      "function": "Communications, radios, networks, information systems, cyber/IT support",
+      "status": "Active"
+    },
+    {
+      "key": "j_7",
+      "identifier": "J-7",
+      "name": "Training / Information Operations",
+      "function": "Training management, exercises, lessons learned, information operations depending on unit structure",
+      "status": "Active"
+    },
+    {
+      "key": "j_8",
+      "identifier": "J-8",
+      "name": "Resource Management / Finance",
+      "function": "Budget, funds control, contracts coordination, financial/resource management",
+      "status": "Active"
+    },
+    {
+      "key": "j_9",
+      "identifier": "J-9",
+      "name": "Civil Affairs / Civil-Military Operations",
+      "function": "Civil affairs, local population, governance, NGOs, civil considerations",
+      "status": "Active"
+    }
+  ],
+  "mos": [
+    {
+      "key": "11_b",
+      "identifier": "11B",
+      "name": "INFANTRYMAN",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "11_c",
+      "identifier": "11C",
+      "name": "MORTARMAN",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "12_b",
+      "identifier": "12B",
+      "name": "COMBAT ENGINEER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "13_b",
+      "identifier": "13B",
+      "name": "CANNON CREWMEMBER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "13_f",
+      "identifier": "13F",
+      "name": "JOINT FIRE SUPPORT SPECIALIST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "13_z",
+      "identifier": "13Z",
+      "name": "FIELD ARTILLERY SENIOR NCO",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "15_w",
+      "identifier": "15W",
+      "name": "UNMANNED AERIAL SYSTEMS OPERATOR",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "19_d",
+      "identifier": "19D",
+      "name": "CAVALRY SCOUT",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "25_c",
+      "identifier": "25C",
+      "name": "RADIO OPERATOR-MAINTAINER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "25_e",
+      "identifier": "25E",
+      "name": "ELECTROMAGNETIC SPECTRUM MANAGER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "25_u",
+      "identifier": "25U",
+      "name": "SIGNAL SUPPORT SYSTEMS SPECIALIST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "25_x",
+      "identifier": "25X",
+      "name": "CHIEF SIGNALS NCO",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "35_f",
+      "identifier": "35F",
+      "name": "INTELLIGENCE ANALYST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "35_m",
+      "identifier": "35M",
+      "name": "HUMAN INTELLIGENCE COLLECTOR",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "35_n",
+      "identifier": "35N",
+      "name": "SIGNALS INTELLIGENCE ANALYST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "68_w",
+      "identifier": "68W",
+      "name": "COMBAT MEDIC",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "74_d",
+      "identifier": "74D",
+      "name": "CBRN SPECIALIST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "91_b",
+      "identifier": "91B",
+      "name": "GROUND VEHICLE MAINTAINER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "92_y",
+      "identifier": "92Y",
+      "name": "UNIT SUPPLY SPECIALIST",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "18_x",
+      "identifier": "18X",
+      "name": "Special Forces Candidate",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_b",
+      "identifier": "18B",
+      "name": "Special Forces Weapons Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_c",
+      "identifier": "18C",
+      "name": "Special Forces Engineer Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_d",
+      "identifier": "18D",
+      "name": "Special Forces Medical Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_e",
+      "identifier": "18E",
+      "name": "Special Forces Communications Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_f",
+      "identifier": "18F",
+      "name": "Special Forces Intelligence Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_z",
+      "identifier": "18Z",
+      "name": "Special Forces Senior Sergeant",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "180_a",
+      "identifier": "180A",
+      "name": "Special Forces Warrant Officer",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "18_a",
+      "identifier": "18A",
+      "name": "Special Forces Officer",
+      "unitKey": "tf20_sfod_1a",
+      "status": "Active"
+    },
+    {
+      "key": "11_a",
+      "identifier": "11A",
+      "name": "INFANTRY OFFICER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "12_a",
+      "identifier": "12A",
+      "name": "ENGINEER OFFICER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "13_a",
+      "identifier": "13A",
+      "name": "FIELD ARTILLERY OFFICER",
+      "unitKey": "tf20_ranger_a",
+      "status": "Active"
+    },
+    {
+      "key": "153_a",
+      "identifier": "153A",
+      "name": "Rotary Wing Aviator",
+      "unitKey": "tf20_soar_b160",
+      "status": "Active"
+    },
+    {
+      "key": "15t_2_fn1",
+      "identifier": "15T2FN1",
+      "name": "AIR CREW CHIEF",
+      "unitKey": "tf20_soar_b160",
+      "status": "Active"
+    }
+  ],
+  "trainingCourses": [
+    {
+      "key": "bct",
+      "name": "BASIC COMBAT TRAINING",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_68w",
+      "name": "COMBAT MEDIC ADVANCED INDIVIDUAL TRAINING",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_11b",
+      "name": "INFANTRY ADVANCED INDIVIDUAL TRAINING",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "osut_12b",
+      "name": "COMBAT ENGINEER ADVANCED INDIVIDUAL TRAINING",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_74d",
+      "name": "CHEMICAL BIOLOGICAL RADIOLOGICAL NUCLEAR SPC AIT",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "mwdhc",
+      "name": "MILITARY WORKING DOG HANDLER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_11c",
+      "name": "MORTARMAN ADVANCED INDIVIDUAL TRAINING",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "rasp",
+      "name": "RANGER ASSESSMENT AND SELECTION",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "socm",
+      "name": "SPECIAL OPERATIONS MEDIC COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_25c",
+      "name": "RADIO OPERATOR MAINTAINER AIT",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ait_25u",
+      "name": "SIGNAL SUPPORT SYSTEMS SPECIALIST AIT",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "jfc",
+      "name": "JOINT FIREPOWER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "jtacqc",
+      "name": "JOINT TACTICAL AIR CONTROLLER QUALIFICATION COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "sotacc",
+      "name": "SPECIAL OPERATIONS TERMINAL ATTACK CONTROLLER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "mffpc",
+      "name": "MILITARY FREE FALL PARACHUTIST COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "mffjmc",
+      "name": "MILITARY FREE FALL JUMP MASTER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "aac",
+      "name": "AIR ASSAULT COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "cdqc",
+      "name": "COMBAT DIVER QUALIFICATION COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "mar_1",
+      "name": "COMBAT SWIMMER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "mar_2",
+      "name": "MARITIME INFILTRATION COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "rslc",
+      "name": "RECONNAISSANCE AND SURVEILLANCE LEADERS COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "usasc",
+      "name": "US ARMY SNIPER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "sapper",
+      "name": "SAPPER LEADER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "blc",
+      "name": "BASIC LEADERSHIP COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "alc",
+      "name": "ADVANCED LEADERSHIP COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "slc",
+      "name": "SENIORS LEADERSHIP COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "bolc",
+      "name": "BASIC OFFICERS LEADERSHIP COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "ccc",
+      "name": "CAPTAIN CAREER COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "bwc",
+      "name": "BASIC WEAPONS COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    },
+    {
+      "key": "awc",
+      "name": "ADVANCED WEAPONS COURSE",
+      "category": null,
+      "description": null,
+      "status": "Active"
+    }
+  ],
+  "qualifications": [
+    {
+      "key": "rfr",
+      "name": "RANGER FIRST RESPONDER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "arfr",
+      "name": "ADVANCED RANGER FIRST RESPONDER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "mpch",
+      "name": "MULTI PURPOSE CANINE HANDLER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "pfc",
+      "name": "PROLONGED FIELD CARE",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "jfo",
+      "name": "JOINT FIRES OBSERVER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "cbrn_defence",
+      "name": "CBRN DEFENCE COURSE",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "recce_1",
+      "name": "SCOUT / OBSERVER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "recce_2",
+      "name": "RECON TEAM LEADER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "recce_3",
+      "name": "RECON PLANNER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "uas_1",
+      "name": "LIGHT DRONE OPERATOR",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "uas_2",
+      "name": "HEAVY DRONE OPERATOR",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "breach_1",
+      "name": "MECHANICAL BREACHING",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "breach_2",
+      "name": "BALLISTIC BREACHING",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "breach_3",
+      "name": "EXPLOSIVE BREACHING",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "eod",
+      "name": "EXPLOSIVE ORDNANCE DISPOSAL",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "stryker_driver",
+      "name": "STRYKER DRIVER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "stryker_gunner",
+      "name": "STRYKER GUNNER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "stryker_vehicle_commander",
+      "name": "STRYKER VEHICLE COMMANDER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    },
+    {
+      "key": "jm",
+      "name": "JUMP MASTER",
+      "category": null,
+      "expiresAfterDays": null,
+      "status": "Active"
+    }
+  ],
+  "awards": [
+    {
+      "key": "mcib",
+      "abbreviation": "MCIB",
+      "name": "Master Combat Infantryman Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mcmb",
+      "abbreviation": "MCMB",
+      "name": "Master Combat Medical Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mcab",
+      "abbreviation": "MCAB",
+      "name": "Master Combat Action Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "cib",
+      "abbreviation": "CIB",
+      "name": "Combat Infantryman Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "cmb",
+      "abbreviation": "CMB",
+      "name": "Combat Medical Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "cab",
+      "abbreviation": "CAB",
+      "name": "Combat Action Badge",
+      "type": "badge",
+      "category": "Combat Badge",
+      "status": "Active"
+    },
+    {
+      "key": "eib",
+      "abbreviation": "EIB",
+      "name": "Expert Infantryman Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "efmb",
+      "abbreviation": "EFMB",
+      "name": "Expert Field Medical Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "esb",
+      "abbreviation": "ESB",
+      "name": "Expert Soldier Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bpb",
+      "abbreviation": "BPB",
+      "name": "Basic Parachutist Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "spb",
+      "abbreviation": "SPB",
+      "name": "Senior Parachutist Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mpb",
+      "abbreviation": "MPB",
+      "name": "Master Parachutist Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "prb",
+      "abbreviation": "PRB",
+      "name": "Parachute Rigger Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bmffpb",
+      "abbreviation": "BMFFPB",
+      "name": "Basic Military Freefall Parachutist Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mffjmb",
+      "abbreviation": "MFFJMB",
+      "name": "Military Freefall Parachutist Jumpmaster Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bspb",
+      "abbreviation": "BSPB",
+      "name": "Basic Army Space Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sspb",
+      "abbreviation": "SSPB",
+      "name": "Senior Army Space Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mspb",
+      "abbreviation": "MSPB",
+      "name": "Master Army Space Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "pfb",
+      "abbreviation": "PFB",
+      "name": "Pathfinder Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "aab",
+      "abbreviation": "AAB",
+      "name": "Air Assault Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "dtb",
+      "abbreviation": "DTB",
+      "name": "Driver and Technician Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "amb",
+      "abbreviation": "AMB",
+      "name": "Army Mountaineering Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bamb",
+      "abbreviation": "BAMB",
+      "name": "Basic Army Mariner Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "samb",
+      "abbreviation": "SAMB",
+      "name": "Senior Army Mariner Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mamb",
+      "abbreviation": "MAMB",
+      "name": "Master Army Mariner Badge",
+      "type": "badge",
+      "category": "Special Skill Badge",
+      "status": "Active"
+    },
+    {
+      "key": "baab",
+      "abbreviation": "BAAB",
+      "name": "Basic Army Aviator Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "saab",
+      "abbreviation": "SAAB",
+      "name": "Senior Army Aviator Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "maab",
+      "abbreviation": "MAAB",
+      "name": "Master Army Aviator Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bfsb",
+      "abbreviation": "BFSB",
+      "name": "Basic Flight Surgeon Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sfsb",
+      "abbreviation": "SFSB",
+      "name": "Senior Flight Surgeon Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mfsb",
+      "abbreviation": "MFSB",
+      "name": "Master Flight Surgeon Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "bavnb",
+      "abbreviation": "BAVNB",
+      "name": "Basic Aviation Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "savnb",
+      "abbreviation": "SAVNB",
+      "name": "Senior Aviation Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mavnb",
+      "abbreviation": "MAVNB",
+      "name": "Master Aviation Badge",
+      "type": "badge",
+      "category": "Aviation Badge",
+      "status": "Active"
+    },
+    {
+      "key": "beodb",
+      "abbreviation": "BEODB",
+      "name": "Basic Explosive Ordnance Disposal Badge",
+      "type": "badge",
+      "category": "Explosive Ordnance Disposal Badge",
+      "status": "Active"
+    },
+    {
+      "key": "seodb",
+      "abbreviation": "SEODB",
+      "name": "Senior Explosive Ordnance Disposal Badge",
+      "type": "badge",
+      "category": "Explosive Ordnance Disposal Badge",
+      "status": "Active"
+    },
+    {
+      "key": "meodb",
+      "abbreviation": "MEODB",
+      "name": "Master Explosive Ordnance Disposal Badge",
+      "type": "badge",
+      "category": "Explosive Ordnance Disposal Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mdb",
+      "abbreviation": "MDB",
+      "name": "Master Diver Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "fcd",
+      "abbreviation": "FCD",
+      "name": "First-Class Diver Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sdb",
+      "abbreviation": "SDB",
+      "name": "Salvage Diver Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "scd",
+      "abbreviation": "SCD",
+      "name": "Second-Class Diver Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sodb",
+      "abbreviation": "SODB",
+      "name": "Special Operations Diver Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sodsb",
+      "abbreviation": "SODSB",
+      "name": "Special Operations Diving Supervisor Badge",
+      "type": "badge",
+      "category": "Diver Badge",
+      "status": "Active"
+    },
+    {
+      "key": "psb",
+      "abbreviation": "PSB",
+      "name": "Presidential Service Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "vpsb",
+      "abbreviation": "VPSB",
+      "name": "Vice Presidential Service Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "osdib",
+      "abbreviation": "OSDIB",
+      "name": "Office of the Secretary of Defense Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "jcsib",
+      "abbreviation": "JCSIB",
+      "name": "Joint Chiefs of Staff Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "asib",
+      "abbreviation": "ASIB",
+      "name": "Army Staff Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "gtusib",
+      "abbreviation": "GTUSIB",
+      "name": "Guard, Tomb of the Unknown Soldier Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mhib",
+      "abbreviation": "MHIB",
+      "name": "Military Horseman Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "dsib",
+      "abbreviation": "DSIB",
+      "name": "Drill Sergeant Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "barb",
+      "abbreviation": "BARB",
+      "name": "U.S. Army Basic Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "garb",
+      "abbreviation": "GARB",
+      "name": "U.S. Army Gold Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "marb",
+      "abbreviation": "MARB",
+      "name": "U.S. Army Master Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mgib",
+      "abbreviation": "MGIB",
+      "name": "Master Gunner Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "ccb",
+      "abbreviation": "CCB",
+      "name": "Career Counselor Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "barngrb",
+      "abbreviation": "BARNGRB",
+      "name": "Basic Army National Guard Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "sarngrb",
+      "abbreviation": "SARNGRB",
+      "name": "Senior Army National Guard Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "marngrb",
+      "abbreviation": "MARNGRB",
+      "name": "Master Army National Guard Recruiter Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "ngbib",
+      "abbreviation": "NGBIB",
+      "name": "National Guard Bureau Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "igib",
+      "abbreviation": "IGIB",
+      "name": "Inspector General Identification Badge",
+      "type": "badge",
+      "category": "Identification Badge",
+      "status": "Active"
+    },
+    {
+      "key": "emqb",
+      "abbreviation": "EMQB",
+      "name": "Expert Marksmanship Qualification Badge",
+      "type": "badge",
+      "category": "Marksmanship Badge",
+      "status": "Active"
+    },
+    {
+      "key": "smqb",
+      "abbreviation": "SMQB",
+      "name": "Sharpshooter Marksmanship Qualification Badge",
+      "type": "badge",
+      "category": "Marksmanship Badge",
+      "status": "Active"
+    },
+    {
+      "key": "mmqb",
+      "abbreviation": "MMQB",
+      "name": "Marksman Marksmanship Qualification Badge",
+      "type": "badge",
+      "category": "Marksmanship Badge",
+      "status": "Active"
+    },
+    {
+      "key": "dmddb",
+      "abbreviation": "DMDDB",
+      "name": "Distinguished Marksmanship Designation Badge",
+      "type": "badge",
+      "category": "Marksmanship Badge",
+      "status": "Active"
+    },
+    {
+      "key": "eicb",
+      "abbreviation": "EICB",
+      "name": "Excellence in Competition Badge",
+      "type": "badge",
+      "category": "Marksmanship Badge",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_1",
+      "abbreviation": "DA4980-1",
+      "name": "Medal of Honor Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_2",
+      "abbreviation": "DA4980-2",
+      "name": "Distinguished Service Cross Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_3",
+      "abbreviation": "DA4980-3",
+      "name": "Distinguished Service Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_4",
+      "abbreviation": "DA4980-4",
+      "name": "Silver Star Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_5",
+      "abbreviation": "DA4980-5",
+      "name": "Bronze Star Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_6",
+      "abbreviation": "DA4980-6",
+      "name": "Soldier's Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_7",
+      "abbreviation": "DA4980-7",
+      "name": "Distinguished Flying Cross Certificate - Heroism",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_8",
+      "abbreviation": "DA4980-8",
+      "name": "Distinguished Flying Cross Certificate - Achievement",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_9",
+      "abbreviation": "DA4980-9",
+      "name": "Air Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_10",
+      "abbreviation": "DA4980-10",
+      "name": "Purple Heart Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_11",
+      "abbreviation": "DA4980-11",
+      "name": "Legion of Merit Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_12",
+      "abbreviation": "DA4980-12",
+      "name": "Meritorious Service Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_14",
+      "abbreviation": "DA4980-14",
+      "name": "Army Commendation Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_18",
+      "abbreviation": "DA4980-18",
+      "name": "Army Achievement Medal Certificate",
+      "type": "certificate",
+      "category": "Decoration Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_13",
+      "abbreviation": "DA4980-13",
+      "name": "Presidential Unit Citation Certificate",
+      "type": "certificate",
+      "category": "Unit Award Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_16",
+      "abbreviation": "DA4980-16",
+      "name": "Valorous Unit Award Certificate",
+      "type": "certificate",
+      "category": "Unit Award Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_17",
+      "abbreviation": "DA4980-17",
+      "name": "Meritorious Unit Commendation Certificate",
+      "type": "certificate",
+      "category": "Unit Award Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da4980_19",
+      "abbreviation": "DA4980-19",
+      "name": "Army Superior Unit Award Certificate",
+      "type": "certificate",
+      "category": "Unit Award Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da7549",
+      "abbreviation": "DA7549",
+      "name": "Unit Award Citation Certificate",
+      "type": "certificate",
+      "category": "Unit Award Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da7777",
+      "abbreviation": "DA7777",
+      "name": "Center for Initial Military Training Graduation Certificate",
+      "type": "certificate",
+      "category": "Training Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "psc",
+      "abbreviation": "PSC",
+      "name": "Presidential Service Certificate",
+      "type": "certificate",
+      "category": "Service Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "vpsc",
+      "abbreviation": "VPSC",
+      "name": "Vice Presidential Service Certificate",
+      "type": "certificate",
+      "category": "Service Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "da2442",
+      "abbreviation": "DA2442",
+      "name": "Certificate of Achievement",
+      "type": "certificate",
+      "category": "Achievement Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "rc",
+      "abbreviation": "RC",
+      "name": "Recognition Certificate",
+      "type": "certificate",
+      "category": "Recognition Certificate",
+      "status": "Active"
+    },
+    {
+      "key": "bolc",
+      "abbreviation": "BOLC",
+      "name": "Bronze Oak Leaf Cluster",
+      "type": "device",
+      "category": "Service Ribbon Appurtenance",
+      "status": "Active"
+    },
+    {
+      "key": "solc",
+      "abbreviation": "SOLC",
+      "name": "Silver Oak Leaf Cluster",
+      "type": "device",
+      "category": "Service Ribbon Appurtenance",
+      "status": "Active"
+    },
+    {
+      "key": "num",
+      "abbreviation": "NUM",
+      "name": "Numeral",
+      "type": "device",
+      "category": "Service Ribbon Appurtenance",
+      "status": "Active"
+    },
+    {
+      "key": "cjs",
+      "abbreviation": "CJS",
+      "name": "Combat Jump Star",
+      "type": "device",
+      "category": "Badge Appurtenance",
+      "status": "Active"
+    },
+    {
+      "key": "mohflag",
+      "abbreviation": "MOHFLAG",
+      "name": "Medal of Honor Flag",
+      "type": "device",
+      "category": "Medal of Honor Appurtenance",
+      "status": "Active"
+    },
+    {
+      "key": "driver_w",
+      "abbreviation": "DRIVER-W",
+      "name": "Driver-W Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "driver_t",
+      "abbreviation": "DRIVER-T",
+      "name": "Driver-T Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "driver_m",
+      "abbreviation": "DRIVER-M",
+      "name": "Driver-M Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "driver_a",
+      "abbreviation": "DRIVER-A",
+      "name": "Driver-A Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "tech",
+      "abbreviation": "TECH",
+      "name": "Technician Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "tech_s",
+      "abbreviation": "TECH-S",
+      "name": "Technician-S Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "tech_m",
+      "abbreviation": "TECH-M",
+      "name": "Technician-M Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "operator_s",
+      "abbreviation": "OPERATOR-S",
+      "name": "Operator-S Component Bar",
+      "type": "device",
+      "category": "Driver and Technician Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "riflebar",
+      "abbreviation": "RIFLEBAR",
+      "name": "Rifle Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "pistolbar",
+      "abbreviation": "PISTOLBAR",
+      "name": "Pistol Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "aaartybar",
+      "abbreviation": "AAARTYBAR",
+      "name": "AA Artillery Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "autoriflebar",
+      "abbreviation": "AUTORIFLEBAR",
+      "name": "Auto Rifle Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "mgunbar",
+      "abbreviation": "MGUNBAR",
+      "name": "Machine Gun Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "fartybar",
+      "abbreviation": "FARTYBAR",
+      "name": "Field Artillery Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "tankwpnbar",
+      "abbreviation": "TANKWPNBAR",
+      "name": "Tank Weapons Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "flamethrowerbar",
+      "abbreviation": "FLAMETHROWERBAR",
+      "name": "Flamethrower Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "smgbar",
+      "abbreviation": "SMGBAR",
+      "name": "Submachine Gun Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "rocketbar",
+      "abbreviation": "ROCKETBAR",
+      "name": "Rocket Launcher Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "grenadebar",
+      "abbreviation": "GRENADEBAR",
+      "name": "Grenade Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "carbinebar",
+      "abbreviation": "CARBINEBAR",
+      "name": "Carbine Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "recoillessbar",
+      "abbreviation": "RECOILLESSBAR",
+      "name": "Recoilless Rifle Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "mortarbar",
+      "abbreviation": "MORTARBAR",
+      "name": "Mortar Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "bayonetbar",
+      "abbreviation": "BAYONETBAR",
+      "name": "Bayonet Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "smallborebar",
+      "abbreviation": "SMALLBOREBAR",
+      "name": "Small Bore Rifle Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "missilebar",
+      "abbreviation": "MISSILEBAR",
+      "name": "Missile Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "aerowpnbar",
+      "abbreviation": "AEROWPNBAR",
+      "name": "Aero-Weapons Marksmanship Bar",
+      "type": "device",
+      "category": "Marksmanship Badge Component Bar",
+      "status": "Active"
+    },
+    {
+      "key": "vdev",
+      "abbreviation": "VDEV",
+      "name": "V Device",
+      "type": "device",
+      "category": "Decoration Device",
+      "status": "Active"
+    },
+    {
+      "key": "cdev",
+      "abbreviation": "CDEV",
+      "name": "C Device",
+      "type": "device",
+      "category": "Decoration Device",
+      "status": "Active"
+    },
+    {
+      "key": "rdev",
+      "abbreviation": "RDEV",
+      "name": "R Device",
+      "type": "device",
+      "category": "Decoration Device",
+      "status": "Active"
+    },
+    {
+      "key": "mdev",
+      "abbreviation": "MDEV",
+      "name": "M Device",
+      "type": "device",
+      "category": "Reserve Component Device",
+      "status": "Active"
+    },
+    {
+      "key": "tddev",
+      "abbreviation": "TDDEV",
+      "name": "Ten-Year Device",
+      "type": "device",
+      "category": "Reserve Component Device",
+      "status": "Active"
+    },
+    {
+      "key": "bss",
+      "abbreviation": "BSS",
+      "name": "Bronze Service Star",
+      "type": "device",
+      "category": "Service / Campaign Device",
+      "status": "Active"
+    },
+    {
+      "key": "sss",
+      "abbreviation": "SSS",
+      "name": "Silver Service Star",
+      "type": "device",
+      "category": "Service / Campaign Device",
+      "status": "Active"
+    },
+    {
+      "key": "arhd",
+      "abbreviation": "ARHD",
+      "name": "Arrowhead Device",
+      "type": "device",
+      "category": "Service / Campaign Device",
+      "status": "Active"
+    },
+    {
+      "key": "clasp",
+      "abbreviation": "CLASP",
+      "name": "Clasp",
+      "type": "device",
+      "category": "Service / Campaign Device",
+      "status": "Active"
+    },
+    {
+      "key": "bad",
+      "abbreviation": "BAD",
+      "name": "Berlin Airlift Device",
+      "type": "device",
+      "category": "Service Medal Device",
+      "status": "Active"
+    },
+    {
+      "key": "moh",
+      "abbreviation": "MOH",
+      "name": "Medal of Honor",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "dsc",
+      "abbreviation": "DSC",
+      "name": "Distinguished Service Cross",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "ddsm",
+      "abbreviation": "DDSM",
+      "name": "Defense Distinguished Service Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "dsm",
+      "abbreviation": "DSM",
+      "name": "Army Distinguished Service Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "ss",
+      "abbreviation": "SS",
+      "name": "Silver Star",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "dssm",
+      "abbreviation": "DSSM",
+      "name": "Defense Superior Service Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "lm",
+      "abbreviation": "LM",
+      "name": "Legion of Merit",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "dfc",
+      "abbreviation": "DFC",
+      "name": "Distinguished Flying Cross",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "sm",
+      "abbreviation": "SM",
+      "name": "Soldier's Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "bsm",
+      "abbreviation": "BSM",
+      "name": "Bronze Star Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "ph",
+      "abbreviation": "PH",
+      "name": "Purple Heart",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "dmsm",
+      "abbreviation": "DMSM",
+      "name": "Defense Meritorious Service Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "msm",
+      "abbreviation": "MSM",
+      "name": "Meritorious Service Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "am",
+      "abbreviation": "AM",
+      "name": "Air Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "jscm",
+      "abbreviation": "JSCM",
+      "name": "Joint Service Commendation Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "arcom",
+      "abbreviation": "ARCOM",
+      "name": "Army Commendation Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "jsam",
+      "abbreviation": "JSAM",
+      "name": "Joint Service Achievement Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "aam",
+      "abbreviation": "AAM",
+      "name": "Army Achievement Medal",
+      "type": "medal",
+      "category": "Decoration - Individual Valor and Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "agcm",
+      "abbreviation": "AGCM",
+      "name": "Army Good Conduct Medal",
+      "type": "medal",
+      "category": "Good Conduct and Reserve Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "arcam",
+      "abbreviation": "ARCAM",
+      "name": "Army Reserve Components Achievement Medal",
+      "type": "medal",
+      "category": "Good Conduct and Reserve Achievement",
+      "status": "Active"
+    },
+    {
+      "key": "powm",
+      "abbreviation": "POWM",
+      "name": "Prisoner of War Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "civwarcm",
+      "abbreviation": "CIVWARCM",
+      "name": "Civil War Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "indiancm",
+      "abbreviation": "INDIANCM",
+      "name": "Indian Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "spancm",
+      "abbreviation": "SPANCM",
+      "name": "Spanish Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "swsm",
+      "abbreviation": "SWSM",
+      "name": "Spanish War Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "aocubam",
+      "abbreviation": "AOCUBAM",
+      "name": "Army of Cuban Occupation Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "aoprm",
+      "abbreviation": "AOPRM",
+      "name": "Army of Puerto Rican Occupation Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "philcm",
+      "abbreviation": "PHILCM",
+      "name": "Philippine Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "philcongm",
+      "abbreviation": "PHILCONGM",
+      "name": "Philippine Congressional Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "chinacm",
+      "abbreviation": "CHINACM",
+      "name": "China Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "cubapacm",
+      "abbreviation": "CUBAPACM",
+      "name": "Army of Cuban Pacification Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "mexsm",
+      "abbreviation": "MEXSM",
+      "name": "Mexican Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "mbsm",
+      "abbreviation": "MBSM",
+      "name": "Mexican Border Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "wwivm",
+      "abbreviation": "WWIVM",
+      "name": "World War I Victory Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "aogm",
+      "abbreviation": "AOGM",
+      "name": "Army of Occupation of Germany Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "adsm",
+      "abbreviation": "ADSM",
+      "name": "American Defense Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "wacsm",
+      "abbreviation": "WACSM",
+      "name": "Women's Army Corps Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "acm_wwii",
+      "abbreviation": "ACM-WWII",
+      "name": "American Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "apcm",
+      "abbreviation": "APCM",
+      "name": "Asiatic-Pacific Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "eamecm",
+      "abbreviation": "EAMECM",
+      "name": "European-African-Middle Eastern Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "wwiivm",
+      "abbreviation": "WWIIVM",
+      "name": "World War II Victory Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "aom",
+      "abbreviation": "AOM",
+      "name": "Army of Occupation Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "mha",
+      "abbreviation": "MHA",
+      "name": "Medal for Humane Action",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "ndsm",
+      "abbreviation": "NDSM",
+      "name": "National Defense Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "ksm",
+      "abbreviation": "KSM",
+      "name": "Korean Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "asm",
+      "abbreviation": "ASM",
+      "name": "Antarctica Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "afem",
+      "abbreviation": "AFEM",
+      "name": "Armed Forces Expeditionary Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "vsm",
+      "abbreviation": "VSM",
+      "name": "Vietnam Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "swasm",
+      "abbreviation": "SWASM",
+      "name": "Southwest Asia Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "kcm",
+      "abbreviation": "KCM",
+      "name": "Kosovo Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "acm_afg",
+      "abbreviation": "ACM-AFG",
+      "name": "Afghanistan Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "icm",
+      "abbreviation": "ICM",
+      "name": "Iraq Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "ircm",
+      "abbreviation": "IRCM",
+      "name": "Inherent Resolve Campaign Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "gwotem",
+      "abbreviation": "GWOTEM",
+      "name": "Global War on Terrorism Expeditionary Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "gwotsm",
+      "abbreviation": "GWOTSM",
+      "name": "Global War on Terrorism Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "kdsm",
+      "abbreviation": "KDSM",
+      "name": "Korea Defense Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "afsm",
+      "abbreviation": "AFSM",
+      "name": "Armed Forces Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "hsm",
+      "abbreviation": "HSM",
+      "name": "Humanitarian Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "avcsm",
+      "abbreviation": "AVCSM",
+      "name": "Atomic Veterans Commemorative Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "movsm",
+      "abbreviation": "MOVSM",
+      "name": "Military Outstanding Volunteer Service Medal",
+      "type": "medal",
+      "category": "U.S. Service and Campaign Medal",
+      "status": "Active"
+    },
+    {
+      "key": "afrm",
+      "abbreviation": "AFRM",
+      "name": "Armed Forces Reserve Medal",
+      "type": "medal",
+      "category": "Reserve Component Service Medal/Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "asdr",
+      "abbreviation": "ASDR",
+      "name": "Army Sea Duty Ribbon",
+      "type": "ribbon",
+      "category": "U.S. Service Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "arr",
+      "abbreviation": "ARR",
+      "name": "Army Recruiting Ribbon",
+      "type": "ribbon",
+      "category": "U.S. Service Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "ncopdr",
+      "abbreviation": "NCOPDR",
+      "name": "NCO Professional Development Ribbon",
+      "type": "ribbon",
+      "category": "U.S. Service Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "asr",
+      "abbreviation": "ASR",
+      "name": "Army Service Ribbon",
+      "type": "ribbon",
+      "category": "U.S. Service Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "osr",
+      "abbreviation": "OSR",
+      "name": "Army Overseas Service Ribbon",
+      "type": "ribbon",
+      "category": "U.S. Service Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "arcotr",
+      "abbreviation": "ARCOTR",
+      "name": "Army Reserve Components Overseas Training Ribbon",
+      "type": "ribbon",
+      "category": "Reserve Component Service Medal/Ribbon",
+      "status": "Active"
+    },
+    {
+      "key": "puc",
+      "abbreviation": "PUC",
+      "name": "Presidential Unit Citation",
+      "type": "ribbon",
+      "category": "Unit Award",
+      "status": "Active"
+    },
+    {
+      "key": "jmua",
+      "abbreviation": "JMUA",
+      "name": "Joint Meritorious Unit Award",
+      "type": "ribbon",
+      "category": "Unit Award",
+      "status": "Active"
+    },
+    {
+      "key": "vua",
+      "abbreviation": "VUA",
+      "name": "Valorous Unit Award",
+      "type": "ribbon",
+      "category": "Unit Award",
+      "status": "Active"
+    },
+    {
+      "key": "muc",
+      "abbreviation": "MUC",
+      "name": "Meritorious Unit Commendation",
+      "type": "ribbon",
+      "category": "Unit Award",
+      "status": "Active"
+    },
+    {
+      "key": "asua",
+      "abbreviation": "ASUA",
+      "name": "Army Superior Unit Award",
+      "type": "ribbon",
+      "category": "Unit Award",
+      "status": "Active"
+    },
+    {
+      "key": "rtab",
+      "abbreviation": "RTAB",
+      "name": "Ranger Tab",
+      "type": "tab",
+      "category": "Skill Tab",
+      "status": "Active"
+    },
+    {
+      "key": "sftab",
+      "abbreviation": "SFTAB",
+      "name": "Special Forces Tab",
+      "type": "tab",
+      "category": "Skill Tab",
+      "status": "Active"
+    },
+    {
+      "key": "stab",
+      "abbreviation": "STAB",
+      "name": "Sapper Tab",
+      "type": "tab",
+      "category": "Skill Tab",
+      "status": "Active"
+    },
+    {
+      "key": "phtab",
+      "abbreviation": "PHTAB",
+      "name": "President's Hundred Tab",
+      "type": "tab",
+      "category": "Marksmanship Tab",
+      "status": "Active"
+    }
+  ]
 };

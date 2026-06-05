@@ -57,7 +57,7 @@ import {
   renderPendingScreen,
 } from "./views.mjs";
 
-export function createApp({ prisma, config }) {
+export function createApp({ prisma, config, requestShutdown = () => {} }) {
   const app = express();
   app.disable("x-powered-by");
   if (config.trustProxy) {
@@ -760,6 +760,28 @@ export function createApp({ prisma, config }) {
     }
   });
 
+  if (!config.isProduction) {
+    app.post("/_local/shutdown", (req, res) => {
+      if (!isLoopbackRequest(req.ip)) {
+        return sendError(res, 403, "permission_denied", "Local shutdown is only available from loopback.");
+      }
+
+      res.status(202).json({
+        data: {
+          accepted: true,
+          action: "shutdown",
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      setImmediate(() => {
+        requestShutdown("local shutdown action");
+      });
+    });
+  }
+
   app.use((error, req, res, next) => {
     console.error(error);
     return sendError(
@@ -773,15 +795,19 @@ export function createApp({ prisma, config }) {
   return app;
 }
 
+function isLoopbackRequest(ipAddress = "") {
+  return ipAddress === "::1" || ipAddress === "::ffff:127.0.0.1" || ipAddress === "127.0.0.1";
+}
+
 function buildPersonnelFormState(profileOrBody = {}) {
   const source = profileOrBody ?? {};
   return {
-    name: String(source.name ?? source.callsign ?? ""),
+    name: String(source.name ?? ""),
     status: String(source.status ?? ""),
     currentUnitId: String(source.currentUnitId ?? ""),
     currentRankId: String(source.currentRankId ?? ""),
     currentBilletId: String(source.currentBilletId ?? ""),
-    currentSpecialtyId: String(source.currentSpecialtyId ?? ""),
+    currentMOSId: String(source.currentMOSId ?? ""),
     goodStanding: String(
       typeof source.goodStanding === "boolean" ? source.goodStanding : source.goodStanding ?? "",
     ),
