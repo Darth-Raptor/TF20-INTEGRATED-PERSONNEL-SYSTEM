@@ -1,0 +1,141 @@
+Codex Handoff — Task 1: Fix Blocking Schema/Code Mismatch
+
+Project
+Repository:
+Darth-Raptor/tf20-website-portal
+
+Task Title
+Fix AuthIdentity.metadata Prisma schema/code mismatch.
+
+Objective
+Resolve the current blocking mismatch between the Prisma schema and the authentication service.
+
+The code in src/server/auth-service.mjs reads and writes authIdentity.metadata, but the Prisma AuthIdentity model does not currently define a metadata field. This can cause Prisma validation/runtime failures once the affected auth path is executed.
+
+Current Evidence
+auth-service.mjs uses authIdentity.metadata when updating an existing Discord identity:
+
+metadata: guildPayload ?? authIdentity.metadata ?? {},
+
+It also writes metadata when creating a new Discord identity:
+
+metadata: guildPayload ?? {},
+
+These usages are in the Discord account resolution flow.
+
+The Prisma AuthIdentity model includes fields for provider, provider account ID, username, display name, guild verification, link/unlink state, and primary identity state, but the inspected schema section does not include metadata.
+
+Required Fix
+Add a nullable JSON metadata field to the AuthIdentity Prisma model.
+
+Recommended schema addition:
+
+metadata Json?
+
+The field should be added to the AuthIdentity model in prisma/schema.prisma.
+
+Expected Model Shape
+The relevant model should end up conceptually like this:
+
+model AuthIdentity {
+  id                      String    @id @default(cuid())
+  accountId               String
+  account                 Account   @relation(fields: [accountId], references: [id])
+  provider                String
+  providerAccountId       String
+  username                String?
+  displayName             String?
+  lastGuildVerifiedAt     DateTime?
+  guildMembershipRequired Boolean   @default(true)
+  metadata                Json?
+  linkedAt                DateTime  @default(now())
+  unlinkedAt              DateTime?
+  isPrimary               Boolean   @default(false)
+
+  @@unique([provider, providerAccountId])
+  @@index([accountId])
+}
+
+Do not rename the existing field usages in auth-service.mjs unless there is a strong reason. The cleanest fix is to add the missing schema field.
+
+Migration Requirement
+Create a Prisma migration for the schema change.
+
+Expected migration outcome:
+
+ALTER TABLE `AuthIdentity` ADD COLUMN `metadata` JSON NULL;
+
+Exact SQL may vary depending on Prisma/MySQL output.
+
+Files Likely To Change
+prisma/schema.prisma
+prisma/migrations/<new_migration>/migration.sql
+
+Optional, only if needed:
+test/unit/auth-service.test.mjs
+test/unit/schema-auth-identity.test.mjs
+
+Do not modify unrelated authentication behavior, role logic, UI views, or application workflow as part of this task.
+
+Validation Steps
+After implementing the change, run:
+
+npm run prisma:validate
+npm run prisma:generate
+npm run check
+
+If a local database is available, also run:
+
+npm run prisma:migrate
+npm run seed:bootstrap
+npm run test:integration
+
+If the repo’s exact scripts differ, use the closest equivalent from package.json. The repo already defines Prisma validation/generation and test/check scripts.
+
+Functional Test Path
+Verify the Discord OAuth account-resolution path can persist metadata.
+
+At minimum, confirm these flows do not throw Prisma unknown-field errors:
+
+1. Existing Discord identity login:
+   - resolveAuthenticatedAccount() updates username/display name.
+   - It writes metadata.
+   - It returns the account and auth identity.
+
+2. New Discord identity login:
+   - resolveAuthenticatedAccount() creates an Account.
+   - It creates an AuthIdentity.
+   - It writes metadata.
+   - It assigns the pending-user role if present.
+   - It creates an audit log.
+
+The current auth service creates pending accounts and initial Discord identities in a transaction, assigns the pending role, and writes an audit entry.
+
+Acceptance Criteria
+This task is complete when:
+
+1. AuthIdentity has a nullable metadata Json field in Prisma schema.
+2. A Prisma migration exists for the field addition.
+3. Prisma validation passes.
+4. Prisma client generation passes.
+5. Existing auth-service.mjs metadata reads/writes no longer reference an undefined Prisma field.
+6. The app can boot without schema/client mismatch.
+7. Discord OAuth account resolution can create and update AuthIdentity records with metadata.
+8. No unrelated role, UI, personnel, application, or catalog behavior is changed.
+
+Non-Goals
+Do not work on:
+
+Discord role synchronization
+System Admin permission refactor
+Applicant form expansion
+Personnel update workflow changes
+Public website UI
+RCON attendance
+Training/qualification workflows
+Dashboard redesign
+
+Those are later roadmap phases. This task is only to fix the blocking schema/code mismatch.
+
+Suggested Commit Message
+fix(auth): add metadata field to AuthIdentity schema
