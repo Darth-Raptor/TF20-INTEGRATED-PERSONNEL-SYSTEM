@@ -7,11 +7,19 @@ import { flattenPermissions } from "../../src/server/auth-service.mjs";
 test("pending accounts expose only pending modules", () => {
   const access = buildAccessContext({
     account: { status: "Pending" },
-    permissions: [{ key: "personnel.view-self" }],
+    permissions: [{ key: "support.create-self" }],
   });
 
   assert.equal(access.gateState, "pending");
   assert.deepEqual(access.visibleModules, ["applications", "support", "access", "notifications"]);
+  assert.deepEqual(
+    access.visibleNavigation.sections.map((section) => section.id),
+    ["user"],
+  );
+  assert.deepEqual(
+    access.visibleNavigation.sections[0].pages.map((page) => page.id),
+    ["user_dashboard", "user_profile", "user_support"],
+  );
 });
 
 test("active accounts derive module visibility from active permissions", () => {
@@ -22,6 +30,10 @@ test("active accounts derive module visibility from active permissions", () => {
 
   assert.equal(access.gateState, "active");
   assert.deepEqual(access.visibleModules, ["applications", "dashboard", "personnel", "profile"]);
+  assert.deepEqual(
+    access.visibleNavigation.sections.map((section) => section.id),
+    ["user", "recruiting"],
+  );
 });
 
 test("archived roles and permissions do not flatten into effective access", () => {

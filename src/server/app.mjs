@@ -1,5 +1,6 @@
 import express from "express";
 
+import { mountClientApp } from "./client-app.mjs";
 import {
   applicantFormState,
   assignApplicationUnit,
@@ -67,6 +68,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
   app.use(buildRequestContextMiddleware({ prisma, config }));
+  mountClientApp(app);
 
   app.get("/health", (req, res) => {
     res.status(200).json({
@@ -318,6 +320,18 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
     const access = buildAccessContext({ account: req.context.account, permissions });
     return sendDetail(res, {
       visibleModules: access.visibleModules,
+      permissions: Array.from(new Set(permissions.map((permission) => permission.key))).sort(),
+    });
+  });
+
+  app.get("/me/navigation", requireAuthenticatedSession, async (req, res) => {
+    const permissions = flattenPermissions(req.context.account);
+    const access = buildAccessContext({ account: req.context.account, permissions });
+    return sendDetail(res, {
+      accountStatus: access.accountStatus,
+      gateState: access.gateState,
+      defaultPath: access.visibleNavigation.defaultPath,
+      sections: access.visibleNavigation.sections,
       permissions: Array.from(new Set(permissions.map((permission) => permission.key))).sort(),
     });
   });
@@ -850,6 +864,32 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
   });
 
   if (!config.isProduction) {
+    app.get("/_local/preview-session", async (req, res, next) => {
+      try {
+        if (!isLoopbackRequest(req.ip)) {
+          return sendError(
+            res,
+            403,
+            "permission_denied",
+            "Local preview sessions are only available from loopback.",
+          );
+        }
+
+        const sessionId = await createLocalPreviewSession({ prisma });
+        appendCookie(
+          res,
+          buildCookie(config.sessionCookieName, signCookieValue(sessionId, config.sessionSecret), {
+            secure: false,
+            maxAgeSeconds: 4 * 60 * 60,
+          }),
+        );
+
+        return res.redirect("/");
+      } catch (error) {
+        return next(error);
+      }
+    });
+
     app.post("/_local/shutdown", (req, res) => {
       if (!isLoopbackRequest(req.ip)) {
         return sendError(
@@ -907,6 +947,87 @@ function buildPersonnelFormState(profileOrBody = {}) {
     ),
     reason: String(source.reason ?? ""),
   };
+}
+
+async function createLocalPreviewSession({ prisma }) {
+  const role = await prisma.role.findUnique({ where: { key: "unit-staff" } });
+  if (!role) {
+    throw new Error("Local preview requires the unit-staff role to be seeded.");
+  }
+
+  const providerAccountId = "codex-local-ui-preview";
+  const existingIdentity = await prisma.authIdentity.findUnique({
+    where: {
+      provider_providerAccountId: {
+        provider: "Discord",
+        providerAccountId,
+      },
+    },
+    include: { account: true },
+  });
+
+  const account =
+    existingIdentity?.account ??
+    (await prisma.account.create({
+      data: {
+        displayName: "TF20 UI Preview",
+        status: "Active",
+        activatedAt: new Date(),
+        authIdentities: {
+          create: {
+            provider: "Discord",
+            providerAccountId,
+            username: "tf20-ui-preview",
+            displayName: "TF20 UI Preview",
+          },
+        },
+      },
+    }));
+
+  if (account.status !== "Active") {
+    await prisma.account.update({
+      where: { id: account.id },
+      data: {
+        status: "Active",
+        activatedAt: account.activatedAt ?? new Date(),
+        displayName: account.displayName ?? "TF20 UI Preview",
+      },
+    });
+  }
+
+  const assignment = await prisma.roleAssignment.findFirst({
+    where: {
+      accountId: account.id,
+      roleId: role.id,
+      endsAt: null,
+    },
+  });
+
+  if (!assignment) {
+    await prisma.roleAssignment.create({
+      data: {
+        accountId: account.id,
+        roleId: role.id,
+        scopeType: "Global",
+        scopeIncludesDescendants: true,
+        reason: "Local UI preview session.",
+      },
+    });
+  }
+
+  const sessionId = createRandomId();
+  await prisma.session.create({
+    data: {
+      id: sessionId,
+      accountId: account.id,
+      data: { localPreview: true },
+      expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+      lastAuthenticatedAt: new Date(),
+      recentAuthExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    },
+  });
+
+  return sessionId;
 }
 
 async function handleApplicationActionFailure({

@@ -1,3 +1,5 @@
+import { resolveVisibleNavigation } from "../shared/site-map.mjs";
+
 export function buildAccessContext({ account, permissions }) {
   const permissionSet = new Set(permissions.map((permission) => permission.key));
 
@@ -6,6 +8,7 @@ export function buildAccessContext({ account, permissions }) {
     permissions: permissionSet,
     gateState: resolveGateState(account.status),
     visibleModules: resolveVisibleModules(account.status, permissionSet),
+    visibleNavigation: resolveVisibleNavigation(account.status, permissionSet),
   };
 }
 

@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Task Force 20 clean-slate PMS backend planning and data-model foundation.",
   "scripts": {
-    "check": "npm run syntax && npm run validate:planning && npm run secret:check",
-    "syntax": "node --check prisma/catalog-source.mjs && node --check prisma/phase2-review-csv-loader.mjs && node --check prisma/phase2-catalog-source-builder.mjs && node --check prisma/seed.mjs && node --check src/server/config.mjs && node --check src/server/db.mjs && node --check src/server/errors.mjs && node --check src/server/cookies.mjs && node --check src/server/access.mjs && node --check src/server/application-service.mjs && node --check src/server/personnel-service.mjs && node --check src/server/auth-service.mjs && node --check src/server/middleware.mjs && node --check src/server/views.mjs && node --check src/server/app.mjs && node --check src/server/index.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node --check scripts/check-area5-api-frontend-contract.mjs && node --check scripts/check-area6-operations-security-testing.mjs && node --check scripts/check-catalog-source.mjs && node --check scripts/check-phase2-review-csvs.mjs && node --check scripts/check-secret-hygiene.mjs && node --check scripts/generate-phase2-catalog-source.mjs && node --check scripts/generate-schema-erd.mjs && node --check scripts/run-integration-tests.mjs",
-    "validate:planning": "node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs && node scripts/check-area5-api-frontend-contract.mjs && node scripts/check-area6-operations-security-testing.mjs && node scripts/check-catalog-source.mjs && node scripts/check-phase2-review-csvs.mjs",
+    "check": "npm run syntax && npm run build:client && npm run validate:planning && npm run secret:check",
+    "syntax": "node --check prisma/catalog-source.mjs && node --check prisma/phase2-review-csv-loader.mjs && node --check prisma/phase2-catalog-source-builder.mjs && node --check prisma/seed.mjs && node --check src/shared/site-map.mjs && node --check src/server/config.mjs && node --check src/server/db.mjs && node --check src/server/errors.mjs && node --check src/server/cookies.mjs && node --check src/server/access.mjs && node --check src/server/application-service.mjs && node --check src/server/personnel-service.mjs && node --check src/server/auth-service.mjs && node --check src/server/middleware.mjs && node --check src/server/views.mjs && node --check src/server/client-app.mjs && node --check src/server/app.mjs && node --check src/server/index.mjs && node --check scripts/check-area1-model.mjs && node --check scripts/check-area2-access.mjs && node --check scripts/check-area3-workflows.mjs && node --check scripts/check-area4-external-connections.mjs && node --check scripts/check-area5-api-frontend-contract.mjs && node --check scripts/check-area6-operations-security-testing.mjs && node --check scripts/check-catalog-source.mjs && node --check scripts/check-phase2-review-csvs.mjs && node --check scripts/check-secret-hygiene.mjs && node --check scripts/check-site-map.mjs && node --check scripts/generate-phase2-catalog-source.mjs && node --check scripts/generate-schema-erd.mjs && node --check scripts/generate-schema-workbook-csv.mjs && node --check scripts/run-integration-tests.mjs",
+    "validate:planning": "node scripts/check-area1-model.mjs && node scripts/check-area2-access.mjs && node scripts/check-area3-workflows.mjs && node scripts/check-area4-external-connections.mjs && node scripts/check-area5-api-frontend-contract.mjs && node scripts/check-area6-operations-security-testing.mjs && node scripts/check-catalog-source.mjs && node scripts/check-phase2-review-csvs.mjs && node scripts/check-site-map.mjs",
     "secret:check": "node scripts/check-secret-hygiene.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -22,26 +22,37 @@
     "catalog:sync": "node prisma/seed.mjs --mode=sync",
     "catalog:check": "node scripts/check-catalog-source.mjs",
     "phase2:csv:check": "node scripts/check-phase2-review-csvs.mjs",
+    "sitemap:check": "node scripts/check-site-map.mjs",
     "phase2:catalog:generate": "node scripts/generate-phase2-catalog-source.mjs",
+    "build": "npm run build:client",
+    "build:client": "vite build",
     "start": "node src/server/index.mjs",
     "dev": "node --watch src/server/index.mjs",
+    "dev:server": "node --watch src/server/index.mjs",
+    "dev:client": "vite",
     "stop": "node scripts/stop-local-server.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "erd:generate": "node scripts/generate-schema-erd.mjs"
+    "erd:generate": "node scripts/generate-schema-erd.mjs",
+    "schema:csv": "node scripts/generate-schema-workbook-csv.mjs"
   },
   "engines": {
     "node": ">=18.20.0"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
     "prettier": "^3.8.3",
-    "prisma": "^6.0.0"
+    "prisma": "^6.0.0",
+    "vite": "^8.0.16"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
