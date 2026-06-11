@@ -12,7 +12,9 @@ if (!fs.existsSync(docPath)) {
 
 const requiredEnumValues = {
   ApplicationStatus: [
+    "Draft",
     "Submitted",
+    "MoreInfoRequested",
     "RecruiterScreening",
     "RecruiterRecommended",
     "TargetUnitReview",
@@ -35,12 +37,23 @@ const requiredFields = {
   Application: [
     "targetUnitId",
     "targetUnit",
+    "firstName",
+    "lastName",
+    "source",
+    "priorService",
+    "priorArma",
+    "leadership",
+    "leadershipDetails",
     "recruiterRecommendedByAccountId",
     "recruiterRecommendedAt",
     "unitDecisionByAccountId",
     "unitDecisionAt",
     "closedAt",
   ],
+  ApplicationServicePeriod: ["branch", "mos", "years", "sortOrder"],
+  ApplicationArmaUnit: ["unitName", "joinedAt", "leftAt", "stillMember", "reasonLeft"],
+  ApplicationInterestUnit: ["unitId", "sortOrder"],
+  ApplicationDesiredMOS: ["mosId", "sortOrder"],
   ApplicationStatusHistory: ["stage", "permissionContext", "reason", "auditLogId"],
   ApplicationReviewNote: ["stage"],
   LoaRequest: [
@@ -64,7 +77,8 @@ const requiredFields = {
   PersonnelQualification: ["changedByAccountId"],
   SupportTicket: ["queueKey", "intakeOnly", "resolvedAt", "closedAt", "voidedAt"],
   Notification: ["deliveryChannel", "workflowEvent"],
-  Unit: ["targetedApplications"],
+  Unit: ["targetedApplications", "recruitingOpen"],
+  MOS: ["recruitingOpen"],
 };
 
 for (const [enumName, values] of Object.entries(requiredEnumValues)) {

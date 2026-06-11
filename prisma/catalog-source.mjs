@@ -494,6 +494,7 @@ export const catalogSource = {
       parentKey: null,
       hierarchyBase: 9000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a",
@@ -502,6 +503,7 @@ export const catalogSource = {
       parentKey: "tf20_hhc",
       hierarchyBase: 7000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p",
@@ -510,6 +512,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a",
       hierarchyBase: 5000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_1s",
@@ -518,6 +521,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p",
       hierarchyBase: 3000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_1s_at",
@@ -526,6 +530,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p_1s",
       hierarchyBase: 1000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_1s_bt",
@@ -534,6 +539,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p_1s",
       hierarchyBase: 1000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_2s",
@@ -542,6 +548,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p",
       hierarchyBase: 3000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_2s_at",
@@ -550,6 +557,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p_2s",
       hierarchyBase: 1000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_ranger_a_1p_2s_bt",
@@ -558,6 +566,7 @@ export const catalogSource = {
       parentKey: "tf20_ranger_a_1p_2s",
       hierarchyBase: 1000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_sfod_1a",
@@ -566,6 +575,7 @@ export const catalogSource = {
       parentKey: "tf20_hhc",
       hierarchyBase: 7000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_sfod_1a_a",
@@ -574,6 +584,7 @@ export const catalogSource = {
       parentKey: "tf20_sfod_1a",
       hierarchyBase: 5000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_soar_b160",
@@ -582,6 +593,7 @@ export const catalogSource = {
       parentKey: "tf20_hhc",
       hierarchyBase: 7000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_soar_b161_1p",
@@ -590,6 +602,7 @@ export const catalogSource = {
       parentKey: "tf20_soar_b160",
       hierarchyBase: 5000,
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "tf20_soar_b161_2p",
@@ -598,6 +611,7 @@ export const catalogSource = {
       parentKey: "tf20_soar_b160",
       hierarchyBase: 5000,
       status: "Active",
+      recruitingOpen: true,
     },
   ],
   ranks: [
@@ -1633,6 +1647,7 @@ export const catalogSource = {
       name: "INFANTRYMAN",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "11_c",
@@ -1640,6 +1655,7 @@ export const catalogSource = {
       name: "MORTARMAN",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "12_b",
@@ -1647,6 +1663,7 @@ export const catalogSource = {
       name: "COMBAT ENGINEER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "13_b",
@@ -1654,6 +1671,7 @@ export const catalogSource = {
       name: "CANNON CREWMEMBER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "13_f",
@@ -1661,6 +1679,7 @@ export const catalogSource = {
       name: "JOINT FIRE SUPPORT SPECIALIST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "13_z",
@@ -1668,6 +1687,7 @@ export const catalogSource = {
       name: "FIELD ARTILLERY SENIOR NCO",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "15_w",
@@ -1675,6 +1695,7 @@ export const catalogSource = {
       name: "UNMANNED AERIAL SYSTEMS OPERATOR",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "19_d",
@@ -1682,6 +1703,7 @@ export const catalogSource = {
       name: "CAVALRY SCOUT",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "25_c",
@@ -1689,6 +1711,7 @@ export const catalogSource = {
       name: "RADIO OPERATOR-MAINTAINER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "25_e",
@@ -1696,6 +1719,7 @@ export const catalogSource = {
       name: "ELECTROMAGNETIC SPECTRUM MANAGER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "25_u",
@@ -1703,6 +1727,7 @@ export const catalogSource = {
       name: "SIGNAL SUPPORT SYSTEMS SPECIALIST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "25_x",
@@ -1710,6 +1735,7 @@ export const catalogSource = {
       name: "CHIEF SIGNALS NCO",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "35_f",
@@ -1717,6 +1743,7 @@ export const catalogSource = {
       name: "INTELLIGENCE ANALYST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "35_m",
@@ -1724,6 +1751,7 @@ export const catalogSource = {
       name: "HUMAN INTELLIGENCE COLLECTOR",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "35_n",
@@ -1731,6 +1759,7 @@ export const catalogSource = {
       name: "SIGNALS INTELLIGENCE ANALYST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "68_w",
@@ -1738,6 +1767,7 @@ export const catalogSource = {
       name: "COMBAT MEDIC",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "74_d",
@@ -1745,6 +1775,7 @@ export const catalogSource = {
       name: "CBRN SPECIALIST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "91_b",
@@ -1752,6 +1783,7 @@ export const catalogSource = {
       name: "GROUND VEHICLE MAINTAINER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "92_y",
@@ -1759,6 +1791,7 @@ export const catalogSource = {
       name: "UNIT SUPPLY SPECIALIST",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_x",
@@ -1766,6 +1799,7 @@ export const catalogSource = {
       name: "Special Forces Candidate",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_b",
@@ -1773,6 +1807,7 @@ export const catalogSource = {
       name: "Special Forces Weapons Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_c",
@@ -1780,6 +1815,7 @@ export const catalogSource = {
       name: "Special Forces Engineer Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_d",
@@ -1787,6 +1823,7 @@ export const catalogSource = {
       name: "Special Forces Medical Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_e",
@@ -1794,6 +1831,7 @@ export const catalogSource = {
       name: "Special Forces Communications Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_f",
@@ -1801,6 +1839,7 @@ export const catalogSource = {
       name: "Special Forces Intelligence Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_z",
@@ -1808,6 +1847,7 @@ export const catalogSource = {
       name: "Special Forces Senior Sergeant",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "180_a",
@@ -1815,6 +1855,7 @@ export const catalogSource = {
       name: "Special Forces Warrant Officer",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "18_a",
@@ -1822,6 +1863,7 @@ export const catalogSource = {
       name: "Special Forces Officer",
       unitKey: "tf20_sfod_1a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "11_a",
@@ -1829,6 +1871,7 @@ export const catalogSource = {
       name: "INFANTRY OFFICER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "12_a",
@@ -1836,6 +1879,7 @@ export const catalogSource = {
       name: "ENGINEER OFFICER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "13_a",
@@ -1843,6 +1887,7 @@ export const catalogSource = {
       name: "FIELD ARTILLERY OFFICER",
       unitKey: "tf20_ranger_a",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "153_a",
@@ -1850,6 +1895,7 @@ export const catalogSource = {
       name: "Rotary Wing Aviator",
       unitKey: "tf20_soar_b160",
       status: "Active",
+      recruitingOpen: true,
     },
     {
       key: "15t_2_fn1",
@@ -1857,6 +1903,7 @@ export const catalogSource = {
       name: "AIR CREW CHIEF",
       unitKey: "tf20_soar_b160",
       status: "Active",
+      recruitingOpen: true,
     },
   ],
   trainingCourses: [

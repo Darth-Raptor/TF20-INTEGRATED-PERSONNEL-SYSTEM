@@ -14,15 +14,19 @@ only. Protected personnel changes remain staff-owned.
 
 ### Applicant To Member
 
-- Applications require one target unit.
-- Application flow is `Submitted`, `RecruiterScreening`,
-  `RecruiterRecommended`, `TargetUnitReview`, then `Accepted`, `Denied`,
-  `Withdrawn`, `Closed`, or `Converted`.
-- Recruiters may deny or close applications during screening with reason and
-  audit.
+- Applications begin as applicant-owned drafts and are not visible to
+  reviewers until submitted.
+- Applicants select interested recruiting-open units and desired recruiting-open
+  MOS choices; the single target unit remains nullable until recruiter or
+  target-unit assignment.
+- Application flow is `Draft`, `Submitted`, `MoreInfoRequested`,
+  `RecruiterScreening`, `RecruiterRecommended`, `TargetUnitReview`, then
+  `Accepted`, `Denied`, `Withdrawn`, `Closed`, or `Converted`.
+- Recruiters may request more information, recommend, assign a target unit, or
+  deny applications during screening with reason and audit.
 - A recruiter recommendation does not activate the account.
 - Target-unit staff must approve or deny final acceptance after recruiter
-  recommendation.
+  recommendation and target-unit assignment.
 - Acceptance activates the account and creates the minimal personnel profile.
 - Conversion is retained through application status and status history.
 - Denied, withdrawn, and closed applications remain retained.
@@ -103,8 +107,13 @@ and staff titles remain deferred until user verification.
 
 ## Implemented Model Support
 
-- `Application` tracks target unit, recruiter recommendation, target-unit
-  decision, close timing, conversion, and status history.
+- `Application` tracks typed applicant identity, recruiting source, prior
+  service, prior Arma unit history, leadership details, target unit, recruiter
+  recommendation, target-unit decision, close timing, conversion, and status
+  history.
+- `ApplicationServicePeriod`, `ApplicationArmaUnit`, `ApplicationInterestUnit`,
+  and `ApplicationDesiredMOS` store repeatable service, Arma, unit-interest, and
+  desired-MOS selections.
 - `ApplicationStatusHistory` records workflow stage, reason, permission
   context, and audit linkage.
 - `LoaRequest` tracks approval level, escalation metadata, submitter,
@@ -124,8 +133,10 @@ and staff titles remain deferred until user verification.
 
 ## Acceptance Tests
 
-- Applicant submits one target unit and enters recruiter screening.
-- Recruiter denies during screening with reason and audit.
+- Applicant creates a draft, adds typed service/Arma rows, selects interested
+  units and MOS choices, then submits into recruiter screening.
+- Recruiter requests more information or denies during screening with reason and
+  audit.
 - Recruiter recommends an applicant, but account remains pending until
   target-unit staff approve.
 - Target-unit staff accepts applicant, activating account and creating a

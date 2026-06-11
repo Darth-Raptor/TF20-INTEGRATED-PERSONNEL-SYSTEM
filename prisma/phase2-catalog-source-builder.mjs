@@ -41,6 +41,7 @@ export function buildCatalogSource(source) {
       parentKey: unit.parentKey,
       hierarchyBase: unit.hierarchyBase,
       status: "Active",
+      recruitingOpen: true,
     })),
     ranks: source.ranks.map((rank) => ({
       key: rank.key,
@@ -72,6 +73,7 @@ export function buildCatalogSource(source) {
       name: entry.name,
       unitKey: entry.unitKey,
       status: "Active",
+      recruitingOpen: true,
     })),
     trainingCourses: source.trainingCourses.map((course) => ({
       key: course.key,

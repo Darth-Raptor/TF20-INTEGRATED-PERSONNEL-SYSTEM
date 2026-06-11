@@ -137,6 +137,7 @@ async function syncUnits(tx, units) {
         type: unit.type,
         status: unit.status,
         hierarchyBase: unit.hierarchyBase ?? 0,
+        recruitingOpen: unit.recruitingOpen ?? unit.status === "Active",
       },
       create: {
         key: unit.key,
@@ -144,6 +145,7 @@ async function syncUnits(tx, units) {
         type: unit.type,
         status: unit.status,
         hierarchyBase: unit.hierarchyBase ?? 0,
+        recruitingOpen: unit.recruitingOpen ?? unit.status === "Active",
       },
     });
   }
@@ -217,6 +219,7 @@ async function syncMOS(tx, mosEntries) {
         name: mos.name,
         unitId: unit?.id ?? null,
         status: mos.status,
+        recruitingOpen: mos.recruitingOpen ?? mos.status === "Active",
       },
       create: {
         key: mos.key,
@@ -224,6 +227,7 @@ async function syncMOS(tx, mosEntries) {
         name: mos.name,
         unitId: unit?.id ?? null,
         status: mos.status,
+        recruitingOpen: mos.recruitingOpen ?? mos.status === "Active",
       },
     });
   }

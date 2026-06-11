@@ -18,8 +18,9 @@ roles, and docs must not be treated as source material for this restart.
   `MOS`.
 - Personnel: `PersonnelProfile`, status/rank/unit/billet/MOS/staff
   assignment/good-standing history records.
-- Recruiting: `Application`, `ApplicationAnswer`,
-  `ApplicationStatusHistory`, `ApplicationReviewNote`.
+- Recruiting: `Application`, `ApplicationServicePeriod`,
+  `ApplicationArmaUnit`, `ApplicationInterestUnit`, `ApplicationDesiredMOS`,
+  `ApplicationAnswer`, `ApplicationStatusHistory`, `ApplicationReviewNote`.
 - Operations: `EventTemplate`, `Event`, `EventAttendance`, `LoaRequest`.
 - Training and qualifications: `TrainingCourse`, `Qualification`,
   `CourseQualification`, `TrainingRecord`, `PersonnelQualification`.
@@ -35,6 +36,8 @@ roles, and docs must not be treated as source material for this restart.
   `AuthIdentity` records.
 - Applicants have accounts and applications, but no personnel profile until
   acceptance or authorized admin exception.
+- Recruiting-open unit and MOS flags control applicant-facing interest and MOS
+  selections without deleting retained catalog records.
 - Personnel profiles store current snapshot fields plus dedicated history for
   service-changing fields.
 - Role assignments support optional global, unit, or staff-section scope.

@@ -52,6 +52,20 @@ enum CatalogStatus {
   Archived
 }
 
+enum RecruitingSource {
+  Reddit
+  Steam
+  Discord
+}
+
+enum MilitaryBranch {
+  Army
+  Navy
+  AirForce
+  Marines
+  CoastGuard
+}
+
 enum PersonnelStatus {
   Applicant
   Recruit
@@ -71,7 +85,9 @@ enum PersonnelStatus {
 }
 
 enum ApplicationStatus {
+  Draft
   Submitted
+  MoreInfoRequested
   RecruiterScreening
   RecruiterRecommended
   TargetUnitReview
@@ -413,6 +429,7 @@ model Unit {
   type            String
   status          CatalogStatus        @default(Draft)
   hierarchyBase   Int                  @default(0)
+  recruitingOpen  Boolean              @default(false)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   roleAssignments RoleAssignment[]
@@ -421,9 +438,11 @@ model Unit {
   billets         Billet[]
   mos             MOS[]
   targetedApplications Application[]   @relation("ApplicationTargetUnit")
+  applicationInterests ApplicationInterestUnit[]
 
   @@index([parentId])
   @@index([status])
+  @@index([recruitingOpen])
 }
 
 model Rank {
@@ -485,10 +504,16 @@ model MOS {
   unitId    String?
   unit      Unit?                     @relation(fields: [unitId], references: [id])
   status    CatalogStatus             @default(Draft)
+  recruitingOpen Boolean              @default(false)
   createdAt DateTime                  @default(now())
   updatedAt DateTime                  @updatedAt
   personnel PersonnelProfile[]
   history   PersonnelMOSHistory[]
+  applicationDesiredSelections ApplicationDesiredMOS[]
+
+  @@index([unitId])
+  @@index([status])
+  @@index([recruitingOpen])
 }
 
 model PersonnelProfile {
@@ -506,6 +531,8 @@ model PersonnelProfile {
   currentMOSId          String?
   currentMOS            MOS?                        @relation(fields: [currentMOSId], references: [id])
   goodStanding          Boolean                     @default(true)
+  militaryService       Boolean                     @default(false)
+  source                RecruitingSource?
   joinedAt              DateTime?
   acceptedAt            DateTime?
   separatedAt           DateTime?
@@ -655,11 +682,18 @@ model Application {
   id                 String                     @id @default(cuid())
   accountId          String
   account            Account                    @relation(fields: [accountId], references: [id])
-  targetUnitId       String
-  targetUnit         Unit                       @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
-  status             ApplicationStatus          @default(Submitted)
+  targetUnitId       String?
+  targetUnit         Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
+  status             ApplicationStatus          @default(Draft)
   formVersion        String
-  submittedAt        DateTime                   @default(now())
+  firstName          String?
+  lastName           String?
+  source             RecruitingSource?
+  priorService       Boolean                    @default(false)
+  priorArma          Boolean                    @default(false)
+  leadership         Boolean                    @default(false)
+  leadershipDetails  String?                    @db.Text
+  submittedAt        DateTime?
   recruiterRecommendedByAccountId String?
   recruiterRecommendedAt DateTime?
   unitDecisionByAccountId String?
@@ -671,6 +705,10 @@ model Application {
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
   answers            ApplicationAnswer[]
+  servicePeriods     ApplicationServicePeriod[]
+  armaUnits          ApplicationArmaUnit[]
+  interestedUnits    ApplicationInterestUnit[]
+  desiredMOS         ApplicationDesiredMOS[]
   statusHistory      ApplicationStatusHistory[]
   notes              ApplicationReviewNote[]
 
@@ -678,6 +716,56 @@ model Application {
   @@index([targetUnitId])
   @@index([status])
   @@index([convertedProfileId])
+}
+
+model ApplicationServicePeriod {
+  id            String         @id @default(cuid())
+  applicationId String
+  application   Application    @relation(fields: [applicationId], references: [id])
+  branch        MilitaryBranch
+  mos           String
+  years         Int
+  sortOrder     Int            @default(0)
+
+  @@index([applicationId])
+}
+
+model ApplicationArmaUnit {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  unitName      String
+  joinedAt      DateTime?
+  leftAt        DateTime?
+  stillMember   Boolean     @default(false)
+  reasonLeft    String?     @db.Text
+  sortOrder     Int         @default(0)
+
+  @@index([applicationId])
+}
+
+model ApplicationInterestUnit {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  unitId        String
+  unit          Unit        @relation(fields: [unitId], references: [id])
+  sortOrder     Int         @default(0)
+
+  @@unique([applicationId, unitId])
+  @@index([unitId])
+}
+
+model ApplicationDesiredMOS {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  mosId         String
+  mos           MOS         @relation(fields: [mosId], references: [id])
+  sortOrder     Int         @default(0)
+
+  @@unique([applicationId, mosId])
+  @@index([mosId])
 }
 
 model ApplicationAnswer {

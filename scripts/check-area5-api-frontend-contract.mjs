@@ -52,6 +52,10 @@ const requiredModels = [
   "AccountRecoveryRequest",
   "AccessBootstrap",
   "Application",
+  "ApplicationServicePeriod",
+  "ApplicationArmaUnit",
+  "ApplicationInterestUnit",
+  "ApplicationDesiredMOS",
   "ApplicationStatusHistory",
   "PersonnelProfile",
   "LoaRequest",
@@ -82,7 +86,7 @@ requireField("AccessBootstrap", "status", "BootstrapStatus");
 requireField("RoleAssignment", "scopeType", "RoleScopeType");
 requireField("RoleAssignment", "scopeIncludesDescendants", "Boolean");
 requireField("Application", "status", "ApplicationStatus");
-requireField("Application", "targetUnitId", "String");
+requireField("Application", "targetUnitId", "String?");
 requireField("PersonnelProfile", "status", "PersonnelStatus");
 requireField("LoaRequest", "status", "LoaStatus");
 requireField("LoaRequest", "approvalLevel", "LoaApprovalLevel");

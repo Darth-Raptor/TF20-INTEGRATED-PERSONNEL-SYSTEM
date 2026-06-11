@@ -129,8 +129,12 @@ generic status writes:
 
 | Workflow command                | Endpoint pattern                                                                                               | Actor requirement                         | Target                     | Success result                                   | Denial or failure cases                                    |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| Applicant draft or update       | `POST /applications/draft`, `PATCH /applications/me`                                                           | Pending applicant self-service            | Own `Application`          | Draft or more-info application state saved       | denied account state, terminal application, validation     |
+| Applicant submit or withdraw    | `POST /applications/me/submit`, `POST /applications/me/withdraw`                                               | Pending applicant self-service            | Own `Application`          | Submitted or withdrawn application state         | missing required fields, invalid transition                |
+| Recruiter request info          | `POST /applications/{id}/request-info`                                                                         | Authorized recruiter or staff scope       | `Application`              | More-info requested state plus applicant notice  | invalid stage, denied scope, blocked account               |
 | Recruiter recommendation        | `POST /applications/{id}/recommend`                                                                            | Authorized recruiter or staff scope       | `Application`              | Updated application workflow state               | invalid stage, denied scope, blocked account               |
-| Target-unit decision            | `POST /applications/{id}/decision`                                                                             | Authorized target-unit staff              | `Application`              | Accepted, denied, or closed application state    | invalid stage, denied scope, missing target-unit authority |
+| Target-unit assignment          | `POST /applications/{id}/assign-unit`                                                                          | Authorized recruiter or target-unit staff | `Application`              | Target unit review state                         | invalid stage, denied scope, invalid target unit           |
+| Target-unit decision            | `POST /applications/{id}/accept`, `POST /applications/{id}/reject`                                             | Authorized target-unit staff              | `Application`              | Converted active member or denied application    | invalid stage, denied scope, missing target-unit authority |
 | Protected personnel update      | `PATCH /personnel/{id}`                                                                                        | Authorized staff with scope               | `PersonnelProfile`         | Updated snapshot plus history/audit-linked state | denied scope, validation failure, recent-auth required     |
 | LOA approve                     | `POST /loa/{id}/approve`                                                                                       | Authorized reviewer                       | `LoaRequest`               | Updated LOA decision state                       | invalid transition, denied scope, blocked reviewer         |
 | LOA deny                        | `POST /loa/{id}/deny`                                                                                          | Authorized reviewer                       | `LoaRequest`               | Updated LOA decision state                       | invalid transition, denied scope                           |
@@ -162,12 +166,12 @@ generic status writes:
 
 ### Pending-User And Applicant Screens
 
-| Screen                              | Initial read contract                           | Allowed actions                                                 | Blocked states                           |
-| ----------------------------------- | ----------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------- |
-| Application status / applicant flow | `/applications/mine` or applicant-scoped detail | submit application, view status, limited note/status visibility | not in guild, locked, disabled, archived |
-| Limited support                     | `/support/*` intake-only or own tickets         | create intake ticket, view own tickets, comment where allowed   | not in guild, disabled, archived         |
-| Recovery access                     | `/access/recovery/*`                            | request recovery, view own recovery state                       | disabled by policy, archived             |
-| Pending gate screen                 | `/me` or `/auth/session` gate result            | no workflow actions beyond allowed pending functions            | not in guild, locked, disabled           |
+| Screen                              | Initial read contract                      | Allowed actions                                                                         | Blocked states                           |
+| ----------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Application status / applicant flow | `/applications/me` plus recruiting options | create draft, update draft or more-info response, submit, withdraw, view status/history | not in guild, locked, disabled, archived |
+| Limited support                     | `/support/*` intake-only or own tickets    | create intake ticket, view own tickets, comment where allowed                           | not in guild, disabled, archived         |
+| Recovery access                     | `/access/recovery/*`                       | request recovery, view own recovery state                                               | disabled by policy, archived             |
+| Pending gate screen                 | `/me` or `/auth/session` gate result       | no workflow actions beyond allowed pending functions                                    | not in guild, locked, disabled           |
 
 For every screen contract, the frontend must receive:
 
@@ -196,9 +200,12 @@ For every screen contract, the frontend must receive:
 
 ### `/applications/*`
 
-- own application read and create
-- recruiter and target-unit workflow reads
-- recommendation and decision actions
+- `GET /applications/me` returns the current applicant-owned application and recruiting options.
+- `POST /applications/draft`, `PATCH /applications/me`, `POST /applications/me/submit`, and `POST /applications/me/withdraw` are applicant self-service commands.
+- `GET /applications/recruiting-options` returns recruiting-open units, MOS choices, sources, and branch enums for authorized recruiting UI users.
+- `GET /applications/review` and `GET /applications/{id}` provide recruiter and target-unit review reads.
+- Request-info, recommendation, target-unit assignment, acceptance, and rejection use explicit action endpoints.
+- `POST /applications` remains a temporary compatibility path for the older server-rendered form.
 
 ### `/personnel/*`
 

@@ -1,0 +1,15 @@
+field_id,type,PersonnelProfile,description,notes
+name,text input,name,ENTER THE FIRST AND LAST NAME YOU WISH TO USE.,two seperate text fields. one for first name and one for last name
+source,drop down select,,HOW DID YOU HEAR ABOUT US?,"drop down select that lists Reddit, Steam, and Discord as the options. "
+priorService,Yes or No select,militaryService,ARE YOU CURRENT / PRIOR SERVICE?, yes or no selection. 
+serviceBranch,select one,,BRANCH,"select one with Army, Navy, Air Force, Marines, Coast Guard that is only visible when 3_priorService is yes.  "
+serviceMos,text input,,MOS,single short text field that is only visible when 3_priorService is yes.  
+serviceYears,number input,,YEARS,two digit number input that is only visible when 3_priorService is yes.  
+priorArma,Yes or No select,,ARE YOU OR HAVE YOU EVER BEEN IN ANOTHER ARMA UNIT BEFORE JOINING TASK FORCE 20?,yes or no selection. 
+armaUnit,text input,,UNIT NAME,single short text field that is only visible when 7_armaUnit is yes.  
+armaTime,from/to date input,,APPROXIMATE JOIN AND LEAVE DATE,"from/to date input with option for ""STILL PART OF THE UNIT"" instead of to date. "
+armaWhy,text input,,WHY YOU LEFT EACH UNIT (IF APPLICABLE),single short text input that is only visable when 7_priorArma is yes
+leadership,Yes or No select,,DO YOU HAVE REAL WORLD OR ARMA LEADERSHIP EXPERIENCE?,yes or no selection. 
+leadershipDetails,text input,,PLEASE DESCRIBE YOUR EXPERIENCE,single short text input that is only visable when leadership is yes
+interestedUnit,select multiple,,INTERESTED UNIT,multiple select of all units accepting new recruites. 
+interestedMOS,select multiple,,DESIRED MOS,multiple select of all MOSs of the selected units. 

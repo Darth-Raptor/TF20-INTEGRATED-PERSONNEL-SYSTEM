@@ -83,13 +83,7 @@ const DOMAIN_GROUPS = [
   },
   {
     name: "Support and System",
-    models: [
-      "SupportTicket",
-      "SupportTicketComment",
-      "Notification",
-      "AuditLog",
-      "IntegrationLog",
-    ],
+    models: ["SupportTicket", "SupportTicketComment", "Notification", "AuditLog", "IntegrationLog"],
   },
 ];
 
