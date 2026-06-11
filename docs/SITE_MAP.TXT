@@ -18,6 +18,7 @@ PAGES: PAGES WILL BE THE SECOND LAYER OF THE LEFT SIDE NAVAGATION BAR. CLICKING 
     PAGES LIST: 
         DASHBOARD
         USER PROFILE
+        APPLICATION
         LEAVE
         TRAINING
         EVENTS
@@ -27,6 +28,7 @@ PAGES: PAGES WILL BE THE SECOND LAYER OF THE LEFT SIDE NAVAGATION BAR. CLICKING 
     PAGE KEYS:
         user_dashboard
         user_profile
+        user_application
         user_leave
         user_training
         user_events

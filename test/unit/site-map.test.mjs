@@ -23,7 +23,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 12);
+  assert.equal(result.parsed.pages.length, 13);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -76,12 +76,29 @@ test("staff personnel management subpages are filtered independently", () => {
 
 test("specialized sections require their sitemap permissions", () => {
   const recruiter = resolveVisibleNavigation("Active", ["applications.review-recruiter"]);
+  const targetUnitReviewer = resolveVisibleNavigation("Active", [
+    "applications.review-target-unit",
+  ]);
   const trainer = resolveVisibleNavigation("Active", ["training.view-scoped"]);
   const admin = resolveVisibleNavigation("Active", ["access.sessions.revoke"]);
   const blocked = resolveVisibleNavigation("Disabled", ["access.sessions.revoke"]);
 
   assert.ok(recruiter.sections.some((section) => section.id === "recruiting"));
+  assert.ok(targetUnitReviewer.sections.some((section) => section.id === "recruiting"));
   assert.ok(trainer.sections.some((section) => section.id === "training"));
   assert.ok(admin.sections.some((section) => section.id === "admin"));
   assert.deepEqual(blocked.sections, []);
+});
+
+test("pending applicants can reach their application page", () => {
+  const navigation = resolveVisibleNavigation("Pending", [
+    "applications.create-self",
+    "applications.view-self",
+  ]);
+
+  assert.deepEqual(
+    navigation.sections.map((section) => section.id),
+    ["user"],
+  );
+  assert.ok(navigation.sections[0].pages.some((page) => page.id === "user_application"));
 });

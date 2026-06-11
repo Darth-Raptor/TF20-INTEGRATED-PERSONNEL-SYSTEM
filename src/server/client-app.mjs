@@ -9,7 +9,7 @@ const clientDistDir = path.join(projectRoot, "dist", "client");
 const clientIndexPath = path.join(clientDistDir, "index.html");
 
 const clientRoutePattern =
-  /^\/(?:$|user(?:\/.*)?|staff(?:\/.*)?|recruiting(?:\/.*)?|training(?:\/.*)?|admin(?:\/.*)?|portal(?:\/.*)?|dashboard(?:\/.*)?|profile(?:\/.*)?|applications(?:\/.*)?|personnel(?:\/.*)?|access(?:\/.*)?|support(?:\/.*)?|notifications(?:\/.*)?|catalogs(?:\/.*)?|events(?:\/.*)?|attendance(?:\/.*)?|loa(?:\/.*)?|serviceRecords(?:\/.*)?|audit(?:\/.*)?|integrations(?:\/.*)?)/;
+  /^\/(?:$|user(?:\/.*)?|staff(?:\/.*)?|recruiting(?:\/.*)?|training(?:\/.*)?|admin(?:\/.*)?|portal(?:\/.*)?|dashboard(?:\/.*)?|profile(?:\/.*)?|access(?:\/.*)?|support(?:\/.*)?|notifications(?:\/.*)?|catalogs(?:\/.*)?|events(?:\/.*)?|attendance(?:\/.*)?|loa(?:\/.*)?|serviceRecords(?:\/.*)?|audit(?:\/.*)?|integrations(?:\/.*)?)/;
 
 export function mountClientApp(app) {
   if (!fs.existsSync(clientIndexPath)) {

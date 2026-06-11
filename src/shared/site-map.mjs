@@ -23,6 +23,16 @@ export const SITE_MAP_SECTIONS = [
         visibility: { statuses: ["Active", "Pending"] },
       },
       {
+        id: "user_application",
+        label: "Application",
+        path: "/user/application",
+        icon: "applications",
+        visibility: {
+          statuses: ["Pending"],
+          anyOf: ["applications.create-self", "applications.view-self"],
+        },
+      },
+      {
         id: "user_leave",
         label: "Leave",
         path: "/user/leave",
@@ -124,14 +134,20 @@ export const SITE_MAP_SECTIONS = [
     label: "Recruiting",
     path: "/recruiting",
     icon: "recruiting",
-    visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
+    visibility: {
+      statuses: ["Active"],
+      anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
+    },
     pages: [
       {
         id: "recruiting_dashboard",
         label: "Dashboard",
         path: "/recruiting",
         icon: "dashboard",
-        visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
+        visibility: {
+          statuses: ["Active"],
+          anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
+        },
         reserved: true,
       },
       {
@@ -139,7 +155,10 @@ export const SITE_MAP_SECTIONS = [
         label: "Applications",
         path: "/recruiting/applications",
         icon: "applications",
-        visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
+        visibility: {
+          statuses: ["Active"],
+          anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
+        },
       },
     ],
   },
@@ -155,7 +174,10 @@ export const SITE_MAP_SECTIONS = [
         label: "Dashboard",
         path: "/training",
         icon: "dashboard",
-        visibility: { statuses: ["Active"], anyOf: ["training.view-scoped", "training.record-scoped"] },
+        visibility: {
+          statuses: ["Active"],
+          anyOf: ["training.view-scoped", "training.record-scoped"],
+        },
         reserved: true,
       },
     ],
@@ -268,7 +290,12 @@ export function findNavigationNodeByPath(navigation, pathname) {
 
 export function isSiteMapRoute(pathname) {
   const normalizedPath = normalizePath(pathname);
-  return normalizedPath === "/" || SITE_MAP_PAGE_ROUTE_PREFIXES.some((prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`));
+  return (
+    normalizedPath === "/" ||
+    SITE_MAP_PAGE_ROUTE_PREFIXES.some(
+      (prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`),
+    )
+  );
 }
 
 export function parseSiteMapText(text) {
@@ -349,7 +376,10 @@ function hasVisibility(visibility, accountStatus, permissionSet) {
     return false;
   }
 
-  if (visibility?.anyOf?.length && !visibility.anyOf.some((permission) => permissionSet.has(permission))) {
+  if (
+    visibility?.anyOf?.length &&
+    !visibility.anyOf.some((permission) => permissionSet.has(permission))
+  ) {
     return false;
   }
 
@@ -362,14 +392,17 @@ function normalizePermissionSet(permissions) {
   }
 
   return new Set(
-    (permissions ?? []).map((permission) =>
-      typeof permission === "string" ? permission : permission?.key,
-    ).filter(Boolean),
+    (permissions ?? [])
+      .map((permission) => (typeof permission === "string" ? permission : permission?.key))
+      .filter(Boolean),
   );
 }
 
 function normalizePath(pathname) {
-  const path = String(pathname ?? "/").split("?")[0].split("#")[0] || "/";
+  const path =
+    String(pathname ?? "/")
+      .split("?")[0]
+      .split("#")[0] || "/";
   return path.length > 1 ? path.replace(/\/+$/g, "") : path;
 }
 
