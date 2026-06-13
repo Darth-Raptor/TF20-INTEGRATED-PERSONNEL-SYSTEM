@@ -220,80 +220,81 @@ enum IntegrationLogStatus {
 }
 
 model Account {
-  id                     String                   @id @default(cuid())
-  displayName            String?
-  email                  String?
-  timezone               String?
-  status                 AccountStatus            @default(Pending)
-  statusReason           String?                  @db.Text
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  activatedAt            DateTime?
-  lockedAt               DateTime?
-  disabledAt             DateTime?
-  archivedAt             DateTime?
-  lastLoginAt            DateTime?
-  authIdentities          AuthIdentity[]
-  sessions               Session[]
-  revokedSessions         Session[]                @relation("SessionRevokedBy")
-  issuedSessionRevocations SessionRevocation[]      @relation("SessionRevocationIssuedBy")
-  targetedSessionRevocations SessionRevocation[]    @relation("SessionRevocationTargetAccount")
-  roleAssignments         RoleAssignment[]         @relation("RoleAssignmentAccount")
-  grantedRoleAssignments  RoleAssignment[]         @relation("RoleAssignmentGrantedBy")
-  recoverySubjects        AccountRecoveryRequest[] @relation("RecoverySubject")
-  recoveryRequests        AccountRecoveryRequest[] @relation("RecoveryRequester")
-  recoveryReviews         AccountRecoveryRequest[] @relation("RecoveryReviewer")
-  recoveryCompletions     AccountRecoveryRequest[] @relation("RecoveryCompleter")
-  verifiedBootstraps      AccessBootstrap[]        @relation("BootstrapVerifiedAccount")
-  completedBootstraps     AccessBootstrap[]        @relation("BootstrapCompletedBy")
-  personnelProfile        PersonnelProfile?
-  createdProfiles         PersonnelProfile[]       @relation("ProfileCreatedBy")
-  applications            Application[]
-  supportTicketsCreated   SupportTicket[]          @relation("SupportTicketCreatedBy")
-  supportTicketsAssigned  SupportTicket[]          @relation("SupportTicketAssignedTo")
-  supportComments         SupportTicketComment[]
-  notifications           Notification[]
-  auditEvents             AuditLog[]               @relation("AuditActor")
-  targetedAuditEvents     AuditLog[]               @relation("AuditTargetAccount")
-  integrationLogs         IntegrationLog[]
+  id                         String                   @id @default(cuid())
+  displayName                String?
+  email                      String?
+  timezone                   String?
+  status                     AccountStatus            @default(Pending)
+  statusReason               String?                  @db.Text
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  activatedAt                DateTime?
+  lockedAt                   DateTime?
+  disabledAt                 DateTime?
+  archivedAt                 DateTime?
+  lastLoginAt                DateTime?
+  authIdentities             AuthIdentity[]
+  sessions                   Session[]
+  revokedSessions            Session[]                @relation("SessionRevokedBy")
+  issuedSessionRevocations   SessionRevocation[]      @relation("SessionRevocationIssuedBy")
+  targetedSessionRevocations SessionRevocation[]      @relation("SessionRevocationTargetAccount")
+  roleAssignments            RoleAssignment[]         @relation("RoleAssignmentAccount")
+  grantedRoleAssignments     RoleAssignment[]         @relation("RoleAssignmentGrantedBy")
+  recoverySubjects           AccountRecoveryRequest[] @relation("RecoverySubject")
+  recoveryRequests           AccountRecoveryRequest[] @relation("RecoveryRequester")
+  recoveryReviews            AccountRecoveryRequest[] @relation("RecoveryReviewer")
+  recoveryCompletions        AccountRecoveryRequest[] @relation("RecoveryCompleter")
+  verifiedBootstraps         AccessBootstrap[]        @relation("BootstrapVerifiedAccount")
+  completedBootstraps        AccessBootstrap[]        @relation("BootstrapCompletedBy")
+  personnelProfile           PersonnelProfile?
+  createdProfiles            PersonnelProfile[]       @relation("ProfileCreatedBy")
+  applications               Application[]
+  claimedApplications        Application[]            @relation("ApplicationClaimedBy")
+  supportTicketsCreated      SupportTicket[]          @relation("SupportTicketCreatedBy")
+  supportTicketsAssigned     SupportTicket[]          @relation("SupportTicketAssignedTo")
+  supportComments            SupportTicketComment[]
+  notifications              Notification[]
+  auditEvents                AuditLog[]               @relation("AuditActor")
+  targetedAuditEvents        AuditLog[]               @relation("AuditTargetAccount")
+  integrationLogs            IntegrationLog[]
 
   @@index([status])
   @@index([email])
 }
 
 model AuthIdentity {
-  id                String       @id @default(cuid())
-  accountId         String
-  account           Account      @relation(fields: [accountId], references: [id])
-  provider          AuthProvider
-  providerAccountId String
-  username          String?
-  displayName       String?
-  lastGuildVerifiedAt DateTime?
-  guildMembershipRequired Boolean @default(true)
-  linkedAt          DateTime     @default(now())
-  unlinkedAt        DateTime?
-  isPrimary         Boolean      @default(true)
-  metadata          Json?
+  id                      String       @id @default(cuid())
+  accountId               String
+  account                 Account      @relation(fields: [accountId], references: [id])
+  provider                AuthProvider
+  providerAccountId       String
+  username                String?
+  displayName             String?
+  lastGuildVerifiedAt     DateTime?
+  guildMembershipRequired Boolean      @default(true)
+  linkedAt                DateTime     @default(now())
+  unlinkedAt              DateTime?
+  isPrimary               Boolean      @default(true)
+  metadata                Json?
 
   @@unique([provider, providerAccountId])
   @@index([accountId])
 }
 
 model Session {
-  id        String   @id @db.VarChar(191)
-  accountId String
-  account   Account  @relation(fields: [accountId], references: [id])
-  data      Json
-  expiresAt DateTime
+  id                  String    @id @db.VarChar(191)
+  accountId           String
+  account             Account   @relation(fields: [accountId], references: [id])
+  data                Json
+  expiresAt           DateTime
   lastAuthenticatedAt DateTime?
   recentAuthExpiresAt DateTime?
-  revokedAt DateTime?
-  revokedByAccountId String?
-  revokedByAccount Account? @relation("SessionRevokedBy", fields: [revokedByAccountId], references: [id])
-  revocationReason String? @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  revokedAt           DateTime?
+  revokedByAccountId  String?
+  revokedByAccount    Account?  @relation("SessionRevokedBy", fields: [revokedByAccountId], references: [id])
+  revocationReason    String?   @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([accountId])
   @@index([expiresAt])
@@ -316,31 +317,31 @@ model SessionRevocation {
 }
 
 model Role {
-  id          String           @id @default(cuid())
-  key         String           @unique
+  id          String            @id @default(cuid())
+  key         String            @unique
   name        String
   description String?
-  precedence  Int              @default(0)
-  status      CatalogStatus    @default(Draft)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  precedence  Int               @default(0)
+  status      CatalogStatus     @default(Draft)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   permissions PermissionGrant[]
   assignments RoleAssignment[]
 }
 
 model Permission {
-  id          String           @id @default(cuid())
-  key         String           @unique
-  module      String
-  action      String
-  name        String
-  description String?
-  sensitiveCategory String?
-  requiresRecentAuth Boolean   @default(false)
-  status      CatalogStatus    @default(Draft)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  roles       PermissionGrant[]
+  id                 String            @id @default(cuid())
+  key                String            @unique
+  module             String
+  action             String
+  name               String
+  description        String?
+  sensitiveCategory  String?
+  requiresRecentAuth Boolean           @default(false)
+  status             CatalogStatus     @default(Draft)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  roles              PermissionGrant[]
 }
 
 model PermissionGrant {
@@ -353,23 +354,23 @@ model PermissionGrant {
 }
 
 model RoleAssignment {
-  id                 String        @id @default(cuid())
-  accountId          String
-  account            Account       @relation("RoleAssignmentAccount", fields: [accountId], references: [id])
-  roleId             String
-  role               Role          @relation(fields: [roleId], references: [id])
-  scopeType          RoleScopeType @default(Global)
-  scopeIncludesDescendants Boolean @default(true)
-  unitId             String?
-  unit               Unit?         @relation(fields: [unitId], references: [id])
-  staffSectionId     String?
-  staffSection       StaffSection? @relation(fields: [staffSectionId], references: [id])
-  grantedByAccountId String?
-  grantedByAccount   Account?      @relation("RoleAssignmentGrantedBy", fields: [grantedByAccountId], references: [id])
-  startsAt           DateTime      @default(now())
-  endsAt             DateTime?
-  reason             String?       @db.Text
-  createdAt          DateTime      @default(now())
+  id                       String        @id @default(cuid())
+  accountId                String
+  account                  Account       @relation("RoleAssignmentAccount", fields: [accountId], references: [id])
+  roleId                   String
+  role                     Role          @relation(fields: [roleId], references: [id])
+  scopeType                RoleScopeType @default(Global)
+  scopeIncludesDescendants Boolean       @default(true)
+  unitId                   String?
+  unit                     Unit?         @relation(fields: [unitId], references: [id])
+  staffSectionId           String?
+  staffSection             StaffSection? @relation(fields: [staffSectionId], references: [id])
+  grantedByAccountId       String?
+  grantedByAccount         Account?      @relation("RoleAssignmentGrantedBy", fields: [grantedByAccountId], references: [id])
+  startsAt                 DateTime      @default(now())
+  endsAt                   DateTime?
+  reason                   String?       @db.Text
+  createdAt                DateTime      @default(now())
 
   @@index([accountId])
   @@index([roleId])
@@ -401,8 +402,8 @@ model AccountRecoveryRequest {
 }
 
 model AccessBootstrap {
-  id                     String          @id @default(cuid())
-  status                 BootstrapStatus @default(Open)
+  id                      String          @id @default(cuid())
+  status                  BootstrapStatus @default(Open)
   configuredDiscordIdHash String?
   verifiedAccountId       String?
   verifiedAccount         Account?        @relation("BootstrapVerifiedAccount", fields: [verifiedAccountId], references: [id])
@@ -420,24 +421,24 @@ model AccessBootstrap {
 }
 
 model Unit {
-  id              String               @id @default(cuid())
-  parentId        String?
-  parent          Unit?                @relation("UnitTree", fields: [parentId], references: [id])
-  children        Unit[]               @relation("UnitTree")
-  key             String               @unique
-  name            String
-  type            String
-  status          CatalogStatus        @default(Draft)
-  hierarchyBase   Int                  @default(0)
-  recruitingOpen  Boolean              @default(false)
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  roleAssignments RoleAssignment[]
-  personnel       PersonnelProfile[]
-  unitAssignments PersonnelUnitAssignment[]
-  billets         Billet[]
-  mos             MOS[]
-  targetedApplications Application[]   @relation("ApplicationTargetUnit")
+  id                   String                    @id @default(cuid())
+  parentId             String?
+  parent               Unit?                     @relation("UnitTree", fields: [parentId], references: [id])
+  children             Unit[]                    @relation("UnitTree")
+  key                  String                    @unique
+  name                 String
+  type                 String
+  status               CatalogStatus             @default(Draft)
+  hierarchyBase        Int                       @default(0)
+  recruitingOpen       Boolean                   @default(false)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  roleAssignments      RoleAssignment[]
+  personnel            PersonnelProfile[]
+  unitAssignments      PersonnelUnitAssignment[]
+  billets              Billet[]
+  mos                  MOS[]
+  targetedApplications Application[]             @relation("ApplicationTargetUnit")
   applicationInterests ApplicationInterestUnit[]
 
   @@index([parentId])
@@ -446,37 +447,37 @@ model Unit {
 }
 
 model Rank {
-  id          String                 @id @default(cuid())
-  key         String                 @unique
-  name        String
-  abbreviation String?
-  grade       String?
-  precedence  Int                    @default(0)
-  status      CatalogStatus          @default(Draft)
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  personnel   PersonnelProfile[]
-  history     PersonnelRankHistory[]
-  minimumForBillets Billet[]           @relation("BilletMinimumRank")
+  id                String                 @id @default(cuid())
+  key               String                 @unique
+  name              String
+  abbreviation      String?
+  grade             String?
+  precedence        Int                    @default(0)
+  status            CatalogStatus          @default(Draft)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  personnel         PersonnelProfile[]
+  history           PersonnelRankHistory[]
+  minimumForBillets Billet[]               @relation("BilletMinimumRank")
   promotionRequests PromotionRequest[]
   promotionRecords  PromotionRecord[]
 }
 
 model Billet {
-  id          String                    @id @default(cuid())
-  unitId      String?
-  unit        Unit?                     @relation(fields: [unitId], references: [id])
-  key         String                    @unique
-  name        String
-  category    String?
-  minimumRankId String?
-  minimumRank Rank?                     @relation("BilletMinimumRank", fields: [minimumRankId], references: [id])
-  commandPrecedence Int                 @default(0)
-  status      CatalogStatus             @default(Draft)
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  personnel   PersonnelProfile[]
-  history     PersonnelBilletAssignment[]
+  id                String                      @id @default(cuid())
+  unitId            String?
+  unit              Unit?                       @relation(fields: [unitId], references: [id])
+  key               String                      @unique
+  name              String
+  category          String?
+  minimumRankId     String?
+  minimumRank       Rank?                       @relation("BilletMinimumRank", fields: [minimumRankId], references: [id])
+  commandPrecedence Int                         @default(0)
+  status            CatalogStatus               @default(Draft)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  personnel         PersonnelProfile[]
+  history           PersonnelBilletAssignment[]
 
   @@index([unitId])
   @@index([minimumRankId])
@@ -497,18 +498,19 @@ model StaffSection {
 }
 
 model MOS {
-  id        String                    @id @default(cuid())
-  key       String                    @unique
-  identifier String
-  name      String
-  unitId    String?
-  unit      Unit?                     @relation(fields: [unitId], references: [id])
-  status    CatalogStatus             @default(Draft)
-  recruitingOpen Boolean              @default(false)
-  createdAt DateTime                  @default(now())
-  updatedAt DateTime                  @updatedAt
-  personnel PersonnelProfile[]
-  history   PersonnelMOSHistory[]
+  id                           String                  @id @default(cuid())
+  key                          String                  @unique
+  identifier                   String
+  name                         String
+  unitId                       String?
+  unit                         Unit?                   @relation(fields: [unitId], references: [id])
+  status                       CatalogStatus           @default(Draft)
+  recruitingOpen               Boolean                 @default(false)
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @updatedAt
+  primaryPersonnel             PersonnelProfile[]      @relation("PrimaryPersonnelMOS")
+  secondaryPersonnel           PersonnelProfile[]      @relation("SecondaryPersonnelMOS")
+  history                      PersonnelMOSHistory[]
   applicationDesiredSelections ApplicationDesiredMOS[]
 
   @@index([unitId])
@@ -529,7 +531,9 @@ model PersonnelProfile {
   currentBilletId       String?
   currentBillet         Billet?                     @relation(fields: [currentBilletId], references: [id])
   currentMOSId          String?
-  currentMOS            MOS?                        @relation(fields: [currentMOSId], references: [id])
+  currentMOS            MOS?                        @relation("PrimaryPersonnelMOS", fields: [currentMOSId], references: [id])
+  currentSecondaryMOSId String?
+  currentSecondaryMOS   MOS?                        @relation("SecondaryPersonnelMOS", fields: [currentSecondaryMOSId], references: [id])
   goodStanding          Boolean                     @default(true)
   militaryService       Boolean                     @default(false)
   source                RecruitingSource?
@@ -637,6 +641,7 @@ model PersonnelMOSHistory {
   personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
   mosId              String
   mos                MOS              @relation(fields: [mosId], references: [id])
+  assignmentType     AssignmentType   @default(Primary)
   effectiveAt        DateTime         @default(now())
   endedAt            DateTime?
   changedByAccountId String?
@@ -645,6 +650,7 @@ model PersonnelMOSHistory {
 
   @@index([personnelProfileId])
   @@index([mosId])
+  @@index([assignmentType])
 }
 
 model StaffAssignment {
@@ -679,40 +685,47 @@ model PersonnelStandingHistory {
 }
 
 model Application {
-  id                 String                     @id @default(cuid())
-  accountId          String
-  account            Account                    @relation(fields: [accountId], references: [id])
-  targetUnitId       String?
-  targetUnit         Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
-  status             ApplicationStatus          @default(Draft)
-  formVersion        String
-  firstName          String?
-  lastName           String?
-  source             RecruitingSource?
-  priorService       Boolean                    @default(false)
-  priorArma          Boolean                    @default(false)
-  leadership         Boolean                    @default(false)
-  leadershipDetails  String?                    @db.Text
-  submittedAt        DateTime?
+  id                              String                     @id @default(cuid())
+  accountId                       String
+  account                         Account                    @relation(fields: [accountId], references: [id])
+  targetUnitId                    String?
+  targetUnit                      Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
+  status                          ApplicationStatus          @default(Draft)
+  formVersion                     String
+  firstName                       String?
+  lastName                        String?
+  age                             Int?
+  timeZone                        String?
+  reasonForJoining                String?                    @db.Text
+  source                          RecruitingSource?
+  priorService                    Boolean                    @default(false)
+  priorArma                       Boolean                    @default(false)
+  leadership                      Boolean                    @default(false)
+  leadershipDetails               String?                    @db.Text
+  submittedAt                     DateTime?
+  claimedByAccountId              String?
+  claimedByAccount                Account?                   @relation("ApplicationClaimedBy", fields: [claimedByAccountId], references: [id])
+  claimedAt                       DateTime?
   recruiterRecommendedByAccountId String?
-  recruiterRecommendedAt DateTime?
-  unitDecisionByAccountId String?
-  unitDecisionAt     DateTime?
-  decidedAt          DateTime?
-  closedAt           DateTime?
-  convertedProfileId String?
-  convertedProfile   PersonnelProfile?          @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  answers            ApplicationAnswer[]
-  servicePeriods     ApplicationServicePeriod[]
-  armaUnits          ApplicationArmaUnit[]
-  interestedUnits    ApplicationInterestUnit[]
-  desiredMOS         ApplicationDesiredMOS[]
-  statusHistory      ApplicationStatusHistory[]
-  notes              ApplicationReviewNote[]
+  recruiterRecommendedAt          DateTime?
+  unitDecisionByAccountId         String?
+  unitDecisionAt                  DateTime?
+  decidedAt                       DateTime?
+  closedAt                        DateTime?
+  convertedProfileId              String?
+  convertedProfile                PersonnelProfile?          @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
+  answers                         ApplicationAnswer[]
+  servicePeriods                  ApplicationServicePeriod[]
+  armaUnits                       ApplicationArmaUnit[]
+  interestedUnits                 ApplicationInterestUnit[]
+  desiredMOS                      ApplicationDesiredMOS[]
+  statusHistory                   ApplicationStatusHistory[]
+  notes                           ApplicationReviewNote[]
 
   @@index([accountId])
+  @@index([claimedByAccountId])
   @@index([targetUnitId])
   @@index([status])
   @@index([convertedProfileId])
@@ -782,16 +795,16 @@ model ApplicationAnswer {
 }
 
 model ApplicationStatusHistory {
-  id                 String            @id @default(cuid())
+  id                 String                  @id @default(cuid())
   applicationId      String
-  application        Application       @relation(fields: [applicationId], references: [id])
+  application        Application             @relation(fields: [applicationId], references: [id])
   oldStatus          ApplicationStatus?
   newStatus          ApplicationStatus
   stage              ApplicationReviewStage?
   changedByAccountId String?
-  reason             String            @db.Text
+  reason             String                  @db.Text
   permissionContext  Json?
-  createdAt          DateTime          @default(now())
+  createdAt          DateTime                @default(now())
   auditLogId         String?
 
   @@index([applicationId])
@@ -799,14 +812,14 @@ model ApplicationStatusHistory {
 }
 
 model ApplicationReviewNote {
-  id                String      @id @default(cuid())
-  applicationId     String
-  application       Application @relation(fields: [applicationId], references: [id])
-  authorAccountId   String?
-  stage             ApplicationReviewStage?
-  body              String      @db.Text
-  visibility        VisibilityLevel @default(Staff)
-  createdAt         DateTime    @default(now())
+  id              String                  @id @default(cuid())
+  applicationId   String
+  application     Application             @relation(fields: [applicationId], references: [id])
+  authorAccountId String?
+  stage           ApplicationReviewStage?
+  body            String                  @db.Text
+  visibility      VisibilityLevel         @default(Staff)
+  createdAt       DateTime                @default(now())
 
   @@index([applicationId])
 }
@@ -823,27 +836,27 @@ model EventTemplate {
 }
 
 model Event {
-  id                 String            @id @default(cuid())
-  templateId         String?
-  template           EventTemplate?    @relation(fields: [templateId], references: [id])
-  title              String
-  eventType          String
-  status             EventStatus       @default(Scheduled)
-  rosterSource       EventRosterSource @default(Template)
-  sourceUnitId       String?
-  startsAt           DateTime
-  endsAt             DateTime?
-  location           String?
-  details            String?           @db.Text
-  ownerAccountId     String?
-  createdByAccountId String?
-  rosterFinalizedAt  DateTime?
-  rosterFinalizedByAccountId String?
-  attendanceFinalizedAt DateTime?
+  id                             String            @id @default(cuid())
+  templateId                     String?
+  template                       EventTemplate?    @relation(fields: [templateId], references: [id])
+  title                          String
+  eventType                      String
+  status                         EventStatus       @default(Scheduled)
+  rosterSource                   EventRosterSource @default(Template)
+  sourceUnitId                   String?
+  startsAt                       DateTime
+  endsAt                         DateTime?
+  location                       String?
+  details                        String?           @db.Text
+  ownerAccountId                 String?
+  createdByAccountId             String?
+  rosterFinalizedAt              DateTime?
+  rosterFinalizedByAccountId     String?
+  attendanceFinalizedAt          DateTime?
   attendanceFinalizedByAccountId String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  attendance         EventAttendance[]
+  createdAt                      DateTime          @default(now())
+  updatedAt                      DateTime          @updatedAt
+  attendance                     EventAttendance[]
 
   @@index([templateId])
   @@index([sourceUnitId])
@@ -852,22 +865,22 @@ model Event {
 }
 
 model EventAttendance {
-  id                 String           @id @default(cuid())
-  eventId            String
-  event              Event            @relation(fields: [eventId], references: [id])
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  status             AttendanceStatus @default(Expected)
-  expectedSource     EventRosterSource?
-  reviewerAccountId  String?
-  reviewedAt         DateTime?
+  id                   String             @id @default(cuid())
+  eventId              String
+  event                Event              @relation(fields: [eventId], references: [id])
+  personnelProfileId   String
+  personnelProfile     PersonnelProfile   @relation(fields: [personnelProfileId], references: [id])
+  status               AttendanceStatus   @default(Expected)
+  expectedSource       EventRosterSource?
+  reviewerAccountId    String?
+  reviewedAt           DateTime?
   correctedByAccountId String?
-  correctedAt        DateTime?
-  correctionReason   String?          @db.Text
-  notes              String?          @db.Text
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  auditLogId         String?
+  correctedAt          DateTime?
+  correctionReason     String?            @db.Text
+  notes                String?            @db.Text
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  auditLogId           String?
 
   @@unique([eventId, personnelProfileId])
   @@index([personnelProfileId])
@@ -875,27 +888,27 @@ model EventAttendance {
 }
 
 model LoaRequest {
-  id                 String           @id @default(cuid())
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  status             LoaStatus        @default(Submitted)
-  approvalLevel      LoaApprovalLevel @default(UnitStaff)
+  id                   String           @id @default(cuid())
+  personnelProfileId   String
+  personnelProfile     PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
+  status               LoaStatus        @default(Submitted)
+  approvalLevel        LoaApprovalLevel @default(UnitStaff)
   submittedByAccountId String?
-  startsAt           DateTime
-  endsAt             DateTime
-  reasonCategory     String
-  details            String?          @db.Text
-  escalatedAt        DateTime?
-  escalationReason   String?          @db.Text
-  reviewedByAccountId String?
-  decidedAt          DateTime?
-  cancelledAt        DateTime?
-  withdrawnAt        DateTime?
-  earlyReturnAt      DateTime?
-  returnConfirmedAt  DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  auditLogId         String?
+  startsAt             DateTime
+  endsAt               DateTime
+  reasonCategory       String
+  details              String?          @db.Text
+  escalatedAt          DateTime?
+  escalationReason     String?          @db.Text
+  reviewedByAccountId  String?
+  decidedAt            DateTime?
+  cancelledAt          DateTime?
+  withdrawnAt          DateTime?
+  earlyReturnAt        DateTime?
+  returnConfirmedAt    DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  auditLogId           String?
 
   @@index([personnelProfileId])
   @@index([status])
@@ -903,16 +916,16 @@ model LoaRequest {
 }
 
 model TrainingCourse {
-  id            String                @id @default(cuid())
-  key           String?               @unique
-  name          String
-  category      String?
-  description   String?               @db.Text
-  status        CatalogStatus         @default(Draft)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  id             String                @id @default(cuid())
+  key            String?               @unique
+  name           String
+  category       String?
+  description    String?               @db.Text
+  status         CatalogStatus         @default(Draft)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
   qualifications CourseQualification[]
-  records       TrainingRecord[]
+  records        TrainingRecord[]
 }
 
 model Qualification {
@@ -938,17 +951,17 @@ model CourseQualification {
 }
 
 model TrainingRecord {
-  id                 String           @id @default(cuid())
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  courseId           String
-  course             TrainingCourse   @relation(fields: [courseId], references: [id])
-  status             RequestStatus    @default(Completed)
+  id                  String           @id @default(cuid())
+  personnelProfileId  String
+  personnelProfile    PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
+  courseId            String
+  course              TrainingCourse   @relation(fields: [courseId], references: [id])
+  status              RequestStatus    @default(Completed)
   recordedByAccountId String?
-  completedAt        DateTime?
+  completedAt         DateTime?
   instructorAccountId String?
-  notes              String?          @db.Text
-  auditLogId         String?
+  notes               String?          @db.Text
+  auditLogId          String?
 
   @@index([personnelProfileId])
   @@index([courseId])
@@ -975,19 +988,19 @@ model PersonnelQualification {
 }
 
 model PromotionRequest {
-  id                 String           @id @default(cuid())
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  requestedRankId    String
-  requestedRank      Rank             @relation(fields: [requestedRankId], references: [id])
-  status             RequestStatus    @default(Submitted)
+  id                   String           @id @default(cuid())
+  personnelProfileId   String
+  personnelProfile     PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
+  requestedRankId      String
+  requestedRank        Rank             @relation(fields: [requestedRankId], references: [id])
+  status               RequestStatus    @default(Submitted)
   requestedByAccountId String?
   approvedByAccountId  String?
-  reason             String?          @db.Text
-  decidedAt          DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  auditLogId         String?
+  reason               String?          @db.Text
+  decidedAt            DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  auditLogId           String?
 
   @@index([personnelProfileId])
   @@index([status])
@@ -1009,33 +1022,33 @@ model PromotionRecord {
 }
 
 model Award {
-  id        String        @id @default(cuid())
-  key       String?       @unique
+  id           String         @id @default(cuid())
+  key          String?        @unique
   abbreviation String?
-  name      String
-  type      String?
-  category  String?
-  status    CatalogStatus @default(Draft)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  requests  AwardRequest[]
-  records   AwardRecord[]
+  name         String
+  type         String?
+  category     String?
+  status       CatalogStatus  @default(Draft)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  requests     AwardRequest[]
+  records      AwardRecord[]
 }
 
 model AwardRequest {
-  id                 String           @id @default(cuid())
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  awardId            String
-  award              Award            @relation(fields: [awardId], references: [id])
-  status             RequestStatus    @default(Submitted)
+  id                   String           @id @default(cuid())
+  personnelProfileId   String
+  personnelProfile     PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
+  awardId              String
+  award                Award            @relation(fields: [awardId], references: [id])
+  status               RequestStatus    @default(Submitted)
   requestedByAccountId String?
   approvedByAccountId  String?
-  citation           String?          @db.Text
-  decidedAt          DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  auditLogId         String?
+  citation             String?          @db.Text
+  decidedAt            DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  auditLogId           String?
 
   @@index([personnelProfileId])
   @@index([status])
@@ -1058,19 +1071,19 @@ model AwardRecord {
 }
 
 model DisciplinaryRecord {
-  id                 String           @id @default(cuid())
-  personnelProfileId String
-  personnelProfile   PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
-  actionType         String
-  summary            String
-  details            String?          @db.Text
-  status             RequestStatus    @default(Completed)
-  visibility         VisibilityLevel  @default(Restricted)
-  createdByAccountId String?
+  id                  String           @id @default(cuid())
+  personnelProfileId  String
+  personnelProfile    PersonnelProfile @relation(fields: [personnelProfileId], references: [id])
+  actionType          String
+  summary             String
+  details             String?          @db.Text
+  status              RequestStatus    @default(Completed)
+  visibility          VisibilityLevel  @default(Restricted)
+  createdByAccountId  String?
   approvedByAccountId String?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  auditLogId         String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  auditLogId          String?
 
   @@index([personnelProfileId])
   @@index([visibility])
@@ -1092,25 +1105,25 @@ model AdministrativeNote {
 }
 
 model SupportTicket {
-  id                 String                 @id @default(cuid())
-  createdByAccountId String
-  createdByAccount   Account                @relation("SupportTicketCreatedBy", fields: [createdByAccountId], references: [id])
+  id                  String                 @id @default(cuid())
+  createdByAccountId  String
+  createdByAccount    Account                @relation("SupportTicketCreatedBy", fields: [createdByAccountId], references: [id])
   assignedToAccountId String?
-  assignedToAccount   Account?              @relation("SupportTicketAssignedTo", fields: [assignedToAccountId], references: [id])
+  assignedToAccount   Account?               @relation("SupportTicketAssignedTo", fields: [assignedToAccountId], references: [id])
   personnelProfileId  String?
-  personnelProfile    PersonnelProfile?     @relation(fields: [personnelProfileId], references: [id])
+  personnelProfile    PersonnelProfile?      @relation(fields: [personnelProfileId], references: [id])
   category            String
   queueKey            String
   intakeOnly          Boolean                @default(false)
   title               String
-  description         String                @db.Text
-  status              SupportTicketStatus   @default(Open)
-  severity            AuditSeverity         @default(Info)
+  description         String                 @db.Text
+  status              SupportTicketStatus    @default(Open)
+  severity            AuditSeverity          @default(Info)
   resolvedAt          DateTime?
   closedAt            DateTime?
   voidedAt            DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
   comments            SupportTicketComment[]
   auditLogId          String?
 
@@ -1135,18 +1148,18 @@ model SupportTicketComment {
 }
 
 model Notification {
-  id                String             @id @default(cuid())
+  id                String                      @id @default(cuid())
   accountId         String
-  account           Account            @relation(fields: [accountId], references: [id])
+  account           Account                     @relation(fields: [accountId], references: [id])
   category          String
   deliveryChannel   NotificationDeliveryChannel @default(InApp)
   workflowEvent     String?
   title             String
-  body              String?            @db.Text
-  status            NotificationStatus @default(Unread)
+  body              String?                     @db.Text
+  status            NotificationStatus          @default(Unread)
   relatedRecordType String?
   relatedRecordId   String?
-  createdAt         DateTime           @default(now())
+  createdAt         DateTime                    @default(now())
   readAt            DateTime?
 
   @@index([accountId])

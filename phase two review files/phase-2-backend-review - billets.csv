@@ -10,6 +10,7 @@ tf20_rangerA_fo,FORWARD OBSERVER,support,tf20_ranger_a,spc,7010
 tf20_rangerA_smed,SENIOR MEDIC,support,tf20_ranger_a,spc,7010
 tf20_rangerA_jtac,JOINT TACTICAL AIR CONTROLLER,support,tf20_ranger_a,spc,7010
 tf20_rangerA_cbrn,CBRN SPECIALIST,support,tf20_ranger_a,spc,7010
+tf20_rangerA_uaso,UNMANNED AERIAL SYSTEMS OPERATOR,support,tf20_ranger_a,spc,7010
 tf20_rangerA_1p_pl,PLATOON LEADER,leadership,tf20_ranger_a_1p,first_lieutenant,5070
 tf20_rangerA_1p_fsg,FIRST SERGEANT,leadership,tf20_ranger_a_1p,first_sergeant,5068
 tf20_rangerA_1p_ps,PLATOON SERGEANT,leadership,tf20_ranger_a_1p,sfc,5065
@@ -18,6 +19,7 @@ tf20_rangerA_1p_fo,FORWARD OBSERVER,support,tf20_ranger_a_1p,spc,5010
 tf20_rangerA_1p_jtac,JOINT TACTICAL AIR CONTROLLER,support,tf20_ranger_a_1p,spc,5010
 tf20_rangerA_1p_med,MEDIC,support,tf20_ranger_a_1p,spc,5010
 tf20_rangerA_1p_cbrn,CBRN SPECIALIST,support,tf20_ranger_a_1p,spc,5010
+tf20_rangerA_1p_uaso,UNMANNED AERIAL SYSTEMS OPERATOR,support,tf20_ranger_a_1p,spc,5010
 tf20_rangerA_1p_1s_sl,SQUAD LEADER,leadership,tf20_ranger_a_1p_1s,ssg,3055
 tf20_rangerA_1p_1s_sgun,SENIOR GUNNER,weapons,tf20_ranger_a_1p_1s,spc,3010
 tf20_rangerA_1p_1s_at_tl,TEAM LEADER,leadership,tf20_ranger_a_1p_1s_at,sgt,1045
@@ -66,6 +68,7 @@ tf20_sfod_1a_a_asslt,ASSAULTER,weapons,tf20_sfod_1a_a,sgt,5010
 tf20_sfod_1a_a_brch,BREACHER,weapons,tf20_sfod_1a_a,sgt,5010
 tf20_sfod_1a_a_hwo,HEAVY WEAPONS OPERATOR,weapons,tf20_sfod_1a_a,sgt,5010
 tf20_sfod_1a_a_mar,MARKSMAN,weapons,tf20_sfod_1a_a,sgt,5010
+tf20_sfod_1a_a_med,MEDIC,support,tf20_sfod_1a_a,sgt,5010
 tf20_soar_b160_co,COMMANDING OFFICER,command,tf20_soar_b160,cpt,7100
 tf20_soar_b160_xo,EXECUTIVE OFFICER,command,tf20_soar_b160,first_lieutenant,7090
 tf20_soar_b160_ops,OPERATIONS OFFICER,command,tf20_soar_b160,second_lieutenant,7080
