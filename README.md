@@ -1,8 +1,8 @@
-# TF20 Personnel Management System
+# Task Force 20 Integrated Personnel System
 
 ## Current Status
 
-This repo is the clean-slate restart of the Task Force 20 Personnel Management
+This repo is the clean-slate restart of the Task Force 20 Integrated Personnel
 System. The project is now past the planning-only stage and has a working local
 runtime baseline.
 

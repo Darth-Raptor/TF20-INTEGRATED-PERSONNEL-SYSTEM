@@ -14,7 +14,7 @@ Current baseline:
 
 Completion target:
 
-- protected TF20 PMS complete
+- protected Task Force 20 Integrated Personnel System complete
 - public recruiting/front-door site complete
 - one final production deployment to the VPS at the end
 
@@ -50,9 +50,9 @@ Completion target:
 - use this as the last broad backend correction window before more feature
   build-out
 
-## Phase 3: Protected TF20 PMS UI Construction
+## Phase 3: Protected Task Force 20 Integrated Personnel System UI Construction
 
-- build the protected PMS shell and user-facing page organization
+- build the protected Task Force 20 Integrated Personnel System shell and user-facing page organization
 - go deep on:
   - navigation
   - information architecture
@@ -123,12 +123,12 @@ Completion target:
 ## Phase 9: Build The Public Recruiting Site
 
 - build the public recruiting/front-door site as a separate surface from the
-  protected PMS
+  protected Task Force 20 Integrated Personnel System
 - include:
   - recruiting landing page
   - expectations and standards
   - onboarding explanation
-  - Discord/PMS call-to-action
+  - Discord/Task Force 20 Integrated Personnel System call-to-action
 
 ## Phase 10: Final Pre-Deployment Hardening And Cutover Prep
 

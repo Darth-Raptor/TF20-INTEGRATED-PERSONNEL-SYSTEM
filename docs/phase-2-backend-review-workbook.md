@@ -66,9 +66,9 @@ schema, catalogs, permissions, routes, and workflow actions.
 
 Current state:
 
-- product name currently appears as `Task Force 20 Personnel Management System`
+- product name currently appears as `Task Force 20 Integrated Personnel System`
 - public/protected split currently appears as `public recruiting/front-door
-site` and `protected PMS`
+site` and `protected Task Force 20 Integrated Personnel System`
 - backend style is currently `hybrid REST`
 - operational source of truth is currently described as `database-only
 operational source of truth`
