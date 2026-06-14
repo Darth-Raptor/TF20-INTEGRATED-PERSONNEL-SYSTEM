@@ -894,12 +894,12 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
 
   app.get("/applications/review", requireAuthenticatedSession, async (req, res, next) => {
     try {
-      if (!canRecruiterReview(req.context.account) && !canTargetUnitReview(req.context.account)) {
+      if (!canRecruiterReview(req.context.account)) {
         return sendError(
           res,
           403,
           "permission_denied",
-          "Application review permission is required.",
+          "Recruiter application review permission is required.",
         );
       }
 

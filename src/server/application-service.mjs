@@ -146,32 +146,10 @@ export async function getApplicationById(prisma, applicationId) {
 }
 
 export async function listReviewQueue(prisma, account) {
-  const recruiter = canRecruiterReview(account);
-  const targetUnitReviewer = canTargetUnitReview(account);
-  if (!recruiter && !targetUnitReviewer) return [];
-
-  const scope = recruiter ? null : await resolveApplicationUnitScope(prisma, account);
-  const scopedUnitIds = scope?.ok ? scope.unitIds : [];
-  const where =
-    recruiter && targetUnitReviewer
-      ? {
-          OR: [
-            { status: { in: REVIEW_QUEUE_RECRUITER_STATUSES } },
-            { status: { in: REVIEW_QUEUE_TARGET_STATUSES }, targetUnitId: { not: null } },
-          ],
-        }
-      : recruiter
-        ? { status: { in: REVIEW_QUEUE_RECRUITER_STATUSES } }
-        : {
-            status: { in: REVIEW_QUEUE_TARGET_STATUSES },
-            targetUnitId:
-              scopedUnitIds === null
-                ? { not: null }
-                : { in: scopedUnitIds.length ? scopedUnitIds : [""] },
-          };
+  if (!canRecruiterReview(account)) return [];
 
   return prisma.application.findMany({
-    where,
+    where: { status: { in: REVIEW_QUEUE_RECRUITER_STATUSES } },
     orderBy: [{ submittedAt: "asc" }, { createdAt: "asc" }],
     include: applicationInclude(),
   });

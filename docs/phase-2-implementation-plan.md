@@ -13,8 +13,8 @@ Locked decisions for this phase:
 - schema changes are allowed and required where CSV shapes demand them
 - CSV keys become final identifiers
 - unit hierarchy expands to the full depth shown in `units.csv`
-- `role_precedence` becomes real authority-order logic
-- `minimum_role_key` becomes a rule used to derive permission grants
+- `role_precedence` remains role ordering metadata
+- `role_keys` explicitly lists the roles granted each permission
 - `minimum_rank_key` and `command_precedence` become real backend-supported
   billet rules
 - training courses, qualifications, and awards are fully seeded
@@ -83,10 +83,8 @@ Locked decisions for this phase:
 
 ### 4. Update authority and derivation logic
 
-- Treat `role_precedence` as real authority-order logic, not display-only
-  metadata.
-- Derive role permission grants from `minimum_role_key` according to the
-  approved role ordering.
+- Treat permission grants as an explicit matrix from each permission row's
+  `role_keys`; do not infer grants from role precedence.
 - Treat `command_precedence` as real chain-of-command ordering logic for
   billets.
 - Treat `minimum_rank_key` as a real assignment/eligibility rule for billets.
@@ -126,7 +124,7 @@ Locked decisions for this phase:
 
 - rewrite `prisma/catalog-source.mjs` from approved CSV values
 - replace partial seeded families with full approved sets
-- derive permission grants from `minimum_role_key`
+- derive permission grants from explicit `role_keys`
 
 ### Subpass 4: Seed/sync and validator updates
 
@@ -166,7 +164,7 @@ New or updated backend-supported concepts:
 - full unit hierarchy depth
 - MOS replacing Specialty
 - role precedence
-- derived permission grants from minimum role
+- explicit role permission grants
 - billet minimum-rank enforcement
 - billet command-chain precedence
 
@@ -190,8 +188,8 @@ New or updated backend-supported concepts:
 
 ### Authority and derivation
 
-- permission grants derive correctly from `minimum_role_key`
-- role precedence supports authority ordering logic
+- permission grants derive correctly from explicit `role_keys`
+- role precedence remains catalog ordering metadata
 - billet `minimum_rank_key` is available for backend rule enforcement
 - billet `command_precedence` supports chain-of-command ordering logic
 

@@ -35,7 +35,7 @@ const FILE_SPECS = {
   },
   permissions: {
     fileName: "phase-2-backend-review - permissions.csv",
-    headers: ["permission_key", "display_name", "minimum_role_key"],
+    headers: ["permission_key", "display_name", "role_keys"],
     keyField: "permission_key",
   },
   qualifications: {
@@ -152,7 +152,7 @@ function normalizePhase2ReviewCsvs(parsed) {
   const permissions = parsed.permissions.map((row) => ({
     key: row.permission_key,
     displayName: row.display_name,
-    minimumRoleKey: row.minimum_role_key,
+    roleKeys: splitKeys(row.role_keys),
   }));
 
   const units = parsed.units.map((row) => ({
@@ -292,10 +292,13 @@ function validatePermissions(source, errors, suspicious) {
       errors,
       suspicious,
     );
-    if (!roleKeys.has(permission.minimumRoleKey)) {
-      errors.push(
-        `permissions.${permission.key}.minimumRoleKey references missing role ${permission.minimumRoleKey}.`,
-      );
+    if (!permission.roleKeys.length) {
+      errors.push(`permissions.${permission.key}.roleKeys must include at least one role.`);
+    }
+    for (const roleKey of permission.roleKeys) {
+      if (!roleKeys.has(roleKey)) {
+        errors.push(`permissions.${permission.key}.roleKeys references missing role ${roleKey}.`);
+      }
     }
     checkPlaceholder(
       permission.displayName,
@@ -532,6 +535,13 @@ function normalizeCell(value) {
 
 function normalizeNullish(value) {
   return value === "" || /^null$/i.test(value) ? null : value;
+}
+
+function splitKeys(value) {
+  return String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function normalizeEnumValue(value) {

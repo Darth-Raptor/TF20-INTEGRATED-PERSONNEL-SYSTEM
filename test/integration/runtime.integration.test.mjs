@@ -15,6 +15,7 @@ import {
   claimApplication,
   createOrResumeDraftApplication,
   getRecruitingOptions,
+  listReviewQueue,
   listUnitReviewQueue,
   recommendApplication,
   releaseApplicationClaim,
@@ -30,10 +31,12 @@ import {
 import { flattenPermissions, resolveAuthenticatedAccount } from "../../src/server/auth-service.mjs";
 import {
   getPersonnelEditOptions,
+  listScopedPersonnel,
   updatePersonnelProfile,
 } from "../../src/server/personnel-service.mjs";
 import {
   createTrainingSession,
+  getTrainingOptions,
   listOwnTrainingRecords,
   updateTrainingSession,
 } from "../../src/server/training-service.mjs";
@@ -114,7 +117,11 @@ test("application submit requires and validates new applicant questions", async 
 test("pending account can draft, submit, and convert into an active member", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const pending = await createAccountWithRole("pending-user", "Pending");
-  const reviewer = await createAccountWithRole("unit-staff", "Active");
+  const recruiter = await createAccountWithRole("recruiter", "Active");
+  const unitReviewer = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: targetUnit.id,
+  });
   const body = await applicationBody(targetUnit.id, "Raptor One");
 
   const draft = await createOrResumeDraftApplication({ prisma, account: pending });
@@ -147,15 +154,15 @@ test("pending account can draft, submit, and convert into an active member", asy
 
   const claimed = await claimApplication({
     prisma,
-    actor: reviewer,
+    actor: recruiter,
     applicationId: submitted.application.id,
   });
   assert.equal(claimed.ok, true);
-  assert.equal(claimed.application.claimedByAccountId, reviewer.id);
+  assert.equal(claimed.application.claimedByAccountId, recruiter.id);
 
   const recommended = await recommendApplication({
     prisma,
-    actor: reviewer,
+    actor: recruiter,
     applicationId: submitted.application.id,
     reason: "Integration recruiter recommendation.",
   });
@@ -164,7 +171,7 @@ test("pending account can draft, submit, and convert into an active member", asy
 
   const assigned = await assignApplicationUnit({
     prisma,
-    actor: reviewer,
+    actor: recruiter,
     applicationId: submitted.application.id,
     targetUnitId: targetUnit.id,
     reason: "Integration target-unit assignment.",
@@ -174,7 +181,7 @@ test("pending account can draft, submit, and convert into an active member", asy
 
   const accepted = await acceptApplication({
     prisma,
-    actor: reviewer,
+    actor: unitReviewer,
     applicationId: submitted.application.id,
     reason: "Integration target-unit acceptance.",
   });
@@ -210,7 +217,7 @@ test("pending account can draft, submit, and convert into an active member", asy
 test("recruiter can request more information and applicant can resubmit or withdraw", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const pending = await createAccountWithRole("pending-user", "Pending");
-  const reviewer = await createAccountWithRole("unit-staff", "Active");
+  const reviewer = await createAccountWithRole("recruiter", "Active");
   const body = await applicationBody(targetUnit.id, "Request Info");
 
   const submitted = await submitOwnApplication({ prisma, account: pending, body });
@@ -261,7 +268,7 @@ test("recruiter can request more information and applicant can resubmit or withd
 test("reviewer notes are saved separately from status actions", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const pending = await createAccountWithRole("pending-user", "Pending");
-  const reviewer = await createAccountWithRole("unit-staff", "Active");
+  const reviewer = await createAccountWithRole("recruiter", "Active");
   const body = await applicationBody(targetUnit.id, "Recruiting Notes");
   const submitted = await submitOwnApplication({ prisma, account: pending, body });
   assert.equal(submitted.ok, true);
@@ -423,11 +430,97 @@ test("recruiter application claims gate recruiter-side writes", async () => {
   assert.equal(formerClaimantNote.code, "permission_denied");
 });
 
+test("least-privilege roles block cross-section application, personnel, and training authority", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const pending = await createAccountWithRole("pending-user", "Pending");
+  const unitStaff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: targetUnit.id,
+  });
+  const recruiter = await createAccountWithRole("recruiter", "Active");
+  const systemAdmin = await createAccountWithRole("system-admin", "Active");
+  const body = await applicationBody(targetUnit.id, "Least Privilege");
+  const submitted = await submitOwnApplication({ prisma, account: pending, body });
+  assert.equal(submitted.ok, true);
+
+  assert.deepEqual(await listReviewQueue(prisma, unitStaff), []);
+
+  const unitStaffClaim = await claimApplication({
+    prisma,
+    actor: unitStaff,
+    applicationId: submitted.application.id,
+  });
+  assert.equal(unitStaffClaim.ok, false);
+  assert.equal(unitStaffClaim.code, "permission_denied");
+
+  const unitStaffRecruiterNote = await saveApplicationReviewNote({
+    prisma,
+    actor: unitStaff,
+    applicationId: submitted.application.id,
+    body: "Trying recruiter note.",
+  });
+  assert.equal(unitStaffRecruiterNote.ok, false);
+  assert.equal(unitStaffRecruiterNote.code, "permission_denied");
+
+  const unitStaffRecruiterInfo = await requestApplicationInfo({
+    prisma,
+    actor: unitStaff,
+    applicationId: submitted.application.id,
+    reason: "Trying recruiter info request.",
+  });
+  assert.equal(unitStaffRecruiterInfo.ok, false);
+  assert.equal(unitStaffRecruiterInfo.code, "permission_denied");
+
+  const unitStaffTrainingOptions = await getTrainingOptions(prisma, unitStaff);
+  assert.equal(unitStaffTrainingOptions.ok, false);
+  assert.equal(unitStaffTrainingOptions.code, "permission_denied");
+
+  const unitStaffTrainingCreate = await createTrainingSession({
+    prisma,
+    actor: unitStaff,
+    body: {},
+  });
+  assert.equal(unitStaffTrainingCreate.ok, false);
+  assert.equal(unitStaffTrainingCreate.code, "permission_denied");
+
+  const recruiterPersonnel = await listScopedPersonnel(prisma, recruiter);
+  assert.equal(recruiterPersonnel.ok, false);
+  assert.equal(recruiterPersonnel.code, "permission_denied");
+  assert.deepEqual(await listUnitReviewQueue(prisma, recruiter), []);
+
+  const adminClaim = await claimApplication({
+    prisma,
+    actor: systemAdmin,
+    applicationId: submitted.application.id,
+  });
+  assert.equal(adminClaim.ok, false);
+  assert.equal(adminClaim.code, "permission_denied");
+
+  const adminPersonnel = await listScopedPersonnel(prisma, systemAdmin);
+  assert.equal(adminPersonnel.ok, false);
+  assert.equal(adminPersonnel.code, "permission_denied");
+
+  const adminTrainingOptions = await getTrainingOptions(prisma, systemAdmin);
+  assert.equal(adminTrainingOptions.ok, false);
+  assert.equal(adminTrainingOptions.code, "permission_denied");
+
+  const targetReview = await createTargetUnitReviewApplication({
+    targetUnit,
+    applicationUnit: targetUnit,
+    preferredName: "Unit Review Access",
+  });
+  const unitQueue = await listUnitReviewQueue(prisma, unitStaff);
+  assert.ok(unitQueue.some((item) => item.id === targetReview.application.id));
+
+  const unitPersonnel = await listScopedPersonnel(prisma, unitStaff);
+  assert.equal(unitPersonnel.ok, true);
+});
+
 test("target-unit acceptance is denied outside scope and allowed inside scope", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const outsideUnit = await activeUnit("tf20_ranger_a_1p");
   const pending = await createAccountWithRole("pending-user", "Pending");
-  const recruiter = await createAccountWithRole("unit-staff", "Active");
+  const recruiter = await createAccountWithRole("recruiter", "Active");
   const outsideReviewer = await createAccountWithRole("unit-staff", "Active", {
     scopeType: "Unit",
     unitId: outsideUnit.id,
@@ -1067,6 +1160,7 @@ test("archived roles do not grant application access", async () => {
 });
 
 async function createConvertedApplication({ pending, reviewer, targetUnit, preferredName }) {
+  const recruiter = await createAccountWithRole("recruiter", "Active");
   const created = await submitOwnApplication({
     prisma,
     account: pending,
@@ -1076,27 +1170,19 @@ async function createConvertedApplication({ pending, reviewer, targetUnit, prefe
 
   const claimed = await claimApplication({
     prisma,
-    actor: reviewer,
+    actor: recruiter,
     applicationId: created.application.id,
   });
   assert.equal(claimed.ok, true);
 
   const recommended = await recommendApplication({
     prisma,
-    actor: reviewer,
+    actor: recruiter,
     applicationId: created.application.id,
+    targetUnitId: targetUnit.id,
     reason: "Integration recommendation.",
   });
   assert.equal(recommended.ok, true);
-
-  const assigned = await assignApplicationUnit({
-    prisma,
-    actor: reviewer,
-    applicationId: created.application.id,
-    targetUnitId: targetUnit.id,
-    reason: "Integration target assignment.",
-  });
-  assert.equal(assigned.ok, true);
 
   const accepted = await acceptApplication({
     prisma,
@@ -1111,7 +1197,7 @@ async function createConvertedApplication({ pending, reviewer, targetUnit, prefe
 
 async function createTargetUnitReviewApplication({ applicationUnit, preferredName, targetUnit }) {
   const pending = await createAccountWithRole("pending-user", "Pending");
-  const reviewer = await createAccountWithRole("unit-staff", "Active");
+  const reviewer = await createAccountWithRole("recruiter", "Active");
   const body = await applicationBody(applicationUnit.id, preferredName);
   const created = await submitOwnApplication({
     prisma,

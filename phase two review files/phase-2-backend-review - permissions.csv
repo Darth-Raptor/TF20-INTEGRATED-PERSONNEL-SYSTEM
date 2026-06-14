@@ -1,30 +1,30 @@
-permission_key,display_name,minimum_role_key
-accounts.view-self,View Own Account,pending-user
-access.recovery.request,Request Account Recovery,pending-user
+permission_key,display_name,role_keys
+accounts.view-self,View Own Account,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
+access.recovery.request,Request Account Recovery,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 access.recovery.review,Review Account Recovery,system-admin
 access.sessions.revoke,Revoke Sessions,system-admin
 access.bootstrap.complete,Complete Account Bootstrap,system-admin
 catalogs.manage,Manage Catalogs,system-admin
-applications.create-self,Create Own Application,pending-user
-applications.view-self,View Own Application,pending-user
-applications.review-recruiter,Review Applications as Recruiter,recruiter
-applications.review-target-unit,Review Applications as Target Unit,unit-staff
-personnel.view-self,View Own Personnel Record,member
-personnel.view-scoped,View Scoped Personnel Records,unit-staff
-personnel.update-scoped,Update Scoped Personnel Records,unit-staff
-events.view-self,View Own Events,member
-events.manage-scoped,Manage Scoped Events,unit-staff
-attendance.view-self,View Own Attendance,member
-attendance.review-scoped,Review Scoped Attendance,unit-staff
-loa.create-self,Create Own Leave of Absence,member
-loa.review-scoped,Review Scoped Leave of Absence,unit-staff
-training.view-scoped,View Scoped Training,trainer
-training.record-scoped,Record Scoped Training,trainer
-serviceRecords.manage-scoped,Manage Scoped Service Records,unit-staff
-support.create-self,Create Own Support Ticket,pending-user
+applications.create-self,Create Own Application,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
+applications.view-self,View Own Application,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
+applications.review-recruiter,Review Applications as Recruiter,"recruiter,command-staff"
+applications.review-target-unit,Review Applications as Target Unit,"unit-staff,command-staff"
+personnel.view-self,View Own Personnel Record,"member,recruiter,trainer,unit-staff,command-staff"
+personnel.view-scoped,View Scoped Personnel Records,"unit-staff,command-staff"
+personnel.update-scoped,Update Scoped Personnel Records,"unit-staff,command-staff"
+events.view-self,View Own Events,"member,recruiter,trainer,unit-staff,command-staff"
+events.manage-scoped,Manage Scoped Events,command-staff
+attendance.view-self,View Own Attendance,"member,recruiter,trainer,unit-staff,command-staff"
+attendance.review-scoped,Review Scoped Attendance,command-staff
+loa.create-self,Create Own Leave of Absence,"member,recruiter,trainer,unit-staff,command-staff"
+loa.review-scoped,Review Scoped Leave of Absence,command-staff
+training.view-scoped,View Scoped Training,"trainer,command-staff"
+training.record-scoped,Record Scoped Training,"trainer,command-staff"
+serviceRecords.manage-scoped,Manage Scoped Service Records,command-staff
+support.create-self,Create Own Support Ticket,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 support.manage-queue,Manage Support Queue,system-admin
-audit.view,View Audit Log,command-staff
-notifications.view-self,View Own Notifications,pending-user
-notifications.archive-self,Archive Own Notifications,pending-user
+audit.view,View Audit Log,system-admin
+notifications.view-self,View Own Notifications,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
+notifications.archive-self,Archive Own Notifications,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 integrations.view,View Integrations,system-admin
 integrations.manage,Manage Integrations,system-admin

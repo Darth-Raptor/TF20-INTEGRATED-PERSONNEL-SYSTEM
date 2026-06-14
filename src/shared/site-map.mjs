@@ -6,21 +6,21 @@ export const SITE_MAP_SECTIONS = [
     label: "User",
     path: "/user",
     icon: "user",
-    visibility: { statuses: ["Active", "Pending"] },
+    visibility: { statuses: ["Active", "Pending"], allOf: ["accounts.view-self"] },
     pages: [
       {
         id: "user_dashboard",
         label: "Dashboard",
         path: "/user",
         icon: "training",
-        visibility: { statuses: ["Active", "Pending"] },
+        visibility: { statuses: ["Active", "Pending"], allOf: ["accounts.view-self"] },
       },
       {
         id: "user_profile",
         label: "User Profile",
         path: "/user/profile",
         icon: "profile",
-        visibility: { statuses: ["Active", "Pending"] },
+        visibility: { statuses: ["Active", "Pending"], allOf: ["accounts.view-self"] },
       },
       {
         id: "user_application",
@@ -141,20 +141,14 @@ export const SITE_MAP_SECTIONS = [
     label: "Recruiting",
     path: "/recruiting",
     icon: "recruiting",
-    visibility: {
-      statuses: ["Active"],
-      anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
-    },
+    visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
     pages: [
       {
         id: "recruiting_dashboard",
         label: "Dashboard",
         path: "/recruiting",
         icon: "dashboard",
-        visibility: {
-          statuses: ["Active"],
-          anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
-        },
+        visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
         reserved: true,
       },
       {
@@ -162,10 +156,7 @@ export const SITE_MAP_SECTIONS = [
         label: "Applications",
         path: "/recruiting/applications",
         icon: "applications",
-        visibility: {
-          statuses: ["Active"],
-          anyOf: ["applications.review-recruiter", "applications.review-target-unit"],
-        },
+        visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
       },
     ],
   },

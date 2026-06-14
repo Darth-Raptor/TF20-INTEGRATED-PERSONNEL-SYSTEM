@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
 
+import { catalogSource } from "../../prisma/catalog-source.mjs";
 import {
   SITE_MAP_SECTIONS,
   findNavigationNodeByPath,
@@ -33,6 +34,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
 
 test("active member navigation keeps user self pages separate from staff pages", () => {
   const navigation = resolveVisibleNavigation("Active", [
+    "accounts.view-self",
     "personnel.view-self",
     "loa.create-self",
     "events.view-self",
@@ -159,18 +161,36 @@ test("staff personnel management subpages are filtered independently", () => {
 
 test("specialized sections require their sitemap permissions", () => {
   const recruiter = resolveVisibleNavigation("Active", ["applications.review-recruiter"]);
-  const targetUnitReviewer = resolveVisibleNavigation("Active", [
+  const unitStaff = resolveVisibleNavigation("Active", [
     "applications.review-target-unit",
+    "personnel.view-scoped",
   ]);
   const trainer = resolveVisibleNavigation("Active", ["training.view-scoped"]);
   const admin = resolveVisibleNavigation("Active", ["access.sessions.revoke"]);
   const blocked = resolveVisibleNavigation("Disabled", ["access.sessions.revoke"]);
 
   assert.ok(recruiter.sections.some((section) => section.id === "recruiting"));
-  assert.ok(targetUnitReviewer.sections.some((section) => section.id === "recruiting"));
+  assert.equal(
+    unitStaff.sections.some((section) => section.id === "recruiting"),
+    false,
+  );
+  assert.ok(unitStaff.sections.some((section) => section.id === "staff"));
   assert.ok(trainer.sections.some((section) => section.id === "training"));
   assert.ok(admin.sections.some((section) => section.id === "admin"));
   assert.deepEqual(blocked.sections, []);
+});
+
+test("least-privilege role permissions resolve expected navigation sections", () => {
+  assert.deepEqual(sectionIdsForRole("member"), ["user"]);
+  assert.deepEqual(sectionIdsForRole("recruiter"), ["user", "recruiting"]);
+  assert.deepEqual(sectionIdsForRole("trainer"), ["user", "training"]);
+  assert.deepEqual(sectionIdsForRole("unit-staff"), ["user", "staff"]);
+  assert.deepEqual(sectionIdsForRole("command-staff"), ["user", "staff", "recruiting", "training"]);
+  assert.deepEqual(sectionIdsForRole("system-admin"), ["admin"]);
+  assert.deepEqual(
+    sectionIdsForPermissions([...rolePermissions("system-admin"), ...rolePermissions("member")]),
+    ["user", "admin"],
+  );
 });
 
 test("training records page replaces reserved training dashboard", () => {
@@ -188,6 +208,7 @@ test("training records page replaces reserved training dashboard", () => {
 
 test("pending applicants can reach their application page", () => {
   const navigation = resolveVisibleNavigation("Pending", [
+    "accounts.view-self",
     "applications.create-self",
     "applications.view-self",
   ]);
@@ -198,3 +219,15 @@ test("pending applicants can reach their application page", () => {
   );
   assert.ok(navigation.sections[0].pages.some((page) => page.id === "user_application"));
 });
+
+function sectionIdsForRole(roleKey) {
+  return sectionIdsForPermissions(rolePermissions(roleKey));
+}
+
+function sectionIdsForPermissions(permissions) {
+  return resolveVisibleNavigation("Active", permissions).sections.map((section) => section.id);
+}
+
+function rolePermissions(roleKey) {
+  return catalogSource.roles.find((role) => role.key === roleKey)?.permissionKeys ?? [];
+}

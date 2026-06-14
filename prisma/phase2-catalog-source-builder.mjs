@@ -1,10 +1,5 @@
 export function buildCatalogSource(source) {
-  const rolesByKey = new Map(source.roles.map((role) => [role.key, role]));
-  const permissionKeysByRole = derivePermissionKeysByRole(
-    source.roles,
-    source.permissions,
-    rolesByKey,
-  );
+  const permissionKeysByRole = derivePermissionKeysByRole(source.roles, source.permissions);
 
   return {
     version: "2026-06-04-phase2-subpass3",
@@ -104,23 +99,18 @@ export function formatCatalogSourceModule(catalogSource) {
   return `export const catalogSource = ${JSON.stringify(catalogSource, null, 2)};\n`;
 }
 
-function derivePermissionKeysByRole(roles, permissions, rolesByKey) {
+function derivePermissionKeysByRole(roles, permissions) {
+  const availableRoleKeys = new Set(roles.map((role) => role.key));
   const permissionKeysByRole = new Map(roles.map((role) => [role.key, []]));
 
   for (const permission of permissions) {
-    const minimumRole = rolesByKey.get(permission.minimumRoleKey);
-    if (!minimumRole) {
-      throw new Error(
-        `Missing minimum role ${permission.minimumRoleKey} for permission ${permission.key}.`,
-      );
-    }
-
-    for (const role of roles) {
-      const getsPermission =
-        role.key === minimumRole.key || role.precedence > minimumRole.precedence;
-
-      if (!getsPermission) continue;
-      permissionKeysByRole.get(role.key).push(permission.key);
+    for (const roleKey of permission.roleKeys ?? []) {
+      if (!availableRoleKeys.has(roleKey)) {
+        throw new Error(
+          `Permission ${permission.key} references missing explicit role ${roleKey}.`,
+        );
+      }
+      permissionKeysByRole.get(roleKey).push(permission.key);
     }
   }
 
@@ -196,9 +186,9 @@ function roleDescription(roleKey) {
     member: "Active member baseline access.",
     recruiter: "Recruiting workflow authority.",
     trainer: "Training and qualification authority.",
-    "unit-staff": "Scoped personnel and workflow authority for unit staff.",
+    "unit-staff": "Scoped personnel and target-unit applicant review authority.",
     "command-staff": "Elevated command oversight authority.",
-    "system-admin": "System-wide administration and recovery authority.",
+    "system-admin": "System administration, recovery, audit, integration, and support authority.",
   };
 
   return descriptions[roleKey] ?? null;

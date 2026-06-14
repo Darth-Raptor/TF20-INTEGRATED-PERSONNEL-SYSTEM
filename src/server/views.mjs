@@ -114,6 +114,8 @@ export function renderBlockedScreen(reason) {
 export function renderAuthenticatedScreen(summary) {
   const showSelfPersonnel = summary.permissions.includes("personnel.view-self");
   const showRoster = summary.permissions.includes("personnel.view-scoped");
+  const showRecruiterReview = summary.permissions.includes("applications.review-recruiter");
+  const showTargetUnitReview = summary.permissions.includes("applications.review-target-unit");
   return pageTemplate(
     "Runtime Ready",
     `<div class="card">
@@ -129,7 +131,8 @@ export function renderAuthenticatedScreen(summary) {
       <div class="button-row">
         ${showSelfPersonnel ? `<a class="button" href="/personnel/self">My Personnel</a>` : ""}
         ${showRoster ? `<a class="button" href="/personnel">Personnel Roster</a>` : ""}
-        ${summary.permissions.includes("applications.review-recruiter") || summary.permissions.includes("applications.review-target-unit") ? `<a class="button" href="/applications/review">Application review</a>` : ""}
+        ${showRecruiterReview ? `<a class="button" href="/recruiting/applications">Recruiter Applications</a>` : ""}
+        ${showTargetUnitReview ? `<a class="button" href="/staff/applicant-review">Staff Applicant Review</a>` : ""}
         <a class="button secondary" href="/auth/logout">Log out</a>
       </div>
     </div>`,

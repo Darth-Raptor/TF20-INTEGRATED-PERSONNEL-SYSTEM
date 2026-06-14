@@ -7,7 +7,7 @@ import { flattenPermissions } from "../../src/server/auth-service.mjs";
 test("pending accounts expose only pending modules", () => {
   const access = buildAccessContext({
     account: { status: "Pending" },
-    permissions: [{ key: "support.create-self" }],
+    permissions: [{ key: "accounts.view-self" }, { key: "support.create-self" }],
   });
 
   assert.equal(access.gateState, "pending");
@@ -25,11 +25,21 @@ test("pending accounts expose only pending modules", () => {
 test("active accounts derive module visibility from active permissions", () => {
   const access = buildAccessContext({
     account: { status: "Active" },
-    permissions: [{ key: "personnel.view-self" }, { key: "applications.review-recruiter" }],
+    permissions: [
+      { key: "accounts.view-self" },
+      { key: "personnel.view-self" },
+      { key: "applications.review-recruiter" },
+    ],
   });
 
   assert.equal(access.gateState, "active");
-  assert.deepEqual(access.visibleModules, ["applications", "dashboard", "personnel", "profile"]);
+  assert.deepEqual(access.visibleModules, [
+    "accounts",
+    "applications",
+    "dashboard",
+    "personnel",
+    "profile",
+  ]);
   assert.deepEqual(
     access.visibleNavigation.sections.map((section) => section.id),
     ["user", "recruiting"],

@@ -496,6 +496,10 @@ function unitParentInclude(depth = 5) {
 }
 
 async function resolvePersonnelScope(prisma, actor) {
+  if (!canViewScopedPersonnel(actor)) {
+    return failure("permission_denied", "Scoped personnel view is required.");
+  }
+
   if (hasGlobalScope(actor)) {
     return { ok: true, unitIds: null };
   }
