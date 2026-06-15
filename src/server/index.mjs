@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { createApp } from "./app.mjs";
 import { loadConfig } from "./config.mjs";
 import { getPrismaClient } from "./db.mjs";
+import { startDiscordDeliveryDispatcher } from "./discord-delivery-service.mjs";
 
 const config = loadConfig();
 const prisma = getPrismaClient();
@@ -14,6 +15,7 @@ const app = createApp({
     void shutdown(reason);
   },
 });
+const discordDeliveryDispatcher = startDiscordDeliveryDispatcher({ prisma, config });
 const server = createServer(app);
 
 server.listen(config.port, () => {
@@ -28,6 +30,7 @@ const shutdown = async (signal) => {
   }
   shuttingDown = true;
   console.log(`Received ${signal}, shutting down.`);
+  discordDeliveryDispatcher.stop();
   server.close(async (error) => {
     if (error) {
       console.error("Server close failed.", error);

@@ -1,0 +1,20 @@
+-WELCOME MESSAGE
+-channel: 1446715108486021160
+-message: "Hey $MENTION$ welcome to Task Force 20! We are glad to have you. 
+
+If you're curious about the unit, check out the <#1394813141833224293> channel to get an idea of what Task Force 20 is like. If you have any questions, you can ping a <@&1448882584376574126> in the <#1511465912400609383> channel and they will be able to help you.
+
+If you're interested in enlisting you can head over to TaskForce20.com and submit an enlistment application. Once you submit an enlistment app, one of our recruiters will reach out to you to set up an interview and get the enlistment process going."
+
+-SERVER LOG
+-channel: 1407546898390319286
+-join message: "JOINED: DISCORD USER NAME - SERVER NICKNAME - DISCORD USER ID - TIME STAMP"
+-left Message: "JOINED: DISCORD USER NAME - SERVER NICKNAME - DISCORD USER ID - TIME STAMP"
+
+-RECRUITER MESSAGES
+-channel: 1446716371051348030
+-new application message: "<@&1448882584376574126> - NEW APPLICATION"
+-updated application: "Mention the recruiter who claimed the applicaiton - APPLICATION UPDATED - APPLICANT NAME"
+
+-PRIVATE RECRUITING THREADS
+channel: 1511465912400609383

@@ -18,8 +18,9 @@ test("pending accounts expose only pending modules", () => {
   );
   assert.deepEqual(
     access.visibleNavigation.sections[0].pages.map((page) => page.id),
-    ["user_dashboard", "user_profile", "user_support"],
+    ["user_profile", "user_support"],
   );
+  assert.equal(access.visibleNavigation.defaultPath, "/user/profile");
 });
 
 test("active accounts derive module visibility from active permissions", () => {

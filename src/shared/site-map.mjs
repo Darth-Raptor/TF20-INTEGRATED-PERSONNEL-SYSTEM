@@ -9,13 +9,6 @@ export const SITE_MAP_SECTIONS = [
     visibility: { statuses: ["Active", "Pending"], allOf: ["accounts.view-self"] },
     pages: [
       {
-        id: "user_dashboard",
-        label: "Dashboard",
-        path: "/user",
-        icon: "training",
-        visibility: { statuses: ["Active", "Pending"], allOf: ["accounts.view-self"] },
-      },
-      {
         id: "user_profile",
         label: "User Profile",
         path: "/user/profile",
@@ -70,14 +63,6 @@ export const SITE_MAP_SECTIONS = [
     icon: "staff",
     visibility: { statuses: ["Active"], allOf: ["personnel.view-scoped"] },
     pages: [
-      {
-        id: "staff_dashboard",
-        label: "Dashboard",
-        path: "/staff",
-        icon: "dashboard",
-        visibility: { statuses: ["Active"], allOf: ["personnel.view-scoped"] },
-        reserved: true,
-      },
       {
         id: "staff_personnel_management",
         label: "Personnel Management",
@@ -283,6 +268,14 @@ export function findNavigationNodeByPath(navigation, pathname) {
   }
 
   return findDynamicRouteNodeByPath(navigation?.sections ?? [], normalizedPath);
+}
+
+export function resolveSectionLandingPath(navigation, pathname) {
+  const normalizedPath = normalizePath(pathname);
+  const section = (navigation?.sections ?? []).find(
+    (item) => normalizePath(item.path) === normalizedPath,
+  );
+  return section?.pages?.[0]?.path ?? null;
 }
 
 export function isSectionDashboardMatch(match) {

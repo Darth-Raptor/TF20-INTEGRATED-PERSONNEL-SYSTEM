@@ -48,6 +48,8 @@ artifacts and are completely excluded from live runtime architecture.
 - Delivery attempt.
 - Delivery result log.
 - Retry-safe failure handling.
+- Recruiting notification bridge events sent from IPS to the Discord bot over a
+  loopback-only authenticated HTTP bridge.
 
 ### Behavioral Boundaries
 
@@ -76,6 +78,9 @@ damage existing account, application, or personnel records.
 - Access-affecting outcomes also create normal audit records where applicable.
 - Delivery and sync failures must be retry-safe and idempotent.
 - Notification delivery state is tracked independently from workflow truth.
+- Recruiting Discord delivery uses a database outbox so application workflow
+  actions succeed even if Discord is temporarily unavailable; failed jobs are
+  retried and logged through `IntegrationLog`.
 
 ## Implemented Model Support
 

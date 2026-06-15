@@ -43,6 +43,11 @@ test("loadConfig parses runtime defaults and overrides", () => {
     assert.equal(config.sessionTtlDays, 14);
     assert.equal(config.recentAuthWindowMinutes, 20);
     assert.equal(config.trustProxy, true);
+    assert.equal(config.discordRecruitingBridge.enabled, false);
+    assert.equal(
+      config.discordRecruitingBridge.url,
+      "http://127.0.0.1:8787/ips/recruiting-event",
+    );
   `);
 
   assert.equal(result.status, 0, result.stderr);

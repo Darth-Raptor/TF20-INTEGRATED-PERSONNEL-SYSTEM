@@ -1443,9 +1443,14 @@ function buildPersonnelFormState(profileOrBody = {}) {
 }
 
 async function createLocalPreviewSession({ prisma }) {
-  const role = await prisma.role.findUnique({ where: { key: "unit-staff" } });
-  if (!role) {
-    throw new Error("Local preview requires the unit-staff role to be seeded.");
+  const previewRoles = await prisma.role.findMany({
+    where: { key: { in: ["member", "unit-staff", "recruiter"] } },
+  });
+  const rolesByKey = new Map(previewRoles.map((role) => [role.key, role]));
+  for (const roleKey of ["member", "unit-staff", "recruiter"]) {
+    if (!rolesByKey.has(roleKey)) {
+      throw new Error(`Local preview requires the ${roleKey} role to be seeded.`);
+    }
   }
 
   const providerAccountId = "codex-local-ui-preview";
@@ -1488,24 +1493,27 @@ async function createLocalPreviewSession({ prisma }) {
     });
   }
 
-  const assignment = await prisma.roleAssignment.findFirst({
-    where: {
-      accountId: account.id,
-      roleId: role.id,
-      endsAt: null,
-    },
-  });
-
-  if (!assignment) {
-    await prisma.roleAssignment.create({
-      data: {
+  for (const roleKey of ["member", "unit-staff", "recruiter"]) {
+    const role = rolesByKey.get(roleKey);
+    const assignment = await prisma.roleAssignment.findFirst({
+      where: {
         accountId: account.id,
         roleId: role.id,
-        scopeType: "Global",
-        scopeIncludesDescendants: true,
-        reason: "Local UI preview session.",
+        endsAt: null,
       },
     });
+
+    if (!assignment) {
+      await prisma.roleAssignment.create({
+        data: {
+          accountId: account.id,
+          roleId: role.id,
+          scopeType: "Global",
+          scopeIncludesDescendants: true,
+          reason: "Local UI preview session.",
+        },
+      });
+    }
   }
 
   const sessionId = createRandomId();

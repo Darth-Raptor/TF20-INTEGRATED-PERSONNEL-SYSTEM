@@ -9,6 +9,7 @@ import {
   findSiteMapNodeByPath,
   isSectionDashboardMatch,
   normalizeSiteMapKey,
+  resolveSectionLandingPath,
   resolveVisibleNavigation,
   validateSiteMapText,
 } from "../../src/shared/site-map.mjs";
@@ -28,7 +29,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 14);
+  assert.equal(result.parsed.pages.length, 12);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -47,15 +48,10 @@ test("active member navigation keeps user self pages separate from staff pages",
   );
   assert.deepEqual(
     navigation.sections[0].pages.map((page) => page.id),
-    [
-      "user_dashboard",
-      "user_profile",
-      "user_leave",
-      "user_training",
-      "user_events",
-      "user_support",
-    ],
+    ["user_profile", "user_leave", "user_training", "user_events", "user_support"],
   );
+  assert.equal(navigation.defaultPath, "/user/profile");
+  assert.equal(resolveSectionLandingPath(navigation, "/user"), "/user/profile");
 });
 
 test("section dashboard stat cards are limited to section dashboard pages", () => {
@@ -65,7 +61,7 @@ test("section dashboard stat cards are limited to section dashboard pages", () =
 
   assert.deepEqual(
     dashboardMatches.map((match) => match.node.id),
-    ["staff_dashboard", "recruiting_dashboard", "admin_dashboard"],
+    ["recruiting_dashboard", "admin_dashboard"],
   );
   assert.ok(dashboardMatches.every(isSectionDashboardMatch));
 
@@ -157,6 +153,8 @@ test("staff personnel management subpages are filtered independently", () => {
       "staff_personnel_management_intake",
     ],
   );
+  assert.equal(staff.pages[0].id, "staff_personnel_management");
+  assert.equal(resolveSectionLandingPath(navigation, "/staff"), "/staff/personnel-management");
 });
 
 test("specialized sections require their sitemap permissions", () => {

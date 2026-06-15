@@ -224,6 +224,13 @@ enum IntegrationLogStatus {
   Voided
 }
 
+enum DiscordDeliveryJobStatus {
+  Pending
+  Failed
+  Delivered
+  Dead
+}
+
 model Account {
   id                         String                   @id @default(cuid())
   displayName                String?
@@ -692,50 +699,69 @@ model PersonnelStandingHistory {
 }
 
 model Application {
-  id                              String                     @id @default(cuid())
-  accountId                       String
-  account                         Account                    @relation(fields: [accountId], references: [id])
-  targetUnitId                    String?
-  targetUnit                      Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
-  status                          ApplicationStatus          @default(Draft)
-  formVersion                     String
-  firstName                       String?
-  lastName                        String?
-  age                             Int?
-  timeZone                        String?
-  reasonForJoining                String?                    @db.Text
-  source                          RecruitingSource?
-  priorService                    Boolean                    @default(false)
-  priorArma                       Boolean                    @default(false)
-  leadership                      Boolean                    @default(false)
-  leadershipDetails               String?                    @db.Text
-  submittedAt                     DateTime?
-  claimedByAccountId              String?
-  claimedByAccount                Account?                   @relation("ApplicationClaimedBy", fields: [claimedByAccountId], references: [id])
-  claimedAt                       DateTime?
-  recruiterRecommendedByAccountId String?
-  recruiterRecommendedAt          DateTime?
-  unitDecisionByAccountId         String?
-  unitDecisionAt                  DateTime?
-  decidedAt                       DateTime?
-  closedAt                        DateTime?
-  convertedProfileId              String?
-  convertedProfile                PersonnelProfile?          @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
-  createdAt                       DateTime                   @default(now())
-  updatedAt                       DateTime                   @updatedAt
-  answers                         ApplicationAnswer[]
-  servicePeriods                  ApplicationServicePeriod[]
-  armaUnits                       ApplicationArmaUnit[]
-  interestedUnits                 ApplicationInterestUnit[]
-  desiredMOS                      ApplicationDesiredMOS[]
-  statusHistory                   ApplicationStatusHistory[]
-  notes                           ApplicationReviewNote[]
+  id                               String                     @id @default(cuid())
+  accountId                        String
+  account                          Account                    @relation(fields: [accountId], references: [id])
+  targetUnitId                     String?
+  targetUnit                       Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
+  status                           ApplicationStatus          @default(Draft)
+  formVersion                      String
+  firstName                        String?
+  lastName                         String?
+  age                              Int?
+  timeZone                         String?
+  reasonForJoining                 String?                    @db.Text
+  source                           RecruitingSource?
+  priorService                     Boolean                    @default(false)
+  priorArma                        Boolean                    @default(false)
+  leadership                       Boolean                    @default(false)
+  leadershipDetails                String?                    @db.Text
+  submittedAt                      DateTime?
+  claimedByAccountId               String?
+  claimedByAccount                 Account?                   @relation("ApplicationClaimedBy", fields: [claimedByAccountId], references: [id])
+  claimedAt                        DateTime?
+  discordRecruitingThreadId        String?
+  discordRecruitingThreadCreatedAt DateTime?
+  recruiterRecommendedByAccountId  String?
+  recruiterRecommendedAt           DateTime?
+  unitDecisionByAccountId          String?
+  unitDecisionAt                   DateTime?
+  decidedAt                        DateTime?
+  closedAt                         DateTime?
+  convertedProfileId               String?
+  convertedProfile                 PersonnelProfile?          @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
+  createdAt                        DateTime                   @default(now())
+  updatedAt                        DateTime                   @updatedAt
+  answers                          ApplicationAnswer[]
+  servicePeriods                   ApplicationServicePeriod[]
+  armaUnits                        ApplicationArmaUnit[]
+  interestedUnits                  ApplicationInterestUnit[]
+  desiredMOS                       ApplicationDesiredMOS[]
+  statusHistory                    ApplicationStatusHistory[]
+  notes                            ApplicationReviewNote[]
 
   @@index([accountId])
   @@index([claimedByAccountId])
   @@index([targetUnitId])
   @@index([status])
   @@index([convertedProfileId])
+}
+
+model DiscordDeliveryJob {
+  id             String                   @id @default(cuid())
+  eventType      String
+  status         DiscordDeliveryJobStatus @default(Pending)
+  idempotencyKey String                   @unique
+  payload        Json
+  attempts       Int                      @default(0)
+  nextAttemptAt  DateTime                 @default(now())
+  deliveredAt    DateTime?
+  lastError      String?                  @db.Text
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([eventType])
 }
 
 model ApplicationServicePeriod {

@@ -35,6 +35,7 @@ import {
   findNavigationNodeByPath,
   findSiteMapNodeByPath,
   isSectionDashboardMatch,
+  resolveSectionLandingPath,
   resolveVisibleNavigation,
 } from "../../shared/site-map.mjs";
 import { buildPersonnelProfileViewModel } from "../../shared/profile-view-model.mjs";
@@ -395,13 +396,20 @@ function PortalShell({ path, session, onNavigate }) {
   const [navOpen, setNavOpen] = useState(false);
   const navigation = session.navigation ?? { defaultPath: null, sections: [] };
   const defaultPath = navigation.defaultPath;
-  const effectivePath = path === "/portal" && defaultPath ? defaultPath : path;
+  const sectionLandingPath = resolveSectionLandingPath(navigation, path);
+  const redirectPath =
+    path === "/portal" && defaultPath
+      ? defaultPath
+      : sectionLandingPath && sectionLandingPath !== path
+        ? sectionLandingPath
+        : null;
+  const effectivePath = redirectPath ?? path;
 
   useEffect(() => {
-    if (path === "/portal" && defaultPath) {
-      onNavigate(defaultPath, { replace: true });
+    if (redirectPath) {
+      onNavigate(redirectPath, { replace: true });
     }
-  }, [path, defaultPath, onNavigate]);
+  }, [redirectPath, onNavigate]);
 
   const visibleMatch = findNavigationNodeByPath(navigation, effectivePath);
   const siteMapMatch = findSiteMapNodeByPath(effectivePath);
@@ -450,7 +458,6 @@ function PortalShell({ path, session, onNavigate }) {
         />
         <main className="workspace" aria-label={`${activeDefinition.label} workspace`}>
           <Workspace
-            navigation={navigation}
             path={effectivePath}
             session={session}
             siteMapMatch={siteMapMatch}
@@ -469,8 +476,8 @@ function IconRail({ activeSection, defaultPath, sections, onNavigate, onSelectSe
       <button
         className="tf20-mark"
         type="button"
-        aria-label="User dashboard"
-        title="User dashboard"
+        aria-label="Default page"
+        title="Default page"
         onClick={() => onNavigate(defaultPath)}
       >
         <img src={tf20Crest} alt="" />
@@ -622,16 +629,12 @@ function TopBar({ activeDefinition, session, onOpenMenu }) {
   );
 }
 
-function Workspace({ navigation, path, session, siteMapMatch, visibleMatch, onNavigate }) {
+function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
   if (!visibleMatch) {
     return <AccessUnavailableWorkspace path={path} siteMapMatch={siteMapMatch} />;
   }
 
   switch (visibleMatch.node.id) {
-    case "user_dashboard":
-      return (
-        <DashboardWorkspace navigation={navigation} session={session} onNavigate={onNavigate} />
-      );
     case "user_profile":
       return <ProfileWorkspace session={session} />;
     case "user_application":
@@ -661,6 +664,8 @@ function Workspace({ navigation, path, session, siteMapMatch, visibleMatch, onNa
           onNavigate={onNavigate}
         />
       );
+    case "recruiting_dashboard":
+      return <RecruitingDashboardWorkspace session={session} onNavigate={onNavigate} />;
     case "recruiting_applications":
       return <ApplicationsWorkspace session={session} onNavigate={onNavigate} />;
     case "recruiting_application_detail":
@@ -678,34 +683,80 @@ function Workspace({ navigation, path, session, siteMapMatch, visibleMatch, onNa
   }
 }
 
-function DashboardWorkspace({ navigation, session, onNavigate }) {
-  const permissions = session.permissions ?? [];
-  const visiblePages = navigation.sections.flatMap((section) =>
-    section.pages.map((page) => ({ ...page, sectionLabel: section.label })),
-  );
+function RecruitingDashboardWorkspace({ session, onNavigate }) {
+  const [queue, setQueue] = useState({ status: "loading", items: [], error: null });
+  const currentAccountId = session?.summary?.account?.id ?? "";
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadQueue() {
+      const result = await fetchJson("/applications/review");
+      if (!isActive) return;
+
+      if (!result.ok) {
+        setQueue({
+          status: "error",
+          items: [],
+          error: result.payload?.error?.message ?? "Unable to load recruiting dashboard.",
+        });
+        return;
+      }
+
+      setQueue({ status: "ready", items: result.payload.items ?? [], error: null });
+    }
+
+    loadQueue();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const stats = recruiterApplicationStats(queue.items, currentAccountId);
 
   return (
     <div className="workspace-grid">
       <MetricPanel
-        label="Gate State"
-        value={session.gateState ?? session.summary?.gateState ?? "Unknown"}
+        label="UNCLAIMED APPLICATIONS"
+        value={queue.status === "loading" ? "..." : String(stats.unclaimed)}
       />
-      <MetricPanel label="Visible Sections" value={String(navigation.sections.length)} />
-      <MetricPanel label="Permissions" value={String(permissions.length)} />
+      <MetricPanel
+        label="YOUR ACTIVE APLLICATIONS"
+        value={queue.status === "loading" ? "..." : String(stats.claimedByCurrentUser)}
+      />
       <section className="wide-panel">
-        <PanelHeader title="Visible Pages" />
-        <div className="module-grid">
-          {visiblePages.map((page) => (
+        <PanelHeader title="Applications" />
+        {queue.status === "error" ? (
+          <EmptyState title="Recruiting dashboard unavailable" detail={queue.error} />
+        ) : (
+          <div className="module-grid">
             <PageTile
-              item={page}
-              key={page.id}
-              meta={page.sectionLabel}
-              onNavigate={() => onNavigate(page.path)}
+              item={{
+                label: "Applications",
+                icon: "applications",
+              }}
+              meta="Open recruiter queue"
+              onNavigate={() => onNavigate("/recruiting/applications")}
             />
-          ))}
-        </div>
+          </div>
+        )}
       </section>
     </div>
+  );
+}
+
+function recruiterApplicationStats(items, currentAccountId) {
+  return (items ?? []).reduce(
+    (stats, item) => {
+      if (!item.claimedByAccountId) {
+        stats.unclaimed += 1;
+      }
+      if (item.claimedByAccountId && item.claimedByAccountId === currentAccountId) {
+        stats.claimedByCurrentUser += 1;
+      }
+      return stats;
+    },
+    { unclaimed: 0, claimedByCurrentUser: 0 },
   );
 }
 

@@ -1,3 +1,8 @@
+import {
+  DISCORD_RECRUITING_EVENTS,
+  queueDiscordRecruitingEvent,
+} from "./discord-delivery-service.mjs";
+
 const APPLICATION_FORM_VERSION = "enlistment-v3";
 const RECRUITING_SOURCES = ["Reddit", "Steam", "Discord"];
 const MILITARY_BRANCHES = ["Army", "Navy", "AirForce", "Marines", "CoastGuard"];
@@ -344,6 +349,16 @@ export async function submitOwnApplication({ prisma, account, body }) {
       },
     });
 
+    await queueDiscordRecruitingEvent({
+      tx,
+      eventType:
+        application.status === "MoreInfoRequested"
+          ? DISCORD_RECRUITING_EVENTS.APPLICATION_RESUBMITTED
+          : DISCORD_RECRUITING_EVENTS.APPLICATION_SUBMITTED,
+      application: updated,
+      occurredAt: now,
+    });
+
     return updated;
   });
 
@@ -590,10 +605,19 @@ export async function claimApplication({ prisma, actor, applicationId }) {
       return null;
     }
 
-    return tx.application.findUniqueOrThrow({
+    const updated = await tx.application.findUniqueOrThrow({
       where: { id: applicationId },
       include: applicationInclude(),
     });
+
+    await queueDiscordRecruitingEvent({
+      tx,
+      eventType: DISCORD_RECRUITING_EVENTS.APPLICATION_CLAIMED,
+      application: updated,
+      occurredAt: now,
+    });
+
+    return updated;
   });
 
   if (!result) {
@@ -1163,6 +1187,13 @@ export async function acceptApplication({ prisma, actor, applicationId, reason }
       },
     });
 
+    await queueDiscordRecruitingEvent({
+      tx,
+      eventType: DISCORD_RECRUITING_EVENTS.TARGET_UNIT_REVIEW_COMPLETED,
+      application: converted,
+      occurredAt: now,
+    });
+
     return converted;
   });
 
@@ -1257,6 +1288,15 @@ export async function rejectApplication({ prisma, actor, applicationId, reason }
         relatedRecordId: applicationId,
       },
     });
+
+    if (isTargetUnitStage) {
+      await queueDiscordRecruitingEvent({
+        tx,
+        eventType: DISCORD_RECRUITING_EVENTS.TARGET_UNIT_REVIEW_COMPLETED,
+        application: updated,
+        occurredAt: now,
+      });
+    }
 
     return updated;
   });

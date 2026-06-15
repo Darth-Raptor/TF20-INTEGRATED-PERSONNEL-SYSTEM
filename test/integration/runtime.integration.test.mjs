@@ -214,6 +214,77 @@ test("pending account can draft, submit, and convert into an active member", asy
   );
 });
 
+test("application workflow queues recruiting discord delivery jobs", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const pending = await createAccountWithRole("pending-user", "Pending");
+  const recruiter = await createAccountWithRole("recruiter", "Active");
+  const unitReviewer = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: targetUnit.id,
+  });
+  const body = await applicationBody(targetUnit.id, "Discord Queue");
+
+  const submitted = await submitOwnApplication({ prisma, account: pending, body });
+  assert.equal(submitted.ok, true);
+
+  const claimed = await claimApplication({
+    prisma,
+    actor: recruiter,
+    applicationId: submitted.application.id,
+  });
+  assert.equal(claimed.ok, true);
+
+  const infoRequested = await requestApplicationInfo({
+    prisma,
+    actor: recruiter,
+    applicationId: submitted.application.id,
+    reason: "Need updated application details.",
+  });
+  assert.equal(infoRequested.ok, true);
+
+  const resubmitted = await submitOwnApplication({
+    prisma,
+    account: pending,
+    body: { ...body, leadershipDetails: "Updated leadership details." },
+  });
+  assert.equal(resubmitted.ok, true);
+
+  const recommended = await recommendApplication({
+    prisma,
+    actor: recruiter,
+    applicationId: submitted.application.id,
+    targetUnitId: targetUnit.id,
+  });
+  assert.equal(recommended.ok, true);
+
+  const accepted = await acceptApplication({
+    prisma,
+    actor: unitReviewer,
+    applicationId: submitted.application.id,
+    reason: "Accepted by target unit.",
+  });
+  assert.equal(accepted.ok, true);
+
+  const jobs = await prisma.discordDeliveryJob.findMany({
+    where: { payload: { path: "$.applicationId", equals: submitted.application.id } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  assert.deepEqual(
+    jobs.map((job) => job.eventType),
+    [
+      "application_submitted",
+      "application_claimed",
+      "application_resubmitted",
+      "target_unit_review_completed",
+    ],
+  );
+  assert.equal(
+    jobs.every((job) => job.status === "Pending"),
+    true,
+  );
+});
+
 test("recruiter can request more information and applicant can resubmit or withdraw", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const pending = await createAccountWithRole("pending-user", "Pending");
