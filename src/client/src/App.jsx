@@ -67,6 +67,7 @@ const ICONS = {
 };
 
 const DISCORD_INVITE_URL = "https://discord.gg/cdGHUztUDz";
+const APPLY_AUTH_URL = "/auth/discord/start?returnTo=/user/application";
 
 const DIFFERENTIATORS = [
   {
@@ -290,7 +291,7 @@ function PublicLandingPage() {
                 operations possible in Arma 3.
               </p>
               <div className="public-actions">
-                <a className="public-primary-action" href="/auth/discord/start">
+                <a className="public-primary-action" href={APPLY_AUTH_URL}>
                   Apply
                 </a>
                 <a className="public-secondary-action" href={DISCORD_INVITE_URL}>
@@ -365,7 +366,7 @@ function PublicLandingPage() {
             application access opens.
           </p>
           <div className="public-actions">
-            <a className="public-primary-action" href="/auth/discord/start">
+            <a className="public-primary-action" href={APPLY_AUTH_URL}>
               Apply
             </a>
             <a className="public-secondary-action" href={DISCORD_INVITE_URL}>

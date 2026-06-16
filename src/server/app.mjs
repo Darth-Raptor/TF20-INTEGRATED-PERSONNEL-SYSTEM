@@ -62,7 +62,14 @@ import {
   verifyDiscordGuildMembership,
 } from "./auth-service.mjs";
 import { buildAccessContext } from "./access.mjs";
-import { appendCookie, buildCookie, createRandomId, signCookieValue } from "./cookies.mjs";
+import {
+  appendCookie,
+  buildCookie,
+  createRandomId,
+  parseCookies,
+  signCookieValue,
+  verifySignedCookieValue,
+} from "./cookies.mjs";
 import { sendDetail, sendError } from "./errors.mjs";
 import { buildRequestContextMiddleware, requireAuthenticatedSession } from "./middleware.mjs";
 import {
@@ -145,6 +152,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
   app.get("/auth/discord/start", async (req, res, next) => {
     try {
       const state = createRandomId();
+      const returnTo = normalizeOAuthReturnPath(req.query.returnTo);
       const cookie = buildCookie(
         config.oauthStateCookieName,
         signCookieValue(state, config.sessionSecret),
@@ -154,6 +162,19 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         },
       );
       appendCookie(res, cookie);
+      if (returnTo) {
+        appendCookie(
+          res,
+          buildCookie(
+            oauthReturnCookieName(config),
+            signCookieValue(JSON.stringify({ state, returnTo }), config.sessionSecret),
+            {
+              secure: config.isProduction,
+              maxAgeSeconds: 10 * 60,
+            },
+          ),
+        );
+      }
       const authUrl = await buildDiscordAuthorizationUrl(config, state);
       return res.redirect(authUrl);
     } catch (error) {
@@ -168,19 +189,15 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         return sendError(res, 400, "invalid_oauth_callback", "Missing OAuth callback parameters.");
       }
 
-      const signedState = req.headers.cookie
-        ?.split(";")
-        .find((cookie) => cookie.trim().startsWith(`${config.oauthStateCookieName}=`))
-        ?.split("=")
-        ?.slice(1)
-        ?.join("=")
-        ?.trim();
+      const cookies = parseCookies(req.headers.cookie);
+      const signedState = cookies[config.oauthStateCookieName];
 
       const expectedState = signedState ? signCookieValue(state, config.sessionSecret) : null;
 
       if (!signedState || signedState !== expectedState) {
         return sendError(res, 400, "invalid_oauth_state", "OAuth state verification failed.");
       }
+      const returnTo = readOAuthReturnPath(cookies, config, state) ?? "/portal";
 
       const tokenPayload = await exchangeDiscordCode(config, code);
       const discordUser = await fetchDiscordUser(tokenPayload.access_token);
@@ -248,16 +265,18 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           maxAgeSeconds: config.sessionTtlDays * 24 * 60 * 60,
         }),
       );
+      appendCookie(res, clearCookie(config.oauthStateCookieName, config));
+      appendCookie(res, clearCookie(oauthReturnCookieName(config), config));
 
       if (resolved.account.status === "Pending") {
-        return res.redirect("/portal");
+        return res.redirect(returnTo);
       }
 
       if (resolved.account.status !== "Active") {
         return res.redirect(`/auth/blocked?reason=${resolved.account.status.toLowerCase()}`);
       }
 
-      return res.redirect("/portal");
+      return res.redirect(returnTo);
     } catch (error) {
       return next(error);
     }
@@ -1583,6 +1602,54 @@ function sendTrainingError(res, result) {
   const statusCode =
     result.code === "permission_denied" ? 403 : result.code === "not_found" ? 404 : 400;
   return sendError(res, statusCode, result.code, result.message);
+}
+
+function normalizeOAuthReturnPath(value) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (typeof candidate !== "string" || !candidate) return null;
+  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
+    return null;
+  }
+
+  const url = new URL(candidate, "https://taskforce20.local");
+  if (url.origin !== "https://taskforce20.local") return null;
+
+  const path = `${url.pathname}${url.search}${url.hash}`;
+  return ["/portal", "/user/application"].includes(path) ? path : null;
+}
+
+function readOAuthReturnPath(cookies, config, state) {
+  const signedReturnTo = cookies[oauthReturnCookieName(config)];
+  const payload = safeVerifySignedCookieValue(signedReturnTo, config.sessionSecret);
+  if (!payload) return null;
+
+  try {
+    const parsed = JSON.parse(payload);
+    if (parsed?.state !== state) return null;
+    return normalizeOAuthReturnPath(parsed.returnTo);
+  } catch {
+    return null;
+  }
+}
+
+function safeVerifySignedCookieValue(value, secret) {
+  try {
+    return verifySignedCookieValue(value, secret);
+  } catch {
+    return null;
+  }
+}
+
+function oauthReturnCookieName(config) {
+  return `${config.oauthStateCookieName}_return`;
+}
+
+function clearCookie(name, config) {
+  return buildCookie(name, "", {
+    secure: config.isProduction,
+    maxAgeSeconds: 0,
+    expires: new Date(0),
+  });
 }
 
 async function handlePersonnelActionFailure({
