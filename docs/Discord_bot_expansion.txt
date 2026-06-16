@@ -4,7 +4,7 @@
 
 If you're curious about the unit, check out the <#1394813141833224293> channel to get an idea of what Task Force 20 is like. If you have any questions, you can ping a <@&1448882584376574126> in the <#1511465912400609383> channel and they will be able to help you.
 
-If you're interested in enlisting you can head over to [TaskForce20.com](https://taskforce20.com/) and submit an enlistment application. Once you submit an enlistment app, one of our recruiters will reach out to you to set up an interview and get the enlistment process going."
+If you're interested in enlisting you can head over to [TaskForce20.com/Apply](https://taskforce20.com/user/application) and submit an enlistment application. Once you submit an enlistment app, one of our recruiters will reach out to you to set up an interview and get the enlistment process going."
 
 -SERVER LOG
 -channel: 1407546898390319286
