@@ -1,3 +1,5 @@
+import { personDisplayName } from "../shared/display-labels.mjs";
+
 const DISCORD_PROVIDER = "Discord";
 const DEFAULT_BRIDGE_TIMEOUT_MS = 8000;
 const DEFAULT_DISPATCH_INTERVAL_MS = 15000;
@@ -56,11 +58,16 @@ export function buildDiscordRecruitingEventPayload(
     applicantName,
     applicantDiscordId: applicantIdentity?.providerAccountId ?? null,
     applicantDiscordUsername: applicantIdentity?.username ?? null,
-    applicantDisplayName: application.account?.displayName ?? applicantName,
+    applicantDisplayName: personDisplayName(
+      { fullName: application.account?.displayName },
+      applicantName,
+    ),
     recruiterAccountId: application.claimedByAccountId ?? null,
     recruiterDiscordId: recruiterIdentity?.providerAccountId ?? null,
     recruiterDiscordUsername: recruiterIdentity?.username ?? null,
-    recruiterDisplayName: application.claimedByAccount?.displayName ?? null,
+    recruiterDisplayName: application.claimedByAccount
+      ? personDisplayName({ fullName: application.claimedByAccount.displayName })
+      : null,
     targetUnitName: application.targetUnit?.name ?? null,
     discordRecruitingThreadId: application.discordRecruitingThreadId ?? null,
     occurredAt: occurredAt.toISOString(),
@@ -258,9 +265,12 @@ function discordIdentityForAccount(account) {
 }
 
 function applicationDisplayName(application) {
-  return (
-    [application?.firstName, application?.lastName].filter(Boolean).join(" ") ||
-    application?.account?.displayName ||
-    "Applicant"
+  return personDisplayName(
+    {
+      firstName: application?.firstName,
+      lastName: application?.lastName,
+      fullName: application?.account?.displayName,
+    },
+    "Applicant",
   );
 }

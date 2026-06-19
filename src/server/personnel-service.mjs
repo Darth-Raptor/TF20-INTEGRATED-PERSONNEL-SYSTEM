@@ -1,16 +1,13 @@
+import { syncUnitScopedRoleAssignments } from "./role-management-service.mjs";
+
 const PERSONNEL_STATUS_OPTIONS = [
   "Applicant",
   "Recruit",
-  "Probationary",
   "Active",
   "Reserve",
   "LeaveOfAbsence",
   "ExtendedLeaveOfAbsence",
-  "Inactive",
   "AWOL",
-  "Separated",
-  "Discharged",
-  "DoNotRehire",
   "HonorableDischarge",
   "OtherThanHonorableDischarge",
   "DishonorableDischarge",
@@ -332,6 +329,17 @@ export async function updatePersonnelProfile({ prisma, actor, personnelProfileId
       now,
       assignmentType: "Primary",
     });
+
+    if (existing.currentUnitId !== nextUnitId) {
+      await syncUnitScopedRoleAssignments({
+        tx,
+        accountId: existing.accountId,
+        nextUnitId,
+        actorId: actor.id,
+        reason,
+        now,
+      });
+    }
 
     await syncAssignmentHistory({
       tx,

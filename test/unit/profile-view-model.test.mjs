@@ -75,9 +75,11 @@ test("profile view model uses safe fallbacks for missing data", () => {
     new Date("2026-11-25T00:00:00.000Z"),
   );
 
-  assert.equal(viewModel.title, "RANK TF20 Full Member");
-  assert.deepEqual(viewModel.serviceFacts[0], ["DATE OF ENLISTMENT", "Not recorded"]);
-  assert.deepEqual(viewModel.details, [
+  assert.deepEqual(viewModel.profileFields, [
+    ["RANK", "RANK"],
+    ["NAME", "T. Member"],
+    ["TIS", "Not recorded"],
+    ["TIG", "Not recorded"],
     ["UNIT", "Unassigned"],
     ["ASSIGNMENT", "Unassigned"],
     ["PRIMARY MOS", "Unassigned"],
@@ -120,14 +122,17 @@ test("profile view model uses current billet as assignment", () => {
     currentMOS: { identifier: "11B", name: "Infantryman" },
   });
 
-  assert.equal(viewModel.title, "SGT Raptor One");
-  assert.deepEqual(viewModel.assignment, [
+  assert.deepEqual(viewModel.profileFields, [
+    ["RANK", "SGT"],
+    ["NAME", "R. One"],
+    ["TIS", "Not recorded"],
+    ["TIG", "Not recorded"],
     ["UNIT", "A CO 1/75th Ranger Regiment"],
     ["ASSIGNMENT", "Team Leader"],
     ["PRIMARY MOS", "11B - Infantryman"],
     ["SECONDARY MOS", "None"],
   ]);
-  assert.deepEqual(viewModel.personnelStatus.slice(0, 2), [
+  assert.deepEqual(viewModel.administrativeStatus, [
     ["STATUS", "Active"],
     ["STANDING", "Good"],
   ]);
@@ -140,7 +145,7 @@ test("profile view model renders secondary MOS when present", () => {
     currentSecondaryMOS: { identifier: "68W", name: "Combat Medic" },
   });
 
-  assert.deepEqual(viewModel.details.slice(2), [
+  assert.deepEqual(viewModel.profileFields.slice(6), [
     ["PRIMARY MOS", "18Z - Special Forces Senior Sergeant"],
     ["SECONDARY MOS", "68W - Combat Medic"],
   ]);

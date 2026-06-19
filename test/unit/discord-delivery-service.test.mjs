@@ -44,7 +44,7 @@ test("discord recruiting payload includes applicant, recruiter, thread, and URL 
 
   assert.equal(payload.eventType, "application_claimed");
   assert.equal(payload.applicationId, "application-1");
-  assert.equal(payload.applicantName, "Alex Carter");
+  assert.equal(payload.applicantName, "A. Carter");
   assert.equal(payload.applicantDiscordId, "applicant-discord");
   assert.equal(payload.recruiterDiscordId, "recruiter-discord");
   assert.equal(payload.targetUnitName, "A CO, 1/75th Ranger Regiment");

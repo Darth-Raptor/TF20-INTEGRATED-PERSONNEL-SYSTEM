@@ -171,7 +171,12 @@ export const SITE_MAP_SECTIONS = [
     icon: "admin",
     visibility: {
       statuses: ["Active"],
-      anyOf: ["access.recovery.review", "access.sessions.revoke", "access.bootstrap.complete"],
+      anyOf: [
+        "access.recovery.review",
+        "access.sessions.revoke",
+        "access.bootstrap.complete",
+        "access.roles.manage",
+      ],
     },
     pages: [
       {
@@ -181,9 +186,24 @@ export const SITE_MAP_SECTIONS = [
         icon: "dashboard",
         visibility: {
           statuses: ["Active"],
-          anyOf: ["access.recovery.review", "access.sessions.revoke", "access.bootstrap.complete"],
+          anyOf: [
+            "access.recovery.review",
+            "access.sessions.revoke",
+            "access.bootstrap.complete",
+            "access.roles.manage",
+          ],
         },
         reserved: true,
+      },
+      {
+        id: "admin_roles",
+        label: "Roles",
+        path: "/admin/roles",
+        icon: "admin",
+        visibility: {
+          statuses: ["Active"],
+          allOf: ["access.roles.manage"],
+        },
       },
     ],
   },

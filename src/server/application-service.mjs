@@ -2,6 +2,12 @@ import {
   DISCORD_RECRUITING_EVENTS,
   queueDiscordRecruitingEvent,
 } from "./discord-delivery-service.mjs";
+import {
+  attachIntakeDocumentStatuses,
+  buildIntakeDocumentStatuses,
+  getCurrentIntakeDocuments,
+  hasCurrentIntakeAgreements,
+} from "./intake-documents.mjs";
 
 const APPLICATION_FORM_VERSION = "enlistment-v3";
 const RECRUITING_SOURCES = ["Reddit", "Steam", "Discord"];
@@ -136,18 +142,20 @@ export async function getRecruitingOptions(prisma, selectedUnitIds = []) {
 }
 
 export async function getOwnApplication(prisma, accountId) {
-  return prisma.application.findFirst({
+  const application = await prisma.application.findFirst({
     where: { accountId },
     orderBy: [{ createdAt: "desc" }],
     include: applicationInclude(),
   });
+  return attachIntakeDocumentStatuses(application);
 }
 
 export async function getApplicationById(prisma, applicationId) {
-  return prisma.application.findUnique({
+  const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: applicationInclude(),
   });
+  return attachIntakeDocumentStatuses(application);
 }
 
 export async function listReviewQueue(prisma, account) {
@@ -179,13 +187,24 @@ export async function listUnitReviewQueue(prisma, account) {
   });
 }
 
-export async function createOrResumeDraftApplication({ prisma, account }) {
+export async function createOrResumeDraftApplication({
+  prisma,
+  account,
+  allowMissingIntakeAgreements = false,
+}) {
   const eligibility = await validateApplicantEligibility(prisma, account);
   if (!eligibility.ok) return eligibility;
 
   const activeExisting = await findActiveOwnApplication(prisma, account.id);
   if (activeExisting) {
+    if (!allowMissingIntakeAgreements && !hasCurrentIntakeAgreements(activeExisting)) {
+      return intakeAgreementRequired();
+    }
     return { ok: true, created: false, application: activeExisting };
+  }
+
+  if (!allowMissingIntakeAgreements) {
+    return intakeAgreementRequired();
   }
 
   const application = await prisma.$transaction(async (tx) => {
@@ -228,6 +247,102 @@ export async function createOrResumeDraftApplication({ prisma, account }) {
   });
 
   return { ok: true, created: true, application };
+}
+
+export async function getOwnIntakeDocumentStatus({ prisma, account }) {
+  if (!canCreateOwnApplication(account) && !canViewOwnApplication(account)) {
+    return failure("permission_denied", "Application self-service is not available.");
+  }
+
+  const application = await getOwnApplication(prisma, account.id);
+  return {
+    ok: true,
+    application,
+    documents: buildIntakeDocumentStatuses(application),
+  };
+}
+
+export async function recordApplicationIntakeAgreements({
+  prisma,
+  account,
+  documentKeys,
+  ipAddress,
+  userAgent,
+}) {
+  const eligibility = await validateApplicantEligibility(prisma, account);
+  if (!eligibility.ok) return eligibility;
+
+  const currentDocuments = getCurrentIntakeDocuments();
+  const requestedKeys = new Set(coerceArray(documentKeys).map(normalizeText).filter(Boolean));
+  const requiredKeys = new Set(currentDocuments.map((document) => document.key));
+  const hasAllRequired = currentDocuments.every((document) => requestedKeys.has(document.key));
+  const hasOnlyKnown = [...requestedKeys].every((documentKey) => requiredKeys.has(documentKey));
+  if (!hasAllRequired || !hasOnlyKnown) {
+    return failure("validation_error", "All current intake documents must be agreed to.");
+  }
+
+  const draft = await createOrResumeDraftApplication({
+    prisma,
+    account,
+    allowMissingIntakeAgreements: true,
+  });
+  if (!draft.ok) return draft;
+
+  const application = draft.application;
+  if (!EDITABLE_APPLICATION_STATUSES.includes(application.status)) {
+    return failure(
+      "invalid_transition",
+      "Intake agreements can only be recorded for editable applications.",
+    );
+  }
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.applicationIntakeAgreement.createMany({
+      data: currentDocuments.map((document) => ({
+        applicationId: application.id,
+        accountId: account.id,
+        documentKey: document.key,
+        documentTitle: document.title,
+        fileName: document.fileName,
+        documentSha256: document.documentSha256,
+        documentSizeBytes: document.documentSizeBytes,
+        ipAddress: normalizeText(ipAddress) || null,
+        userAgent: normalizeText(userAgent) || null,
+        agreedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorAccountId: account.id,
+        targetAccountId: account.id,
+        module: "applications",
+        action: "agree-intake-documents",
+        recordType: "Application",
+        recordId: application.id,
+        newValue: {
+          documentKeys: currentDocuments.map((document) => document.key),
+          documentSha256: Object.fromEntries(
+            currentDocuments.map((document) => [document.key, document.documentSha256]),
+          ),
+        },
+        reason: "Applicant agreed to current intake documents.",
+      },
+    });
+  });
+
+  const updated = await prisma.application.findUniqueOrThrow({
+    where: { id: application.id },
+    include: applicationInclude(),
+  });
+
+  return {
+    ok: true,
+    application: attachIntakeDocumentStatuses(updated),
+    documents: buildIntakeDocumentStatuses(updated),
+  };
 }
 
 export async function updateOwnApplication({ prisma, account, body }) {
@@ -1766,6 +1881,13 @@ function failure(code, message) {
   return { ok: false, code, message };
 }
 
+function intakeAgreementRequired() {
+  return failure(
+    "intake_agreement_required",
+    "Review and agree to all intake documents before continuing the application.",
+  );
+}
+
 function applicationInclude() {
   return {
     account: {
@@ -1803,6 +1925,9 @@ function applicationInclude() {
     },
     notes: {
       orderBy: { createdAt: "asc" },
+    },
+    intakeAgreements: {
+      orderBy: [{ agreedAt: "desc" }],
     },
   };
 }

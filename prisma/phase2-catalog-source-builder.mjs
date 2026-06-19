@@ -146,6 +146,7 @@ function permissionSensitiveCategory(permissionKey) {
   if (
     permissionKey === "access.sessions.revoke" ||
     permissionKey === "access.bootstrap.complete" ||
+    permissionKey === "access.roles.manage" ||
     permissionKey === "catalogs.manage"
   ) {
     return "access-management";
@@ -162,6 +163,7 @@ function permissionRequiresRecentAuth(permissionKey) {
     "access.recovery.review",
     "access.sessions.revoke",
     "access.bootstrap.complete",
+    "access.roles.manage",
     "catalogs.manage",
     "applications.review-recruiter",
     "applications.review-target-unit",

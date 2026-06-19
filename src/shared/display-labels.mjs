@@ -36,6 +36,26 @@ export function standingDisplayLabel(value) {
   return value ? "Good" : "Restricted";
 }
 
+export function personDisplayName(
+  { firstName = "", lastName = "", fullName = "" } = {},
+  fallback = "Unknown",
+) {
+  const explicitFirstName = String(firstName ?? "").trim();
+  const explicitLastName = String(lastName ?? "").trim();
+  if (explicitFirstName && explicitLastName) {
+    return `${explicitFirstName.charAt(0).toUpperCase()}. ${explicitLastName}`;
+  }
+
+  const tokens = String(fullName ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length >= 2) {
+    return `${tokens[0].charAt(0).toUpperCase()}. ${tokens.at(-1)}`;
+  }
+  return tokens[0] ?? fallback;
+}
+
 export function rankDisplayLabel(rank, { compact = false } = {}) {
   if (!rank) return "Unassigned";
   if (compact) {

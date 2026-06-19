@@ -69,16 +69,11 @@ enum MilitaryBranch {
 enum PersonnelStatus {
   Applicant
   Recruit
-  Probationary
   Active
   Reserve
   LeaveOfAbsence
   ExtendedLeaveOfAbsence
-  Inactive
   AWOL
-  Separated
-  Discharged
-  DoNotRehire
   HonorableDischarge
   OtherThanHonorableDischarge
   DishonorableDischarge
@@ -232,44 +227,45 @@ enum DiscordDeliveryJobStatus {
 }
 
 model Account {
-  id                         String                   @id @default(cuid())
-  displayName                String?
-  email                      String?
-  timezone                   String?
-  status                     AccountStatus            @default(Pending)
-  statusReason               String?                  @db.Text
-  createdAt                  DateTime                 @default(now())
-  updatedAt                  DateTime                 @updatedAt
-  activatedAt                DateTime?
-  claimedAt                  DateTime?
-  lockedAt                   DateTime?
-  disabledAt                 DateTime?
-  archivedAt                 DateTime?
-  lastLoginAt                DateTime?
-  authIdentities             AuthIdentity[]
-  sessions                   Session[]
-  revokedSessions            Session[]                @relation("SessionRevokedBy")
-  issuedSessionRevocations   SessionRevocation[]      @relation("SessionRevocationIssuedBy")
-  targetedSessionRevocations SessionRevocation[]      @relation("SessionRevocationTargetAccount")
-  roleAssignments            RoleAssignment[]         @relation("RoleAssignmentAccount")
-  grantedRoleAssignments     RoleAssignment[]         @relation("RoleAssignmentGrantedBy")
-  recoverySubjects           AccountRecoveryRequest[] @relation("RecoverySubject")
-  recoveryRequests           AccountRecoveryRequest[] @relation("RecoveryRequester")
-  recoveryReviews            AccountRecoveryRequest[] @relation("RecoveryReviewer")
-  recoveryCompletions        AccountRecoveryRequest[] @relation("RecoveryCompleter")
-  verifiedBootstraps         AccessBootstrap[]        @relation("BootstrapVerifiedAccount")
-  completedBootstraps        AccessBootstrap[]        @relation("BootstrapCompletedBy")
-  personnelProfile           PersonnelProfile?
-  createdProfiles            PersonnelProfile[]       @relation("ProfileCreatedBy")
-  applications               Application[]
-  claimedApplications        Application[]            @relation("ApplicationClaimedBy")
-  supportTicketsCreated      SupportTicket[]          @relation("SupportTicketCreatedBy")
-  supportTicketsAssigned     SupportTicket[]          @relation("SupportTicketAssignedTo")
-  supportComments            SupportTicketComment[]
-  notifications              Notification[]
-  auditEvents                AuditLog[]               @relation("AuditActor")
-  targetedAuditEvents        AuditLog[]               @relation("AuditTargetAccount")
-  integrationLogs            IntegrationLog[]
+  id                          String                       @id @default(cuid())
+  displayName                 String?
+  email                       String?
+  timezone                    String?
+  status                      AccountStatus                @default(Pending)
+  statusReason                String?                      @db.Text
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  activatedAt                 DateTime?
+  claimedAt                   DateTime?
+  lockedAt                    DateTime?
+  disabledAt                  DateTime?
+  archivedAt                  DateTime?
+  lastLoginAt                 DateTime?
+  authIdentities              AuthIdentity[]
+  sessions                    Session[]
+  revokedSessions             Session[]                    @relation("SessionRevokedBy")
+  issuedSessionRevocations    SessionRevocation[]          @relation("SessionRevocationIssuedBy")
+  targetedSessionRevocations  SessionRevocation[]          @relation("SessionRevocationTargetAccount")
+  roleAssignments             RoleAssignment[]             @relation("RoleAssignmentAccount")
+  grantedRoleAssignments      RoleAssignment[]             @relation("RoleAssignmentGrantedBy")
+  recoverySubjects            AccountRecoveryRequest[]     @relation("RecoverySubject")
+  recoveryRequests            AccountRecoveryRequest[]     @relation("RecoveryRequester")
+  recoveryReviews             AccountRecoveryRequest[]     @relation("RecoveryReviewer")
+  recoveryCompletions         AccountRecoveryRequest[]     @relation("RecoveryCompleter")
+  verifiedBootstraps          AccessBootstrap[]            @relation("BootstrapVerifiedAccount")
+  completedBootstraps         AccessBootstrap[]            @relation("BootstrapCompletedBy")
+  personnelProfile            PersonnelProfile?
+  createdProfiles             PersonnelProfile[]           @relation("ProfileCreatedBy")
+  applications                Application[]
+  applicationIntakeAgreements ApplicationIntakeAgreement[]
+  claimedApplications         Application[]                @relation("ApplicationClaimedBy")
+  supportTicketsCreated       SupportTicket[]              @relation("SupportTicketCreatedBy")
+  supportTicketsAssigned      SupportTicket[]              @relation("SupportTicketAssignedTo")
+  supportComments             SupportTicketComment[]
+  notifications               Notification[]
+  auditEvents                 AuditLog[]                   @relation("AuditActor")
+  targetedAuditEvents         AuditLog[]                   @relation("AuditTargetAccount")
+  integrationLogs             IntegrationLog[]
 
   @@index([status])
   @@index([email])
@@ -699,26 +695,26 @@ model PersonnelStandingHistory {
 }
 
 model Application {
-  id                               String                     @id @default(cuid())
+  id                               String                       @id @default(cuid())
   accountId                        String
-  account                          Account                    @relation(fields: [accountId], references: [id])
+  account                          Account                      @relation(fields: [accountId], references: [id])
   targetUnitId                     String?
-  targetUnit                       Unit?                      @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
-  status                           ApplicationStatus          @default(Draft)
+  targetUnit                       Unit?                        @relation("ApplicationTargetUnit", fields: [targetUnitId], references: [id])
+  status                           ApplicationStatus            @default(Draft)
   formVersion                      String
   firstName                        String?
   lastName                         String?
   age                              Int?
   timeZone                         String?
-  reasonForJoining                 String?                    @db.Text
+  reasonForJoining                 String?                      @db.Text
   source                           RecruitingSource?
-  priorService                     Boolean                    @default(false)
-  priorArma                        Boolean                    @default(false)
-  leadership                       Boolean                    @default(false)
-  leadershipDetails                String?                    @db.Text
+  priorService                     Boolean                      @default(false)
+  priorArma                        Boolean                      @default(false)
+  leadership                       Boolean                      @default(false)
+  leadershipDetails                String?                      @db.Text
   submittedAt                      DateTime?
   claimedByAccountId               String?
-  claimedByAccount                 Account?                   @relation("ApplicationClaimedBy", fields: [claimedByAccountId], references: [id])
+  claimedByAccount                 Account?                     @relation("ApplicationClaimedBy", fields: [claimedByAccountId], references: [id])
   claimedAt                        DateTime?
   discordRecruitingThreadId        String?
   discordRecruitingThreadCreatedAt DateTime?
@@ -729,9 +725,9 @@ model Application {
   decidedAt                        DateTime?
   closedAt                         DateTime?
   convertedProfileId               String?
-  convertedProfile                 PersonnelProfile?          @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
-  createdAt                        DateTime                   @default(now())
-  updatedAt                        DateTime                   @updatedAt
+  convertedProfile                 PersonnelProfile?            @relation("ApplicationConvertedProfile", fields: [convertedProfileId], references: [id])
+  createdAt                        DateTime                     @default(now())
+  updatedAt                        DateTime                     @updatedAt
   answers                          ApplicationAnswer[]
   servicePeriods                   ApplicationServicePeriod[]
   armaUnits                        ApplicationArmaUnit[]
@@ -739,12 +735,34 @@ model Application {
   desiredMOS                       ApplicationDesiredMOS[]
   statusHistory                    ApplicationStatusHistory[]
   notes                            ApplicationReviewNote[]
+  intakeAgreements                 ApplicationIntakeAgreement[]
 
   @@index([accountId])
   @@index([claimedByAccountId])
   @@index([targetUnitId])
   @@index([status])
   @@index([convertedProfileId])
+}
+
+model ApplicationIntakeAgreement {
+  id                String      @id @default(cuid())
+  applicationId     String
+  application       Application @relation(fields: [applicationId], references: [id])
+  accountId         String
+  account           Account     @relation(fields: [accountId], references: [id])
+  documentKey       String
+  documentTitle     String
+  fileName          String
+  documentSha256    String
+  documentSizeBytes Int
+  ipAddress         String?     @db.VarChar(64)
+  userAgent         String?     @db.Text
+  agreedAt          DateTime    @default(now())
+
+  @@unique([applicationId, documentKey, documentSha256])
+  @@index([applicationId])
+  @@index([accountId])
+  @@index([documentKey])
 }
 
 model DiscordDeliveryJob {

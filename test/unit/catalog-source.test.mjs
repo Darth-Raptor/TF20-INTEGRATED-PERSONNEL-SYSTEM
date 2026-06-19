@@ -7,7 +7,7 @@ import { validateCatalogSource } from "../../prisma/seed.mjs";
 test("catalog source validates with the approved Phase 2 data", () => {
   assert.doesNotThrow(() => validateCatalogSource(catalogSource));
   assert.equal(catalogSource.roles.length, 7);
-  assert.equal(catalogSource.permissions.length, 29);
+  assert.equal(catalogSource.permissions.length, 30);
   assert.equal(catalogSource.units.length, 14);
   assert.equal(catalogSource.mos.length, 33);
 });
@@ -111,6 +111,7 @@ test("catalog roles use the explicit least-privilege permission matrix", () => {
     "system-admin": [
       "access.bootstrap.complete",
       "access.recovery.review",
+      "access.roles.manage",
       "access.sessions.revoke",
       "audit.view",
       "catalogs.manage",

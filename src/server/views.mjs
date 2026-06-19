@@ -4,6 +4,7 @@ import {
   applicationStatusLabel,
   billetDisplayLabel,
   mosDisplayLabel,
+  personDisplayName,
   personnelStatusLabel,
   rankDisplayLabel,
   standingDisplayLabel,
@@ -21,11 +22,11 @@ function pageTemplate(title, body) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
     <style>
-      body { font-family: ui-sans-serif, system-ui, sans-serif; background: #111827; color: #f9fafb; margin: 0; }
+      body { font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 400; background: #111827; color: #f9fafb; margin: 0; }
       main { max-width: 52rem; margin: 0 auto; padding: 4rem 1.5rem; }
       .card { background: #1f2937; border: 1px solid #374151; border-radius: 1rem; padding: 1.5rem; }
-      a.button, button { display: inline-block; padding: 0.75rem 1rem; border-radius: 0.75rem; text-decoration: none; background: #2563eb; color: white; border: 0; }
-      code { background: #0f172a; padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
+      a.button, button { display: inline-block; padding: 0.75rem 1rem; border-radius: 0.75rem; text-decoration: none; background: #2563eb; color: white; border: 0; font-weight: 400; }
+      code { font-family: inherit; font-weight: 400; background: #0f172a; padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
       ul { line-height: 1.7; }
       .muted { color: #cbd5e1; }
       .stack { display: grid; gap: 1rem; }
@@ -145,7 +146,7 @@ export function renderPersonnelSelfScreen({ summary, profile }) {
         <div class="panel">
           <h2>Profile</h2>
           <ul class="meta-list">
-            <li>Name: <code>${escapeHtml(profile.name)}</code></li>
+            <li>Name: <code>${escapeHtml(personDisplayName({ fullName: profile.name }))}</code></li>
             <li>Status: <code>${escapeHtml(personnelStatusLabel(profile.status, ENUM_DISPLAY_LABELS))}</code></li>
             <li>Good standing: <code>${standingDisplayLabel(profile.goodStanding)}</code></li>
             <li>Unit: <code>${escapeHtml(unitDisplayLabel(profile.currentUnit))}</code></li>
@@ -257,7 +258,7 @@ export function renderPersonnelRosterScreen({ items, units, filters, errorMessag
                   ${items
                     .map(
                       (item) => `<tr>
-                    <td>${escapeHtml(item.name)}</td>
+                    <td>${escapeHtml(personDisplayName({ fullName: item.name }))}</td>
                     <td>${escapeHtml(accountDisplayLabel(item.account))}</td>
                     <td>${escapeHtml(personnelStatusLabel(item.status, ENUM_DISPLAY_LABELS))}</td>
                     <td>${escapeHtml(unitDisplayLabel(item.currentUnit))}</td>
@@ -300,7 +301,7 @@ export function renderPersonnelDetailScreen({
       ${errorMessage ? `<div class="card"><strong>${escapeHtml(errorMessage)}</strong></div>` : ""}
       <div class="split">
         <div class="card">
-          <h2>${escapeHtml(profile.name)}</h2>
+          <h2>${escapeHtml(personDisplayName({ fullName: profile.name }))}</h2>
           <ul class="meta-list">
             <li>Account: <code>${escapeHtml(accountDisplayLabel(profile.account))}</code></li>
             <li>Status: <code>${escapeHtml(personnelStatusLabel(profile.status, ENUM_DISPLAY_LABELS))}</code></li>
@@ -699,14 +700,14 @@ function renderRejectCard(applicationId) {
 }
 
 function accountDisplayLabel(account, authIdentity = null) {
-  return (
+  const fullName =
     account?.displayName ??
     authIdentity?.displayName ??
     authIdentity?.username ??
     account?.authIdentities?.[0]?.displayName ??
     account?.authIdentities?.[0]?.username ??
-    "Unknown account"
-  );
+    "";
+  return personDisplayName({ fullName }, "Unknown account");
 }
 
 function formatDate(value) {
@@ -735,16 +736,11 @@ function personnelStatusOptions() {
   return [
     "Applicant",
     "Recruit",
-    "Probationary",
     "Active",
     "Reserve",
     "LeaveOfAbsence",
     "ExtendedLeaveOfAbsence",
-    "Inactive",
     "AWOL",
-    "Separated",
-    "Discharged",
-    "DoNotRehire",
     "HonorableDischarge",
     "OtherThanHonorableDischarge",
     "DishonorableDischarge",

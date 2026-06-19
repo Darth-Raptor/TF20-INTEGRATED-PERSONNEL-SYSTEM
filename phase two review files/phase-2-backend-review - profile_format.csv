@@ -1,0 +1,13 @@
+Internal card number,row number,column number,title,content
+1,1,1,RANK,currentRank
+1,1,2,NAME,First inital. Last name
+1,1,3,TIS,same
+1,1,4,TIG,same
+1,2,1,UNIT,same
+1,2,2,ASSIGNMENT,same
+1,2,3,PRIMARY MOS,same
+1,2,4,SECONDARY MOS,same
+3,1,1,QUALIFICATIONS,same
+4,1,1,AWARDS,same
+5,1,1,RIBBONS,same
+6,1,1,ACHIEVEMENTS,same

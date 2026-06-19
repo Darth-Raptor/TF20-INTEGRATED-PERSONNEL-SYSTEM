@@ -4,6 +4,7 @@ access.recovery.request,Request Account Recovery,"pending-user,member,recruiter,
 access.recovery.review,Review Account Recovery,system-admin
 access.sessions.revoke,Revoke Sessions,system-admin
 access.bootstrap.complete,Complete Account Bootstrap,system-admin
+access.roles.manage,Manage Account Roles,system-admin
 catalogs.manage,Manage Catalogs,system-admin
 applications.create-self,Create Own Application,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 applications.view-self,View Own Application,"pending-user,member,recruiter,trainer,unit-staff,command-staff"

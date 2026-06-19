@@ -13,6 +13,7 @@ import {
   createOrResumeDraftApplication,
   createOrResumeOwnApplication,
   getApplicationById,
+  getOwnIntakeDocumentStatus,
   getOwnApplication,
   getRecruitingOptions,
   isHtmlRequest,
@@ -20,6 +21,7 @@ import {
   listUnitReviewQueue,
   recommendApplication,
   releaseApplicationClaim,
+  recordApplicationIntakeAgreements,
   requestApplicationInfo,
   requestApplicationInfoFromUnit,
   rejectApplication,
@@ -30,6 +32,7 @@ import {
   updateOwnApplication,
   withdrawOwnApplication,
 } from "./application-service.mjs";
+import { getCurrentIntakeDocument } from "./intake-documents.mjs";
 import {
   canUpdateScopedPersonnel,
   canViewOwnPersonnel,
@@ -50,6 +53,12 @@ import {
   listTrainingSessions,
   updateTrainingSession,
 } from "./training-service.mjs";
+import {
+  assignAccountRole,
+  getRoleManagementAccount,
+  listRoleManagementOptions,
+  removeAccountRole,
+} from "./role-management-service.mjs";
 import {
   buildDiscordAuthorizationUrl,
   buildSessionSummary,
@@ -375,6 +384,74 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
     });
   });
 
+  app.get("/admin/role-management", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await listRoleManagementOptions(prisma, req.context.account);
+      if (!result.ok) return sendRoleManagementError(res, result);
+      return sendDetail(res, { accounts: result.accounts, roles: result.roles });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get(
+    "/admin/role-management/:accountId",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await getRoleManagementAccount(
+          prisma,
+          req.context.account,
+          req.params.accountId,
+        );
+        if (!result.ok) return sendRoleManagementError(res, result);
+        return sendDetail(res, result.account);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/admin/role-management/:accountId/assignments",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await assignAccountRole({
+          prisma,
+          actor: req.context.account,
+          accountId: req.params.accountId,
+          roleId: req.body.roleId,
+          reason: req.body.reason,
+        });
+        if (!result.ok) return sendRoleManagementError(res, result);
+        return sendDetail(res, result.account);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.delete(
+    "/admin/role-management/:accountId/assignments/:assignmentId",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await removeAccountRole({
+          prisma,
+          actor: req.context.account,
+          accountId: req.params.accountId,
+          assignmentId: req.params.assignmentId,
+          reason: req.body.reason,
+        });
+        if (!result.ok) return sendRoleManagementError(res, result);
+        return sendDetail(res, result.account);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
   app.get(
     ["/applications/me", "/applications/mine"],
     requireAuthenticatedSession,
@@ -392,7 +469,20 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           );
         }
 
-        const application = await getOwnApplication(prisma, req.context.account.id);
+        const intakeStatus = await getOwnIntakeDocumentStatus({
+          prisma,
+          account: req.context.account,
+        });
+        if (!intakeStatus.ok) {
+          return sendError(
+            res,
+            applicationSelfStatusCode(intakeStatus),
+            intakeStatus.code,
+            intakeStatus.message,
+          );
+        }
+
+        const application = intakeStatus.application;
         const options = await getRecruitingOptions(prisma);
         const summary = buildSessionSummary({
           account: req.context.account,
@@ -412,7 +502,96 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           );
         }
 
-        return sendDetail(res, { application, options });
+        return sendDetail(res, { application, options, intakeDocuments: intakeStatus.documents });
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.get("/applications/intake-documents", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      if (!canAccessIntakeDocuments(req.context.account)) {
+        return sendError(
+          res,
+          403,
+          "permission_denied",
+          "Intake documents are not available to this account.",
+        );
+      }
+
+      const result = await getOwnIntakeDocumentStatus({
+        prisma,
+        account: req.context.account,
+      });
+
+      if (!result.ok) {
+        return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
+      }
+
+      return sendDetail(res, {
+        application: result.application,
+        documents: result.documents,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get(
+    "/applications/intake-documents/:documentKey/pdf",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        if (!canAccessIntakeDocuments(req.context.account)) {
+          return sendError(
+            res,
+            403,
+            "permission_denied",
+            "Intake documents are not available to this account.",
+          );
+        }
+
+        const document = getCurrentIntakeDocument(req.params.documentKey);
+        if (!document) {
+          return sendError(res, 404, "not_found", "Intake document was not found.");
+        }
+
+        res.type("application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `inline; filename="${safeHeaderFilename(document.fileName)}"`,
+        );
+        return res.sendFile(document.filePath, (error) => {
+          if (error) next(error);
+        });
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/applications/me/intake-agreements",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await recordApplicationIntakeAgreements({
+          prisma,
+          account: req.context.account,
+          documentKeys: req.body.documentKeys,
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent"),
+        });
+
+        if (!result.ok) {
+          return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
+        }
+
+        return sendDetail(res, {
+          application: result.application,
+          documents: result.documents,
+        });
       } catch (error) {
         return next(error);
       }
@@ -764,12 +943,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           );
         }
 
-        return sendError(
-          res,
-          result.code === "permission_denied" ? 403 : 400,
-          result.code,
-          result.message,
-        );
+        return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
       }
 
       if (isHtmlRequest(req)) {
@@ -797,12 +971,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           });
 
       if (!result.ok) {
-        return sendError(
-          res,
-          result.code === "permission_denied" ? 403 : 400,
-          result.code,
-          result.message,
-        );
+        return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
       }
 
       return sendDetail(res, result.application, { created: result.created ?? false });
@@ -820,12 +989,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       });
 
       if (!result.ok) {
-        return sendError(
-          res,
-          result.code === "permission_denied" ? 403 : 400,
-          result.code,
-          result.message,
-        );
+        return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
       }
 
       return sendDetail(res, result.application);
@@ -843,12 +1007,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       });
 
       if (!result.ok) {
-        return sendError(
-          res,
-          result.code === "permission_denied" ? 403 : 400,
-          result.code,
-          result.message,
-        );
+        return sendError(res, applicationSelfStatusCode(result), result.code, result.message);
       }
 
       return sendDetail(res, result.application);
@@ -1602,6 +1761,38 @@ function sendTrainingError(res, result) {
   const statusCode =
     result.code === "permission_denied" ? 403 : result.code === "not_found" ? 404 : 400;
   return sendError(res, statusCode, result.code, result.message);
+}
+
+function sendRoleManagementError(res, result) {
+  const statusCode =
+    result.code === "permission_denied"
+      ? 403
+      : result.code === "not_found"
+        ? 404
+        : result.code === "invalid_transition"
+          ? 409
+          : 400;
+  return sendError(res, statusCode, result.code, result.message);
+}
+
+function applicationSelfStatusCode(result) {
+  if (result.code === "permission_denied") return 403;
+  if (result.code === "not_found") return 404;
+  if (result.code === "intake_agreement_required") return 409;
+  return 400;
+}
+
+function canAccessIntakeDocuments(account) {
+  return (
+    canCreateOwnApplication(account) ||
+    canViewOwnApplication(account) ||
+    canRecruiterReview(account) ||
+    canTargetUnitReview(account)
+  );
+}
+
+function safeHeaderFilename(fileName) {
+  return String(fileName ?? "document.pdf").replaceAll('"', "");
 }
 
 function normalizeOAuthReturnPath(value) {

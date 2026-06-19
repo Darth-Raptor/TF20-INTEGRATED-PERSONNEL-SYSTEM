@@ -2,6 +2,7 @@ import {
   awardDisplayLabel,
   billetDisplayLabel,
   mosDisplayLabel,
+  personDisplayName,
   personnelStatusLabel,
   rankDisplayLabel,
   standingDisplayLabel,
@@ -30,32 +31,19 @@ export function buildPersonnelProfileViewModel(profile, summary = {}, now = new 
   const awards = splitAwardRecords(profile?.awardRecords ?? []);
 
   return {
-    title: [rankLabel(profile), profileName(profile, summary)].filter(Boolean).join(" "),
-    personnelStatus: [
+    profileFields: [
+      ["RANK", rankLabel(profile)],
+      ["NAME", profileName(profile, summary)],
+      ["TIS", formatWholeMonthDuration(enlistmentDate, now)],
+      ["TIG", formatWholeMonthDuration(rankEffectiveAt, now)],
+      ["UNIT", unit],
+      ["ASSIGNMENT", billetDisplayLabel(profile?.currentBillet)],
+      ["PRIMARY MOS", mosLabel(profile?.currentMOS)],
+      ["SECONDARY MOS", secondaryMosLabel(profile?.currentSecondaryMOS)],
+    ],
+    administrativeStatus: [
       ["STATUS", profile?.status ? personnelStatusLabel(profile.status) : "Not recorded"],
       ["STANDING", standingDisplayLabel(profile?.goodStanding)],
-      ["DATE OF ENLISTMENT", formatCompactDate(enlistmentDate)],
-      ["TIME IN SERVICE", formatWholeMonthDuration(enlistmentDate, now)],
-      ["DATE OF RANK", formatCompactDate(rankEffectiveAt)],
-      ["TIME IN GRADE", formatWholeMonthDuration(rankEffectiveAt, now)],
-    ],
-    assignment: [
-      ["UNIT", unit],
-      ["ASSIGNMENT", billetDisplayLabel(profile?.currentBillet)],
-      ["PRIMARY MOS", mosLabel(profile?.currentMOS)],
-      ["SECONDARY MOS", secondaryMosLabel(profile?.currentSecondaryMOS)],
-    ],
-    serviceFacts: [
-      ["DATE OF ENLISTMENT", formatCompactDate(enlistmentDate)],
-      ["TIME IN SERVICE", formatWholeMonthDuration(enlistmentDate, now)],
-      ["DATE OF RANK", formatCompactDate(rankEffectiveAt)],
-      ["TIME IN GRADE", formatWholeMonthDuration(rankEffectiveAt, now)],
-    ],
-    details: [
-      ["UNIT", unit],
-      ["ASSIGNMENT", billetDisplayLabel(profile?.currentBillet)],
-      ["PRIMARY MOS", mosLabel(profile?.currentMOS)],
-      ["SECONDARY MOS", secondaryMosLabel(profile?.currentSecondaryMOS)],
     ],
     qualifications: activeQualificationLabels(profile?.qualifications ?? []),
     awards: awards.awards,
@@ -152,13 +140,13 @@ function rankLabel(profile) {
 }
 
 function profileName(profile, summary) {
-  return (
+  const fullName =
     profile?.name ??
     summary?.account?.displayName ??
     summary?.authIdentity?.displayName ??
     summary?.authIdentity?.username ??
-    "Member"
-  );
+    "Member";
+  return personDisplayName({ fullName }, "Member");
 }
 
 function mosLabel(mos) {

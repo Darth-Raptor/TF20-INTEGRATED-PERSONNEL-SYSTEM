@@ -29,7 +29,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 12);
+  assert.equal(result.parsed.pages.length, 13);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -189,6 +189,15 @@ test("least-privilege role permissions resolve expected navigation sections", ()
     sectionIdsForPermissions([...rolePermissions("system-admin"), ...rolePermissions("member")]),
     ["user", "admin"],
   );
+});
+
+test("admin roles route requires role-management permission", () => {
+  const navigation = resolveVisibleNavigation("Active", ["access.roles.manage"]);
+  const match = findNavigationNodeByPath(navigation, "/admin/roles");
+
+  assert.equal(match.section.id, "admin");
+  assert.equal(match.node.id, "admin_roles");
+  assert.equal(match.node.label, "Roles");
 });
 
 test("training records page replaces reserved training dashboard", () => {

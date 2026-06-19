@@ -25,6 +25,7 @@ import {
   billetDisplayLabel,
   humanizeIdentifier,
   mosDisplayLabel,
+  personDisplayName,
   personnelStatusLabel,
   rankDisplayLabel,
   trainingCourseDisplayLabel,
@@ -592,11 +593,12 @@ function MenuItem({ active, collapsed, item, onNavigate }) {
 }
 
 function TopBar({ activeDefinition, session, onOpenMenu }) {
-  const displayName =
+  const rawDisplayName =
     session.summary?.account?.displayName ??
     session.summary?.authIdentity?.displayName ??
     session.summary?.authIdentity?.username ??
     "TF20 user";
+  const displayName = personDisplayName({ fullName: rawDisplayName }, "TF20 user");
   const title =
     activeDefinition.id === "user_application" ? "Enlistment Application" : activeDefinition.label;
 
@@ -679,6 +681,8 @@ function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
       );
     case "training_records":
       return <TrainingRecordsWorkspace />;
+    case "admin_roles":
+      return <AdminRolesWorkspace />;
     default:
       return <ContractPlaceholder match={visibleMatch} />;
   }
@@ -761,6 +765,238 @@ function recruiterApplicationStats(items, currentAccountId) {
   );
 }
 
+function AdminRolesWorkspace() {
+  const [options, setOptions] = useState({
+    status: "loading",
+    accounts: [],
+    roles: [],
+    error: null,
+  });
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [detail, setDetail] = useState({ status: "idle", account: null, error: null });
+  const [roleId, setRoleId] = useState("");
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function loadOptions() {
+      const result = await fetchJson("/admin/role-management");
+      if (!active) return;
+      if (!result.ok) {
+        setOptions({
+          status: "error",
+          accounts: [],
+          roles: [],
+          error: result.payload?.error?.message ?? "Unable to load role management.",
+        });
+        return;
+      }
+      const data = result.payload.data;
+      setOptions({
+        status: "ready",
+        accounts: data.accounts ?? [],
+        roles: data.roles ?? [],
+        error: null,
+      });
+      setSelectedAccountId((current) => current || data.accounts?.[0]?.id || "");
+    }
+    loadOptions();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const loadAccount = async (accountId) => {
+    if (!accountId) {
+      setDetail({ status: "idle", account: null, error: null });
+      return;
+    }
+    setDetail({ status: "loading", account: null, error: null });
+    const result = await fetchJson(`/admin/role-management/${encodeURIComponent(accountId)}`);
+    if (!result.ok) {
+      setDetail({
+        status: "error",
+        account: null,
+        error: result.payload?.error?.message ?? "Unable to load account roles.",
+      });
+      return;
+    }
+    setDetail({ status: "ready", account: result.payload.data, error: null });
+  };
+
+  useEffect(() => {
+    loadAccount(selectedAccountId);
+  }, [selectedAccountId]);
+
+  const performRoleAction = async (label, request) => {
+    if (!reason.trim()) {
+      setMessage("A role-change reason is required.");
+      return;
+    }
+    setMessage(`${label}...`);
+    const result = await request();
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? `${label} failed.`);
+      return;
+    }
+    setDetail({ status: "ready", account: result.payload.data, error: null });
+    setRoleId("");
+    setReason("");
+    setMessage(`${label} complete.`);
+  };
+
+  if (options.status === "loading") return <SkeletonRows />;
+  if (options.status === "error") {
+    return <EmptyState title="Role management unavailable" detail={options.error} />;
+  }
+
+  const account = detail.account;
+  const assignedRoleIds = new Set(
+    (account?.roleAssignments ?? []).map((assignment) => assignment.roleId),
+  );
+  const availableRoles = options.roles.filter((role) => !assignedRoleIds.has(role.id));
+
+  return (
+    <div className="workspace-grid">
+      <section className="wide-panel application-panel">
+        <ApplicationReviewSection title="USER">
+          <Field label="Select user">
+            <select
+              value={selectedAccountId}
+              onChange={(event) => {
+                setSelectedAccountId(event.target.value);
+                setMessage("");
+                setRoleId("");
+                setReason("");
+              }}
+            >
+              {options.accounts.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {roleAccountOptionLabel(item)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </ApplicationReviewSection>
+
+        {detail.status === "loading" ? <SkeletonRows /> : null}
+        {detail.status === "error" ? (
+          <EmptyState title="Account roles unavailable" detail={detail.error} />
+        ) : null}
+        {detail.status === "ready" && account ? (
+          <div className="detail-stack application-review-stack admin-role-stack">
+            <ApplicationReviewSection title="CURRENT ROLES">
+              <RoleAssignmentTable
+                account={account}
+                onRemove={(assignmentId) =>
+                  performRoleAction("Role removal", () =>
+                    fetchJson(
+                      `/admin/role-management/${encodeURIComponent(account.id)}/assignments/${encodeURIComponent(assignmentId)}`,
+                      { method: "DELETE", body: { reason } },
+                    ),
+                  )
+                }
+                reasonReady={Boolean(reason.trim())}
+              />
+            </ApplicationReviewSection>
+            <ApplicationReviewSection title="ADD ROLE">
+              <div className="form-grid">
+                <Field label="Role">
+                  <select value={roleId} onChange={(event) => setRoleId(event.target.value)}>
+                    <option value="">Choose one</option>
+                    {availableRoles.map((role) => {
+                      const needsUnit = ["unit-staff", "trainer"].includes(role.key);
+                      const disabled = needsUnit && !account.personnelProfile?.currentUnitId;
+                      return (
+                        <option disabled={disabled} key={role.id} value={role.id}>
+                          {role.name}
+                          {disabled ? " - current unit required" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+                <Field label="Current personnel unit">
+                  <input
+                    disabled
+                    value={account.personnelProfile?.currentUnit?.name ?? "Unassigned"}
+                  />
+                </Field>
+              </div>
+              <Field label="Audit reason">
+                <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
+              </Field>
+              <div className="button-row">
+                <button
+                  className="primary-action button-like"
+                  disabled={!roleId || !reason.trim()}
+                  type="button"
+                  onClick={() =>
+                    performRoleAction("Role assignment", () =>
+                      fetchJson(
+                        `/admin/role-management/${encodeURIComponent(account.id)}/assignments`,
+                        { method: "POST", body: { roleId, reason } },
+                      ),
+                    )
+                  }
+                >
+                  Add role
+                </button>
+              </div>
+              {message ? <p className="muted-copy">{message}</p> : null}
+            </ApplicationReviewSection>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function RoleAssignmentTable({ account, onRemove, reasonReady }) {
+  const assignments = account.roleAssignments ?? [];
+  if (!assignments.length) {
+    return (
+      <EmptyState title="No active roles" detail="This account has no active role assignments." />
+    );
+  }
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Scope</th>
+            <th>Assigned</th>
+            <th>
+              <span className="visually-hidden">Remove role</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {assignments.map((assignment) => (
+            <tr key={assignment.id}>
+              <td>{assignment.role?.name ?? "Unknown role"}</td>
+              <td>{roleScopeLabel(assignment)}</td>
+              <td>{formatDate(assignment.startsAt)}</td>
+              <td className="application-open-cell">
+                <button
+                  className="danger-action compact-action"
+                  disabled={!reasonReady}
+                  type="button"
+                  onClick={() => onRemove(assignment.id)}
+                >
+                  Remove
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ProfileWorkspace({ session }) {
   const resource = useApiResource("/personnel/self");
 
@@ -793,13 +1029,8 @@ function PersonnelProfileCard({ viewModel }) {
 function PersonnelProfileReadOnly({ actions = null, viewModel }) {
   return (
     <div className="personnel-profile-stack">
-      <PersonnelProfileHeading actions={actions} title={viewModel.title} />
-      <ApplicationReviewSection title="PERSONNEL STATUS">
-        <KeyValueList items={viewModel.personnelStatus} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="ASSIGNMENT">
-        <KeyValueList items={viewModel.assignment} />
-      </ApplicationReviewSection>
+      <PersonnelProfileHeading actions={actions} />
+      <ProfileFieldGrid items={viewModel.profileFields} />
       <ApplicationReviewSection title="QUALIFICATIONS">
         <ProfileRecordList items={viewModel.qualifications} />
       </ApplicationReviewSection>
@@ -816,12 +1047,25 @@ function PersonnelProfileReadOnly({ actions = null, viewModel }) {
   );
 }
 
-function PersonnelProfileHeading({ actions = null, title }) {
-  return (
+function PersonnelProfileHeading({ actions = null }) {
+  return actions ? (
     <div className="personnel-profile-heading">
-      <h3 className="personnel-profile-title">{title}</h3>
-      {actions ? <div className="button-row">{actions}</div> : null}
+      <div className="button-row">{actions}</div>
     </div>
+  ) : null;
+}
+
+function ProfileFieldGrid({ items }) {
+  return (
+    <section className="application-review-section profile-format-card">
+      <div className="profile-format-grid">
+        {items.map(([label, value]) => (
+          <ReadOnlyField key={label} label={label}>
+            {value}
+          </ReadOnlyField>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1016,7 +1260,7 @@ function StaffPersonnelProfileWorkspace({ personnelId, onNavigate }) {
       <section className="wide-panel personnel-profile-card">
         {editing ? (
           <div className="personnel-profile-stack">
-            <PersonnelProfileHeading actions={actions} title={viewModel.title} />
+            <PersonnelProfileHeading actions={actions} />
             <PersonnelProfileEditForm
               form={form}
               onChange={updateForm}
@@ -1041,40 +1285,26 @@ function StaffPersonnelProfileWorkspace({ personnelId, onNavigate }) {
 function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
   return (
     <>
-      <ApplicationReviewSection title="PERSONNEL STATUS">
-        <div className="form-grid">
+      <section className="application-review-section profile-format-card">
+        <div className="profile-format-grid">
+          <Field label="Rank">
+            <select
+              value={form.currentRankId}
+              onChange={(event) => onChange("currentRankId", event.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {(options.ranks ?? []).map((rank) => (
+                <option key={rank.id} value={rank.id}>
+                  {rankDisplayLabel(rank)}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Name">
             <input value={form.name} onChange={(event) => onChange("name", event.target.value)} />
           </Field>
-          <Field label="Status">
-            <select
-              value={form.status}
-              onChange={(event) => onChange("status", event.target.value)}
-            >
-              {(options.statuses ?? []).map((status) => (
-                <option key={status} value={status}>
-                  {personnelStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Standing">
-            <select
-              value={form.goodStanding}
-              onChange={(event) => onChange("goodStanding", event.target.value)}
-            >
-              {(options.standingOptions ?? defaultStandingOptions()).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <KeyValueList items={viewModel.personnelStatus.slice(2)} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="ASSIGNMENT">
-        <div className="form-grid">
+          <ReadOnlyField label="TIS">{profileFieldValue(viewModel, "TIS")}</ReadOnlyField>
+          <ReadOnlyField label="TIG">{profileFieldValue(viewModel, "TIG")}</ReadOnlyField>
           <Field label="Unit">
             <select
               value={form.currentUnitId}
@@ -1097,19 +1327,6 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
               {(options.billets ?? []).map((billet) => (
                 <option key={billet.id} value={billet.id}>
                   {billetDisplayLabel(billet)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Rank">
-            <select
-              value={form.currentRankId}
-              onChange={(event) => onChange("currentRankId", event.target.value)}
-            >
-              <option value="">Unassigned</option>
-              {(options.ranks ?? []).map((rank) => (
-                <option key={rank.id} value={rank.id}>
-                  {rankDisplayLabel(rank)}
                 </option>
               ))}
             </select>
@@ -1141,6 +1358,34 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
             </select>
           </Field>
         </div>
+      </section>
+      <ApplicationReviewSection title="ADMINISTRATIVE STATUS">
+        <div className="form-grid">
+          <Field label="Status">
+            <select
+              value={form.status}
+              onChange={(event) => onChange("status", event.target.value)}
+            >
+              {(options.statuses ?? []).map((status) => (
+                <option key={status} value={status}>
+                  {personnelStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Standing">
+            <select
+              value={form.goodStanding}
+              onChange={(event) => onChange("goodStanding", event.target.value)}
+            >
+              {(options.standingOptions ?? defaultStandingOptions()).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
       </ApplicationReviewSection>
       <ApplicationReviewSection title="QUALIFICATIONS">
         <ProfileRecordList items={viewModel.qualifications} />
@@ -1162,6 +1407,8 @@ function ApplicantApplicationWorkspace() {
   const [resource, setResource] = useState({ status: "loading", data: null, error: null });
   const [form, setForm] = useState(() => blankApplicationForm());
   const [message, setMessage] = useState("");
+  const [openedDocumentKeys, setOpenedDocumentKeys] = useState([]);
+  const [checkedDocumentKeys, setCheckedDocumentKeys] = useState([]);
 
   const load = async () => {
     setResource({ status: "loading", data: null, error: null });
@@ -1176,8 +1423,14 @@ function ApplicantApplicationWorkspace() {
     }
 
     const data = result.payload.data;
+    const documents = data.intakeDocuments ?? data.application?.intakeDocuments ?? [];
+    const agreedKeys = documents
+      .filter((document) => document.status === "agreed")
+      .map((document) => document.key);
     setResource({ status: "ready", data, error: null });
     setForm(applicationToForm(data.application));
+    setOpenedDocumentKeys(agreedKeys);
+    setCheckedDocumentKeys(agreedKeys);
   };
 
   useEffect(() => {
@@ -1185,6 +1438,7 @@ function ApplicantApplicationWorkspace() {
   }, []);
 
   const application = resource.data?.application ?? null;
+  const intakeDocuments = resource.data?.intakeDocuments ?? application?.intakeDocuments ?? [];
   const options = resource.data?.options ?? {
     sources: [],
     branches: [],
@@ -1194,6 +1448,9 @@ function ApplicantApplicationWorkspace() {
   };
   const editable = !application || ["Draft", "MoreInfoRequested"].includes(application.status);
   const terminal = ["Converted", "Denied", "Withdrawn", "Closed"].includes(application?.status);
+  const intakeComplete =
+    intakeDocuments.length > 0 && intakeDocuments.every((document) => document.status === "agreed");
+  const intakeGateRequired = editable && !intakeComplete;
 
   const action = async (label, request) => {
     setMessage(`${label}...`);
@@ -1204,6 +1461,15 @@ function ApplicantApplicationWorkspace() {
     }
     setMessage(`${label} complete.`);
     await load();
+  };
+
+  const recordIntakeAgreements = async () => {
+    await action("Agreement save", () =>
+      fetchJson("/applications/me/intake-agreements", {
+        method: "POST",
+        body: { documentKeys: checkedDocumentKeys },
+      }),
+    );
   };
 
   if (resource.status === "loading") {
@@ -1223,13 +1489,22 @@ function ApplicantApplicationWorkspace() {
           </div>
         ) : null}
         {application ? <ApplicationStatusSummary application={application} /> : null}
-        {editable ? (
+        {intakeGateRequired ? (
+          <IntakeDocumentsGate
+            checkedDocumentKeys={checkedDocumentKeys}
+            documents={intakeDocuments}
+            onAgree={recordIntakeAgreements}
+            onCheck={setCheckedDocumentKeys}
+            onOpen={setOpenedDocumentKeys}
+            openedDocumentKeys={openedDocumentKeys}
+          />
+        ) : editable ? (
           <ApplicationForm form={form} options={options} setForm={setForm} />
         ) : (
           <ReadOnlyApplication application={application} />
         )}
         <div className="button-row">
-          {editable ? (
+          {editable && !intakeGateRequired ? (
             <>
               <button
                 className="secondary-action"
@@ -2180,7 +2455,7 @@ function RosterTable({ items, onOpen }) {
         <tbody>
           {items.map((item) => (
             <tr key={item.id}>
-              <td>{item.name}</td>
+              <td>{personDisplayName({ fullName: item.name }, "Unnamed member")}</td>
               <td>{personnelStatusLabel(item.status)}</td>
               <td>{unitDisplayLabel(item.currentUnit)}</td>
               <td>{rankDisplayLabel(item.currentRank, { compact: true })}</td>
@@ -2706,6 +2981,123 @@ function Field({ children, helper, label }) {
   );
 }
 
+function IntakeDocumentsGate({
+  checkedDocumentKeys,
+  documents,
+  onAgree,
+  onCheck,
+  onOpen,
+  openedDocumentKeys,
+}) {
+  const openedKeys = new Set(openedDocumentKeys);
+  const checkedKeys = new Set(checkedDocumentKeys);
+  const allChecked =
+    documents.length > 0 && documents.every((document) => checkedKeys.has(document.key));
+
+  const markOpened = (documentKey) => {
+    onOpen((current) => Array.from(new Set([...current, documentKey])));
+  };
+
+  const setChecked = (documentKey, checked) => {
+    onCheck((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(documentKey);
+      } else {
+        next.delete(documentKey);
+      }
+      return [...next];
+    });
+  };
+
+  return (
+    <ApplicationReviewSection title="INTAKE DOCUMENTS">
+      <p className="muted-copy">
+        Review each intake document before continuing your enlistment application.
+      </p>
+      {documents.length ? (
+        <div className="intake-document-list">
+          {documents.map((document) => {
+            const opened = openedKeys.has(document.key);
+            const agreed = document.status === "agreed";
+            const checked = checkedKeys.has(document.key);
+            return (
+              <div className="intake-document-row" key={document.key}>
+                <div>
+                  <strong>{document.title}</strong>
+                  <span>{intakeAgreementStatusLabel(document.status)}</span>
+                </div>
+                <a
+                  className="secondary-action button-like"
+                  href={document.pdfUrl}
+                  onClick={() => markOpened(document.key)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open PDF
+                </a>
+                <label className="checkbox-label">
+                  <input
+                    checked={checked}
+                    disabled={!opened && !agreed}
+                    type="checkbox"
+                    onChange={(event) => setChecked(document.key, event.target.checked)}
+                  />
+                  I agree
+                </label>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title="Documents unavailable"
+          detail="The intake document manifest could not be loaded."
+        />
+      )}
+      <div className="button-row">
+        <button
+          className="primary-action button-like"
+          disabled={!allChecked}
+          type="button"
+          onClick={onAgree}
+        >
+          Continue to application
+        </button>
+      </div>
+    </ApplicationReviewSection>
+  );
+}
+
+function IntakeAgreementsSummary({ application }) {
+  const documents = application?.intakeDocuments ?? [];
+  if (!documents.length) {
+    return (
+      <EmptyState
+        title="No intake document status"
+        detail="No intake document agreement records are available for this application."
+      />
+    );
+  }
+
+  return (
+    <div className="intake-agreement-list">
+      {documents.map((document) => (
+        <div className="readonly-field" key={document.key}>
+          <span>{document.title}</span>
+          <strong>{intakeAgreementStatusLabel(document.status)}</strong>
+          <small>
+            {document.agreement?.agreedAt
+              ? `Agreed ${formatDate(document.agreement.agreedAt)}`
+              : "No current agreement recorded."}
+          </small>
+          <small>Version {document.documentHashShort}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StaffApplicationDetail({
   actionState,
   application,
@@ -2737,6 +3129,9 @@ function StaffApplicationDetail({
       </ApplicationReviewSection>
       <ApplicationReviewSection title="APPLICATION DETAILS">
         <ReadOnlyApplication application={application} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="INTAKE AGREEMENTS">
+        <IntakeAgreementsSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="UNIT REVIEW">
         <div className="application-review-actions">
@@ -2853,6 +3248,9 @@ function ReviewerApplicationDetail({
       </ApplicationReviewSection>
       <ApplicationReviewSection title="APPLICATION DETAILS">
         <ReadOnlyApplication application={application} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="INTAKE AGREEMENTS">
+        <IntakeAgreementsSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="RECRUITING">
         <div className="application-review-actions">
@@ -3012,7 +3410,10 @@ function ReadOnlyApplication({ application }) {
   return (
     <div className="readonly-application-form">
       <ReadOnlyField label="Name">
-        {[application.firstName, application.lastName].filter(Boolean).join(" ") || "Not recorded"}
+        {personDisplayName(
+          { firstName: application.firstName, lastName: application.lastName },
+          "Not recorded",
+        )}
       </ReadOnlyField>
       <ReadOnlyField label="Age">
         {application.age === null || application.age === undefined
@@ -3263,22 +3664,63 @@ function blankArmaUnit() {
 }
 
 function applicationDisplayName(application) {
-  const legalName = [application?.firstName, application?.lastName].filter(Boolean).join(" ");
-  return legalName || application?.account?.displayName || "Unnamed applicant";
+  return personDisplayName(
+    {
+      firstName: application?.firstName,
+      lastName: application?.lastName,
+      fullName: application?.account?.displayName,
+    },
+    "Unnamed applicant",
+  );
 }
 
 function personnelOptionLabel(profile) {
   const rank = profile?.currentRank ? rankDisplayLabel(profile.currentRank, { compact: true }) : "";
   const unit = profile?.currentUnit ? unitDisplayLabel(profile.currentUnit) : "";
-  return [profile?.name, rank, unit].filter(Boolean).join(" | ") || "Unnamed member";
+  const name = personDisplayName({ fullName: profile?.name }, "Unnamed member");
+  return [name, rank, unit].filter(Boolean).join(" | ");
 }
 
 function accountDisplayName(account, fallback = "another recruiter") {
-  return (
+  const fullName =
     account?.displayName ||
     account?.authIdentities?.[0]?.displayName ||
     account?.authIdentities?.[0]?.username ||
-    fallback
+    "";
+  return personDisplayName({ fullName }, fallback);
+}
+
+function roleAccountOptionLabel(account) {
+  const identity = account?.authIdentities?.[0];
+  const name = personDisplayName(
+    {
+      fullName:
+        account?.personnelProfile?.name ??
+        account?.displayName ??
+        identity?.displayName ??
+        identity?.username,
+    },
+    "Unknown account",
+  );
+  const discord = identity
+    ? `${identity.username ?? "Discord user"} / ${identity.providerAccountId}`
+    : "No Discord identity";
+  return `${name} - ${discord} - ${accountStatusLabel(account?.status)}`;
+}
+
+function roleScopeLabel(assignment) {
+  if (assignment.scopeType === "Unit") {
+    return `${assignment.unit?.name ?? "Unknown unit"}${assignment.scopeIncludesDescendants ? " and descendants" : ""}`;
+  }
+  if (assignment.scopeType === "StaffSection") {
+    return assignment.staffSection?.name ?? "Unknown staff section";
+  }
+  return "Global";
+}
+
+function profileFieldValue(viewModel, label) {
+  return (
+    viewModel.profileFields.find(([fieldLabel]) => fieldLabel === label)?.[1] ?? "Not recorded"
   );
 }
 
@@ -3296,6 +3738,13 @@ function claimButtonTitle(application, currentAccountId) {
   }
 
   return `Claimed by ${accountDisplayName(application?.claimedByAccount)}`;
+}
+
+function intakeAgreementStatusLabel(status) {
+  if (status === "agreed") return "Agreed";
+  if (status === "stale") return "Stale";
+  if (status === "missing") return "Missing";
+  return humanize(status || "Missing");
 }
 
 function formatDate(value) {

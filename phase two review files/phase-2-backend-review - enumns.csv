@@ -25,16 +25,11 @@ CatalogStatus,Inactive
 CatalogStatus,Archived
 PersonnelStatus,Applicant
 PersonnelStatus,Recruit
-PersonnelStatus,Probationary
 PersonnelStatus,Active
 PersonnelStatus,Reserve
 PersonnelStatus,LeaveOfAbsence
 PersonnelStatus,ExtendedLeaveOfAbsence
-PersonnelStatus,Inactive
 PersonnelStatus,AWOL
-PersonnelStatus,Separated
-PersonnelStatus,Discharged
-PersonnelStatus,DoNotRehire
 PersonnelStatus,Honorable Discharge
 PersonnelStatus,Other Than Honorable Discharge
 PersonnelStatus,Dishonorable Discharge
