@@ -147,7 +147,7 @@ export async function getOwnApplication(prisma, accountId) {
     orderBy: [{ createdAt: "desc" }],
     include: applicationInclude(),
   });
-  return attachIntakeDocumentStatuses(application);
+  return attachApplicationDetailDecorators(prisma, application);
 }
 
 export async function getApplicationById(prisma, applicationId) {
@@ -155,7 +155,7 @@ export async function getApplicationById(prisma, applicationId) {
     where: { id: applicationId },
     include: applicationInclude(),
   });
-  return attachIntakeDocumentStatuses(application);
+  return attachApplicationDetailDecorators(prisma, application);
 }
 
 export async function listReviewQueue(prisma, account) {
@@ -164,6 +164,20 @@ export async function listReviewQueue(prisma, account) {
   return prisma.application.findMany({
     where: { status: { in: REVIEW_QUEUE_RECRUITER_STATUSES } },
     orderBy: [{ submittedAt: "asc" }, { createdAt: "asc" }],
+    include: applicationInclude(),
+  });
+}
+
+export async function listReviewRecords(prisma, account) {
+  if (!canRecruiterReview(account)) return [];
+
+  return prisma.application.findMany({
+    where: {
+      status: {
+        in: ["Converted", "Denied", "Withdrawn", "Closed"],
+      },
+    },
+    orderBy: [{ closedAt: "desc" }, { decidedAt: "desc" }, { updatedAt: "desc" }],
     include: applicationInclude(),
   });
 }
@@ -774,6 +788,100 @@ export async function releaseApplicationClaim({ prisma, actor, applicationId }) 
       claimedAt: null,
     },
     include: applicationInclude(),
+  });
+
+  return { ok: true, application: result };
+}
+
+export async function reopenApplication({ prisma, actor, applicationId, reason }) {
+  if (!canRecruiterReview(actor) || !hasActiveRole(actor, "system-admin")) {
+    return failure(
+      "permission_denied",
+      "Reopening records requires both recruiter review and system-admin roles.",
+    );
+  }
+
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: applicationInclude(),
+  });
+  if (!application) {
+    return failure("not_found", "Application was not found.");
+  }
+
+  if (!["Denied", "Withdrawn", "Closed"].includes(application.status)) {
+    return failure("invalid_transition", "This application record cannot be reopened.");
+  }
+
+  const actionReason = normalizeText(reason) || "Application record reopened for recruiter review.";
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.application.update({
+      where: { id: applicationId },
+      data: {
+        status: "Submitted",
+        targetUnitId: null,
+        claimedByAccountId: null,
+        claimedAt: null,
+        recruiterRecommendedByAccountId: null,
+        recruiterRecommendedAt: null,
+        unitDecisionByAccountId: null,
+        unitDecisionAt: null,
+        decidedAt: null,
+        closedAt: null,
+      },
+      include: applicationInclude(),
+    });
+
+    await tx.applicationStatusHistory.create({
+      data: {
+        applicationId,
+        oldStatus: application.status,
+        newStatus: "Submitted",
+        stage: "RecruiterScreening",
+        changedByAccountId: actor.id,
+        reason: actionReason,
+        permissionContext: {
+          actorAccountId: actor.id,
+          action: "reopen",
+        },
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorAccountId: actor.id,
+        targetAccountId: application.accountId,
+        module: "applications",
+        action: "reopen",
+        recordType: "Application",
+        recordId: applicationId,
+        oldValue: {
+          status: application.status,
+          targetUnitId: application.targetUnitId,
+          claimedByAccountId: application.claimedByAccountId,
+        },
+        newValue: {
+          status: "Submitted",
+          targetUnitId: null,
+          claimedByAccountId: null,
+        },
+        reason: actionReason,
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        accountId: application.accountId,
+        category: "applications",
+        workflowEvent: "application-reopened",
+        title: "Application reopened",
+        body: "Your enlistment application was reopened and returned to recruiter review.",
+        relatedRecordType: "Application",
+        relatedRecordId: applicationId,
+      },
+    });
+
+    return updated;
   });
 
   return { ok: true, application: result };
@@ -1845,6 +1953,12 @@ function hasGlobalReviewOverride(actor) {
   );
 }
 
+function hasActiveRole(actor, roleKey) {
+  return (actor.roleAssignments ?? []).some(
+    (assignment) => isActiveRoleAssignment(assignment) && assignment.role?.key === roleKey,
+  );
+}
+
 function buildDescendantMap(units) {
   const childrenByParentId = new Map();
   for (const unit of units) {
@@ -1929,6 +2043,78 @@ function applicationInclude() {
     intakeAgreements: {
       orderBy: [{ agreedAt: "desc" }],
     },
+  };
+}
+
+async function attachApplicationDetailDecorators(prisma, application) {
+  const withIntakeStatuses = attachIntakeDocumentStatuses(application);
+  return attachDiscordMembershipHistory(prisma, withIntakeStatuses);
+}
+
+async function attachDiscordMembershipHistory(prisma, application) {
+  if (!application?.accountId) {
+    return application;
+  }
+
+  const logs = await prisma.integrationLog.findMany({
+    where: {
+      accountId: application.accountId,
+      provider: "Discord",
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      action: true,
+      createdAt: true,
+      requestPayload: true,
+      responsePayload: true,
+    },
+  });
+
+  const discordHistory = logs
+    .map((entry) => mapDiscordMembershipHistoryEntry(entry))
+    .filter(Boolean);
+
+  if (!discordHistory.length) {
+    return withApplicationHistory(application, application.statusHistory ?? []);
+  }
+
+  const mergedHistory = [...(application.statusHistory ?? []), ...discordHistory].sort(
+    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+
+  return withApplicationHistory(application, mergedHistory);
+}
+
+function withApplicationHistory(application, statusHistory) {
+  return {
+    ...application,
+    statusHistory,
+  };
+}
+
+function mapDiscordMembershipHistoryEntry(entry) {
+  const action = String(entry?.action ?? "")
+    .trim()
+    .toLowerCase();
+  if (!action) {
+    return null;
+  }
+
+  const joinAction =
+    action.includes("join") || action.includes("joined") || action.includes("member_add");
+  const leaveAction =
+    action.includes("leave") || action.includes("left") || action.includes("member_remove");
+  if (!joinAction && !leaveAction) {
+    return null;
+  }
+
+  return {
+    id: `integration:${entry.id}`,
+    newStatus: null,
+    createdAt: entry.createdAt,
+    reason: joinAction ? "Discord account joined the server." : "Discord account left the server.",
+    displayLabel: joinAction ? "Discord Server - Join" : "Discord Server - Left",
   };
 }
 

@@ -43,11 +43,35 @@ test("loadConfig parses runtime defaults and overrides", () => {
     assert.equal(config.sessionTtlDays, 14);
     assert.equal(config.recentAuthWindowMinutes, 20);
     assert.equal(config.trustProxy, true);
+    assert.equal(config.cookieDomain, undefined);
     assert.equal(config.discordRecruitingBridge.enabled, false);
     assert.equal(
       config.discordRecruitingBridge.url,
       "http://127.0.0.1:8787/ips/recruiting-event",
     );
+  `);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("loadConfig derives a shared cookie domain from www app URLs", () => {
+  const result = runConfigProbe(`
+    import assert from "node:assert/strict";
+    import { loadConfig } from ${JSON.stringify(configModuleUrl)};
+    const config = loadConfig({
+      DATABASE_URL: "mysql://user:pass@127.0.0.1:3306/tf20_config_test",
+      SESSION_SECRET: "session-secret",
+      APP_BASE_URL: "https://www.taskforce20.com",
+      DISCORD_CLIENT_ID: "client",
+      DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "https://www.taskforce20.com/auth/discord/callback",
+      DISCORD_APPROVED_GUILD_ID: "guild",
+      DISCORD_BOT_TOKEN: "bot",
+      BOOTSTRAP_DISCORD_ID: "bootstrap",
+      SESSION_TTL_DAYS: "14",
+      RECENT_AUTH_WINDOW_MINUTES: "20"
+    });
+    assert.equal(config.cookieDomain, "taskforce20.com");
   `);
 
   assert.equal(result.status, 0, result.stderr);

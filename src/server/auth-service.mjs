@@ -267,6 +267,17 @@ export function flattenPermissions(account) {
   });
 }
 
+function activeRoleKeys(account) {
+  return Array.from(
+    new Set(
+      (account.roleAssignments ?? [])
+        .filter((assignment) => !assignment.endsAt && assignment.role?.status === "Active")
+        .map((assignment) => assignment.role?.key)
+        .filter(Boolean),
+    ),
+  ).sort();
+}
+
 export async function createSession({ prisma, config, account, authIdentity }) {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + config.sessionTtlDays * 24 * 60 * 60 * 1000);
@@ -306,6 +317,7 @@ export async function logIntegration(prisma, payload) {
 export function buildSessionSummary({ account, session, authIdentity }) {
   const permissions = flattenPermissions(account);
   const access = buildAccessContext({ account, permissions });
+  const roleKeys = activeRoleKeys(account);
 
   return {
     account: {
@@ -331,6 +343,7 @@ export function buildSessionSummary({ account, session, authIdentity }) {
     },
     gateState: access.gateState,
     visibleModules: access.visibleModules,
+    roleKeys,
     permissions: Array.from(new Set(permissions.map((permission) => permission.key))).sort(),
   };
 }

@@ -28,6 +28,7 @@ import {
   personDisplayName,
   personnelStatusLabel,
   rankDisplayLabel,
+  standingDisplayLabel,
   trainingCourseDisplayLabel,
   trainingOutcomeLabel,
   unitDisplayLabel,
@@ -120,24 +121,20 @@ const REQUIREMENTS = [
   "Must have at least 100 Arma 3 hours.",
 ];
 
-const CURRENT_UNITS = ["A Co, 1/75th Ranger Regiment", "1 Troop, A Squadron, 1st SFOD-Delta"];
-
-const CURRENT_MOS_OPENINGS = [
-  "11B Infantryman",
-  "11C Mortarman",
-  "12B Combat Engineer",
-  "13F Joint Fire Support Specialist",
-  "15W Unmanned Aerial Systems Operator",
-  "25C Radio Operator-Maintainer",
-  "25E Electromagnetic Spectrum Manager [requires Contact DLC]",
-  "68W Combat Medic",
-  "74D CBRN Specialist [requires Contact DLC]",
+const CURRENT_UNITS = [
+  "A Co, 1/75th Ranger Regiment",
+  "1 Troop, A Squadron, 1st SFOD-Delta",
+  "B Co, 2/160th SOAR",
 ];
 
-const FUTURE_UNITS = [
-  "1-RRC, STB, 75th RR",
-  "B Co, 2/160th SOAR",
-  "1st Joint Special Operations Air Component",
+const FUTURE_UNITS = ["1-RRC, STB, 75th RR", "1st Joint Special Operations Air Component"];
+
+const ROSTER_SORT_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "status", label: "Status" },
+  { value: "unit", label: "Unit" },
+  { value: "rank", label: "Rank" },
+  { value: "mos", label: "MOS" },
 ];
 
 export function App() {
@@ -254,11 +251,30 @@ async function fetchJson(path, options = {}) {
 }
 
 function PublicLandingPage() {
+  const [openings, setOpenings] = useState({ status: "loading", items: [] });
+
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Task Force 20 | Arma 3 Realism Unit";
     return () => {
       document.title = previousTitle;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    fetchJson("/public/openings").then((result) => {
+      if (!isActive) return;
+      if (!result.ok) {
+        setOpenings({ status: "error", items: [] });
+        return;
+      }
+      setOpenings({ status: "ready", items: result.payload.data ?? [] });
+    });
+
+    return () => {
+      isActive = false;
     };
   }, []);
 
@@ -353,7 +369,7 @@ function PublicLandingPage() {
           </div>
           <div className="public-list-layout three-column">
             <PublicList title="Current Units" items={CURRENT_UNITS} />
-            <PublicList title="Current MOS Openings" items={CURRENT_MOS_OPENINGS} />
+            <PublicOpeningsList state={openings} />
             <PublicList title="Future Units" items={FUTURE_UNITS} />
           </div>
         </section>
@@ -393,8 +409,35 @@ function PublicList({ items, title }) {
   );
 }
 
+function PublicOpeningsList({ state }) {
+  return (
+    <article className="public-list-card public-openings-card">
+      <h3>Current MOS Openings</h3>
+      {state.status === "loading" ? <p>Loading openings...</p> : null}
+      {state.status === "error" ? <p>Current openings are unavailable right now.</p> : null}
+      {state.status === "ready" && !state.items.length ? (
+        <p>No current MOS openings posted.</p>
+      ) : null}
+      {state.status === "ready" && state.items.length ? (
+        <div className="public-openings-groups">
+          {state.items.map((group) => (
+            <div className="public-openings-group" key={group.unit.id}>
+              <strong>{group.unit.name}</strong>
+              <ul>
+                {(group.mos ?? []).map((row) => (
+                  <li key={row.id}>{mosDisplayLabel(row)}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 function PortalShell({ path, session, onNavigate }) {
-  const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const navigation = session.navigation ?? { defaultPath: null, sections: [] };
   const defaultPath = navigation.defaultPath;
@@ -644,6 +687,8 @@ function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
       return <ApplicantApplicationWorkspace />;
     case "user_training":
       return <UserTrainingWorkspace />;
+    case "staff_unit":
+      return <StaffUnitWorkspace />;
     case "staff_personnel_management":
       return (
         <StaffPersonnelManagementWorkspace
@@ -675,6 +720,17 @@ function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
       return (
         <ApplicationsWorkspace
           applicationId={visibleMatch.params?.applicationId}
+          session={session}
+          onNavigate={onNavigate}
+        />
+      );
+    case "recruiting_records":
+      return <ApplicationsWorkspace mode="records" session={session} onNavigate={onNavigate} />;
+    case "recruiting_record_detail":
+      return (
+        <ApplicationsWorkspace
+          applicationId={visibleMatch.params?.applicationId}
+          mode="records"
           session={session}
           onNavigate={onNavigate}
         />
@@ -1085,16 +1141,39 @@ function ProfileRecordList({ items }) {
 
 function StaffPersonnelManagementWorkspace({ subpages, onNavigate }) {
   const resource = useApiResource("/personnel");
+  const [sortBy, setSortBy] = useState("name");
+  const sortedResource = useMemo(() => {
+    if (resource.status !== "ready" || !resource.data?.items) {
+      return resource;
+    }
+
+    return {
+      ...resource,
+      data: {
+        ...resource.data,
+        items: sortPersonnelRosterItems(resource.data.items, sortBy),
+      },
+    };
+  }, [resource, sortBy]);
 
   return (
     <div className="workspace-grid">
       <section className="wide-panel">
         <PanelHeader title="Staff Personnel Roster" />
+        <Field label="Sort by">
+          <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+            {ROSTER_SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
         <ResourceContent
           onOpenPersonnel={(id) =>
             onNavigate(`/staff/personnel-management/${encodeURIComponent(id)}`)
           }
-          resource={resource}
+          resource={sortedResource}
           type="personnel-list"
         />
       </section>
@@ -1283,6 +1362,8 @@ function StaffPersonnelProfileWorkspace({ personnelId, onNavigate }) {
 }
 
 function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
+  const derivedStanding = standingDisplayLabel(derivePersonnelStanding(form.status || ""));
+
   return (
     <>
       <section className="application-review-section profile-format-card">
@@ -1374,16 +1455,9 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
             </select>
           </Field>
           <Field label="Standing">
-            <select
-              value={form.goodStanding}
-              onChange={(event) => onChange("goodStanding", event.target.value)}
-            >
-              {(options.standingOptions ?? defaultStandingOptions()).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="readonly-field">
+              <strong>{derivedStanding}</strong>
+            </div>
           </Field>
         </div>
       </ApplicationReviewSection>
@@ -1944,8 +2018,22 @@ function TrainingSessionList({ items, onEdit }) {
   );
 }
 
-function ApplicationsWorkspace({ applicationId = null, session, onNavigate }) {
+function ApplicationsWorkspace({
+  applicationId = null,
+  mode = "applications",
+  session,
+  onNavigate,
+}) {
   if (applicationId) {
+    if (mode === "records") {
+      return (
+        <ApplicationRecordDetailWorkspace
+          applicationId={applicationId}
+          session={session}
+          onNavigate={onNavigate}
+        />
+      );
+    }
     return (
       <ApplicationDetailWorkspace
         applicationId={applicationId}
@@ -1953,6 +2041,10 @@ function ApplicationsWorkspace({ applicationId = null, session, onNavigate }) {
         onNavigate={onNavigate}
       />
     );
+  }
+
+  if (mode === "records") {
+    return <ApplicationRecordsListWorkspace session={session} onNavigate={onNavigate} />;
   }
 
   return <ApplicationListWorkspace session={session} onNavigate={onNavigate} />;
@@ -1966,6 +2058,122 @@ function StaffApplicantReviewWorkspace({ applicationId = null, onNavigate }) {
   }
 
   return <StaffApplicationListWorkspace onNavigate={onNavigate} />;
+}
+
+function StaffUnitWorkspace() {
+  const [overview, setOverview] = useState({
+    status: "loading",
+    data: null,
+    error: null,
+  });
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [editingMosId, setEditingMosId] = useState("");
+  const [slotDraft, setSlotDraft] = useState("");
+  const [message, setMessage] = useState("");
+
+  const loadOverview = async (unitId = selectedUnitId) => {
+    setOverview({ status: "loading", data: null, error: null });
+    const search = unitId ? `?unitId=${encodeURIComponent(unitId)}` : "";
+    const result = await fetchJson(`/units/staff-overview${search}`);
+    if (!result.ok) {
+      setOverview({
+        status: "error",
+        data: null,
+        error: result.payload?.error?.message ?? "Unable to load the unit overview.",
+      });
+      return;
+    }
+
+    const data = result.payload.data ?? null;
+    setSelectedUnitId(data?.selectedUnit?.id ?? "");
+    setOverview({ status: "ready", data, error: null });
+  };
+
+  useEffect(() => {
+    loadOverview();
+  }, []);
+
+  const saveSlots = async (mosId) => {
+    const unitId = overview.data?.selectedUnit?.id;
+    if (!unitId) {
+      setMessage("Select a unit before updating slots.");
+      return;
+    }
+
+    setMessage("Saving unit slots...");
+    const result = await fetchJson(`/units/${unitId}/mos/${mosId}/slots`, {
+      method: "PATCH",
+      body: { authorizedSlots: slotDraft },
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to save unit slots.");
+      return;
+    }
+
+    setEditingMosId("");
+    setSlotDraft("");
+    setMessage("Unit slots updated.");
+    await loadOverview(unitId);
+  };
+
+  return (
+    <div className="application-page">
+      {message ? (
+        <section className="wide-panel notice-panel">
+          <strong>{message}</strong>
+        </section>
+      ) : null}
+      <section className="wide-panel application-panel">
+        {overview.status === "loading" ? <SkeletonRows /> : null}
+        {overview.status === "error" ? (
+          <EmptyState title="Unit overview unavailable" detail={overview.error} />
+        ) : null}
+        {overview.status === "ready" ? (
+          <div className="detail-stack application-review-stack">
+            <ApplicationReviewSection title="UNIT ROSTER">
+              {(overview.data?.roots ?? []).length > 1 ? (
+                <Field label="Unit">
+                  <select
+                    value={selectedUnitId}
+                    onChange={(event) => {
+                      const nextUnitId = event.target.value;
+                      setSelectedUnitId(nextUnitId);
+                      loadOverview(nextUnitId);
+                    }}
+                  >
+                    {(overview.data?.roots ?? []).map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : null}
+              <UnitRosterTree groups={overview.data?.rosterGroups ?? []} />
+            </ApplicationReviewSection>
+            <ApplicationReviewSection title="UNIT STRENGTH">
+              <UnitStrengthTable
+                canEdit={Boolean(overview.data?.permissions?.canEdit)}
+                editingMosId={editingMosId}
+                rows={overview.data?.strengthRows ?? []}
+                slotDraft={slotDraft}
+                onCancel={() => {
+                  setEditingMosId("");
+                  setSlotDraft("");
+                }}
+                onEdit={(row) => {
+                  setEditingMosId(row.id);
+                  setSlotDraft(String(row.authorizedSlots ?? 0));
+                }}
+                onSave={saveSlots}
+                onSlotDraftChange={setSlotDraft}
+              />
+            </ApplicationReviewSection>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
 }
 
 function StaffApplicationListWorkspace({ onNavigate }) {
@@ -2164,6 +2372,67 @@ function ApplicationListWorkspace({ session, onNavigate }) {
   );
 }
 
+function ApplicationRecordsListWorkspace({ session, onNavigate }) {
+  const [records, setRecords] = useState({ status: "loading", items: [], error: null });
+  const [message, setMessage] = useState("");
+
+  const loadRecords = async () => {
+    setRecords({ status: "loading", items: [], error: null });
+    const result = await fetchJson("/applications/review-records");
+    if (!result.ok) {
+      setRecords({
+        status: "error",
+        items: [],
+        error: result.payload?.error?.message ?? "Unable to load application records.",
+      });
+      return;
+    }
+    setRecords({ status: "ready", items: result.payload.items ?? [], error: null });
+  };
+
+  useEffect(() => {
+    loadRecords();
+  }, []);
+
+  const reopenRecord = async (applicationId) => {
+    setMessage("Reopening application...");
+    const result = await fetchJson(`/applications/${applicationId}/reopen`, {
+      method: "POST",
+      body: {},
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Reopen failed.");
+      return;
+    }
+
+    setMessage("Application reopened.");
+    await loadRecords();
+  };
+
+  return (
+    <div className="application-page">
+      {message ? (
+        <section className="wide-panel notice-panel">
+          <strong>{message}</strong>
+        </section>
+      ) : null}
+      <section className="wide-panel application-panel">
+        <PanelHeader title="Records" />
+        <ApplicationList
+          items={records.items}
+          loading={records.status === "loading"}
+          error={records.error}
+          emptyDetail="No closed application records are available."
+          onOpen={(id) => onNavigate(`/recruiting/records/${encodeURIComponent(id)}`)}
+          onReopen={reopenRecord}
+          showReopenColumn
+          showReopenForItem={(item) => canReopenRecruitingRecord(item, session)}
+        />
+      </section>
+    </div>
+  );
+}
+
 function ApplicationDetailWorkspace({ applicationId, session, onNavigate }) {
   const [detail, setDetail] = useState({ status: "loading", application: null, error: null });
   const [options, setOptions] = useState({ units: [] });
@@ -2307,6 +2576,77 @@ function ApplicationDetailWorkspace({ applicationId, session, onNavigate }) {
           options={options}
           setActionState={setActionState}
         />
+      </section>
+    </div>
+  );
+}
+
+function ApplicationRecordDetailWorkspace({ applicationId, session, onNavigate }) {
+  const [detail, setDetail] = useState({ status: "loading", application: null, error: null });
+  const [message, setMessage] = useState("");
+
+  const loadDetail = async (nextApplicationId) => {
+    if (!nextApplicationId) {
+      setDetail({ status: "error", application: null, error: "Application ID is required." });
+      return;
+    }
+
+    setDetail({ status: "loading", application: null, error: null });
+    const result = await fetchJson(`/applications/${nextApplicationId}`);
+    if (!result.ok) {
+      setDetail({
+        status: "error",
+        application: null,
+        error: result.payload?.error?.message ?? "Unable to load application record.",
+      });
+      return;
+    }
+
+    setDetail({ status: "ready", application: result.payload.data, error: null });
+  };
+
+  useEffect(() => {
+    loadDetail(applicationId);
+  }, [applicationId]);
+
+  const reopenRecord = async () => {
+    setMessage("Reopening application...");
+    const result = await fetchJson(`/applications/${applicationId}/reopen`, {
+      method: "POST",
+      body: {},
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Reopen failed.");
+      return;
+    }
+
+    setMessage("Application reopened.");
+    onNavigate(`/recruiting/applications/${encodeURIComponent(applicationId)}`);
+  };
+
+  return (
+    <div className="application-page">
+      {message ? (
+        <section className="wide-panel notice-panel">
+          <strong>{message}</strong>
+        </section>
+      ) : null}
+      <section className="wide-panel application-panel">
+        <div className="application-detail-toolbar">
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={() => onNavigate("/recruiting/records")}
+          >
+            Back to records
+          </button>
+          {canReopenRecruitingRecord(detail.application, session) ? (
+            <button className="secondary-action" type="button" onClick={reopenRecord}>
+              REOPEN
+            </button>
+          ) : null}
+        </div>
+        <RecruiterApplicationRecordDetail application={detail.application} detail={detail} />
       </section>
     </div>
   );
@@ -2489,9 +2829,13 @@ function ApplicationList({
   items,
   loading = false,
   error = null,
+  emptyDetail = "The review queue is empty.",
   onClaim = null,
+  onReopen = null,
   onOpen = null,
   showClaimColumn = false,
+  showReopenColumn = false,
+  showReopenForItem = () => true,
 }) {
   if (loading) {
     return <SkeletonRows />;
@@ -2502,7 +2846,7 @@ function ApplicationList({
   }
 
   if (!items.length) {
-    return <EmptyState title="No applications" detail="The review queue is empty." />;
+    return <EmptyState title="No applications" detail={emptyDetail} />;
   }
 
   return (
@@ -2516,6 +2860,11 @@ function ApplicationList({
             {showClaimColumn ? (
               <th>
                 <span className="visually-hidden">Claim application</span>
+              </th>
+            ) : null}
+            {showReopenColumn ? (
+              <th>
+                <span className="visually-hidden">Reopen application</span>
               </th>
             ) : null}
             <th>
@@ -2554,6 +2903,18 @@ function ApplicationList({
                   )}
                 </td>
               ) : null}
+              {showReopenColumn ? (
+                <td className="application-open-cell">
+                  <button
+                    className="secondary-action compact-action"
+                    disabled={!onReopen || !showReopenForItem(item)}
+                    type="button"
+                    onClick={() => onReopen?.(item.id)}
+                  >
+                    REOPEN
+                  </button>
+                </td>
+              ) : null}
               <td className="application-open-cell">
                 <button
                   className="secondary-action compact-action"
@@ -2566,6 +2927,141 @@ function ApplicationList({
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function UnitRosterTree({ groups }) {
+  if (!groups.length) {
+    return (
+      <EmptyState
+        title="No personnel found"
+        detail="No personnel are assigned inside this unit tree."
+      />
+    );
+  }
+
+  return (
+    <div className="unit-roster-tree">
+      {groups.map((group) => (
+        <section className="unit-roster-group" key={group.unit.id}>
+          <div className="unit-roster-heading">
+            <strong>{group.unit.name}</strong>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Rank</th>
+                  <th>Assignment</th>
+                  <th>Team</th>
+                  <th>Primary MOS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.members.map((member) => (
+                  <tr key={member.id}>
+                    <td>{personDisplayName({ fullName: member.name }, "Unnamed member")}</td>
+                    <td>{personnelStatusLabel(member.status)}</td>
+                    <td>{rankDisplayLabel(member.currentRank, { compact: true })}</td>
+                    <td>{billetDisplayLabel(member.currentBillet, { empty: "Unassigned" })}</td>
+                    <td>{member.teamLabel || "-"}</td>
+                    <td>{mosDisplayLabel(member.currentMOS, { empty: "Unassigned" })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function UnitStrengthTable({
+  canEdit,
+  editingMosId,
+  rows,
+  slotDraft,
+  onCancel,
+  onEdit,
+  onSave,
+  onSlotDraftChange,
+}) {
+  if (!rows.length) {
+    return <EmptyState title="No MOS rows" detail="No MOS rows are configured for this unit." />;
+  }
+
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>MOS</th>
+            <th>Assigned</th>
+            <th>Slots</th>
+            <th>
+              <span className="visually-hidden">Edit unit slots</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const editing = editingMosId === row.id;
+            return (
+              <tr key={row.id}>
+                <td>{mosDisplayLabel(row)}</td>
+                <td>{row.assigned ?? 0}</td>
+                <td>
+                  {editing ? (
+                    <input
+                      className="unit-slots-input"
+                      min="0"
+                      step="1"
+                      type="number"
+                      value={slotDraft}
+                      onChange={(event) => onSlotDraftChange(event.target.value)}
+                    />
+                  ) : (
+                    (row.authorizedSlots ?? 0)
+                  )}
+                </td>
+                <td className="application-open-cell">
+                  {editing ? (
+                    <div className="unit-slot-actions">
+                      <button
+                        className="secondary-action compact-action"
+                        type="button"
+                        onClick={() => onSave(row.id)}
+                      >
+                        SAVE
+                      </button>
+                      <button
+                        className="secondary-action compact-action"
+                        type="button"
+                        onClick={onCancel}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="secondary-action compact-action"
+                      disabled={!canEdit}
+                      type="button"
+                      onClick={() => onEdit(row)}
+                    >
+                      EDIT
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -3205,6 +3701,38 @@ function StaffApplicationDetail({
   );
 }
 
+function RecruiterApplicationRecordDetail({ application, detail }) {
+  if (detail.status === "idle") {
+    return <EmptyState title="No application selected" detail="Choose a record from the list." />;
+  }
+  if (detail.status === "loading") {
+    return <SkeletonRows />;
+  }
+  if (detail.status === "error") {
+    return <EmptyState title="Record unavailable" detail={detail.error} />;
+  }
+
+  return (
+    <div className="detail-stack application-review-stack">
+      <ApplicationReviewSection title="APPLICATION STATUS">
+        <ApplicationStatusSummary application={application} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="APPLICATION DETAILS">
+        <ReadOnlyApplication application={application} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="INTAKE AGREEMENTS">
+        <IntakeAgreementsSummary application={application} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="RECRUITING NOTES">
+        <ApplicationNotesHistory items={application.notes ?? []} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="STATUS HISTORY">
+        <Timeline items={application.statusHistory ?? []} showTitle={false} />
+      </ApplicationReviewSection>
+    </div>
+  );
+}
+
 function ReviewerApplicationDetail({
   actionState,
   application,
@@ -3464,7 +3992,8 @@ function Timeline({ items, showTitle = true }) {
       <ul>
         {items.map((item) => (
           <li key={item.id}>
-            {applicationStatusLabel(item.newStatus)} - {formatDate(item.createdAt)}
+            {item.displayLabel ?? applicationStatusLabel(item.newStatus)} -{" "}
+            {formatDate(item.createdAt)}
             <br />
             <span>{item.reason}</span>
           </li>
@@ -3626,6 +4155,7 @@ function personnelProfileToForm(profile) {
     return blankPersonnelProfileForm();
   }
 
+  const derivedStanding = derivePersonnelStanding(profile.status ?? "");
   return {
     name: profile.name ?? "",
     status: profile.status ?? "",
@@ -3634,15 +4164,12 @@ function personnelProfileToForm(profile) {
     currentBilletId: profile.currentBilletId ?? "",
     currentMOSId: profile.currentMOSId ?? "",
     currentSecondaryMOSId: profile.currentSecondaryMOSId ?? "",
-    goodStanding: String(profile.goodStanding ?? true),
+    goodStanding: String(derivedStanding),
   };
 }
 
-function defaultStandingOptions() {
-  return [
-    { value: "true", label: "Good" },
-    { value: "false", label: "Restricted" },
-  ];
+function derivePersonnelStanding(status) {
+  return !["AWOL", "OtherThanHonorableDischarge", "DishonorableDischarge"].includes(status);
 }
 
 function blankServicePeriod() {
@@ -3672,6 +4199,72 @@ function applicationDisplayName(application) {
     },
     "Unnamed applicant",
   );
+}
+
+function personNameSortParts(fullName, fallback = "") {
+  const tokens = String(fullName ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) {
+    return { last: fallback, first: fallback, full: fallback };
+  }
+
+  return {
+    last: tokens.at(-1)?.toLowerCase() ?? "",
+    first: tokens[0]?.toLowerCase() ?? "",
+    full: tokens.join(" ").toLowerCase(),
+  };
+}
+
+function compareNamesByLastName(leftName, rightName) {
+  const left = personNameSortParts(leftName);
+  const right = personNameSortParts(rightName);
+  return (
+    left.last.localeCompare(right.last) ||
+    left.first.localeCompare(right.first) ||
+    left.full.localeCompare(right.full)
+  );
+}
+
+function compareStrings(left, right) {
+  return String(left ?? "").localeCompare(String(right ?? ""), undefined, { sensitivity: "base" });
+}
+
+function sortPersonnelRosterItems(items, sortBy) {
+  const sorted = [...(items ?? [])];
+  sorted.sort((left, right) => {
+    if (sortBy === "status") {
+      return (
+        compareStrings(personnelStatusLabel(left.status), personnelStatusLabel(right.status)) ||
+        compareNamesByLastName(left.name, right.name)
+      );
+    }
+
+    if (sortBy === "unit") {
+      return (
+        compareStrings(unitDisplayLabel(left.currentUnit), unitDisplayLabel(right.currentUnit)) ||
+        compareNamesByLastName(left.name, right.name)
+      );
+    }
+
+    if (sortBy === "rank") {
+      return (
+        (right.currentRank?.precedence ?? -1) - (left.currentRank?.precedence ?? -1) ||
+        compareNamesByLastName(left.name, right.name)
+      );
+    }
+
+    if (sortBy === "mos") {
+      return (
+        compareStrings(formatRosterMos(left), formatRosterMos(right)) ||
+        compareNamesByLastName(left.name, right.name)
+      );
+    }
+
+    return compareNamesByLastName(left.name, right.name);
+  });
+  return sorted;
 }
 
 function personnelOptionLabel(profile) {
@@ -3721,6 +4314,19 @@ function roleScopeLabel(assignment) {
 function profileFieldValue(viewModel, label) {
   return (
     viewModel.profileFields.find(([fieldLabel]) => fieldLabel === label)?.[1] ?? "Not recorded"
+  );
+}
+
+function canReopenRecruitingRecord(application, session) {
+  if (!application) {
+    return false;
+  }
+
+  const roleKeys = session?.summary?.roleKeys ?? [];
+  return (
+    roleKeys.includes("recruiter") &&
+    roleKeys.includes("system-admin") &&
+    ["Denied", "Withdrawn", "Closed"].includes(application.status)
   );
 }
 

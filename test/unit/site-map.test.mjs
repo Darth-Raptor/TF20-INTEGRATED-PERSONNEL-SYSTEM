@@ -29,7 +29,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 13);
+  assert.equal(result.parsed.pages.length, 15);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -94,6 +94,21 @@ test("recruiting application detail route keeps applications navigation active",
   assert.equal(isSectionDashboardMatch(visibleMatch), false);
 });
 
+test("recruiting records detail route keeps records navigation active", () => {
+  const navigation = resolveVisibleNavigation("Active", ["applications.review-recruiter"]);
+  const visibleMatch = findNavigationNodeByPath(navigation, "/recruiting/records/test-record-id");
+  const siteMapMatch = findSiteMapNodeByPath("/recruiting/records/test-record-id");
+
+  assert.equal(visibleMatch.type, "detail");
+  assert.equal(visibleMatch.section.id, "recruiting");
+  assert.equal(visibleMatch.page.id, "recruiting_records");
+  assert.equal(visibleMatch.node.id, "recruiting_record_detail");
+  assert.equal(visibleMatch.node.label, "Application Record");
+  assert.equal(visibleMatch.params.applicationId, "test-record-id");
+  assert.equal(siteMapMatch.page.id, "recruiting_records");
+  assert.equal(isSectionDashboardMatch(visibleMatch), false);
+});
+
 test("staff applicant review detail route keeps applicant review navigation active", () => {
   const navigation = resolveVisibleNavigation("Active", [
     "personnel.view-scoped",
@@ -153,8 +168,8 @@ test("staff personnel management subpages are filtered independently", () => {
       "staff_personnel_management_intake",
     ],
   );
-  assert.equal(staff.pages[0].id, "staff_personnel_management");
-  assert.equal(resolveSectionLandingPath(navigation, "/staff"), "/staff/personnel-management");
+  assert.equal(staff.pages[0].id, "staff_unit");
+  assert.equal(resolveSectionLandingPath(navigation, "/staff"), "/staff/unit");
 });
 
 test("specialized sections require their sitemap permissions", () => {
@@ -211,6 +226,14 @@ test("training records page replaces reserved training dashboard", () => {
   assert.equal(visibleMatch.node.label, "Training Records");
   assert.equal(siteMapMatch.node.id, "training_records");
   assert.equal(isSectionDashboardMatch(visibleMatch), false);
+});
+
+test("staff unit page is the first staff page and section landing target", () => {
+  const navigation = resolveVisibleNavigation("Active", ["personnel.view-scoped"]);
+  const staff = navigation.sections.find((section) => section.id === "staff");
+
+  assert.equal(staff.pages[0].id, "staff_unit");
+  assert.equal(resolveSectionLandingPath(navigation, "/staff"), "/staff/unit");
 });
 
 test("pending applicants can reach their application page", () => {

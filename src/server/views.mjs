@@ -360,7 +360,12 @@ export function renderOwnApplicationScreen({
           <div class="panel">
             <h3>Status history</h3>
             <ul class="meta-list">
-              ${application.statusHistory.map((entry) => `<li><strong>${escapeHtml(applicationStatusLabel(entry.newStatus, ENUM_DISPLAY_LABELS))}</strong> - ${formatDate(entry.createdAt)}<br /><span class="muted">${escapeHtml(entry.reason || "No reason recorded.")}</span></li>`).join("")}
+              ${application.statusHistory
+                .map(
+                  (entry) =>
+                    `<li><strong>${escapeHtml(entry.displayLabel ?? applicationStatusLabel(entry.newStatus, ENUM_DISPLAY_LABELS))}</strong> - ${formatDate(entry.createdAt)}<br /><span class="muted">${escapeHtml(entry.reason || "No reason recorded.")}</span></li>`,
+                )
+                .join("")}
             </ul>
           </div>
         </div>
@@ -628,11 +633,8 @@ function renderPersonnelUpdateForm(profileId, lookups, formState) {
           </select>
         </div>
         <div class="field">
-          <label for="goodStanding">Good standing</label>
-          <select id="goodStanding" name="goodStanding" required>
-            <option value="true" ${String(formState.goodStanding) === "true" ? "selected" : ""}>Good</option>
-            <option value="false" ${String(formState.goodStanding) === "false" ? "selected" : ""}>Restricted</option>
-          </select>
+          <label for="goodStanding">Standing</label>
+          <input id="goodStanding" value="${escapeHtml(standingDisplayLabel(formState.goodStanding === "false" ? false : true))}" readonly />
         </div>
         <div class="field">
           <label for="reason">Audit reason</label>

@@ -64,6 +64,13 @@ export const SITE_MAP_SECTIONS = [
     visibility: { statuses: ["Active"], allOf: ["personnel.view-scoped"] },
     pages: [
       {
+        id: "staff_unit",
+        label: "UNIT",
+        path: "/staff/unit",
+        icon: "personnel",
+        visibility: { statuses: ["Active"], allOf: ["personnel.view-scoped"] },
+      },
+      {
         id: "staff_personnel_management",
         label: "Personnel Management",
         path: "/staff/personnel-management",
@@ -140,6 +147,13 @@ export const SITE_MAP_SECTIONS = [
         id: "recruiting_applications",
         label: "Applications",
         path: "/recruiting/applications",
+        icon: "applications",
+        visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
+      },
+      {
+        id: "recruiting_records",
+        label: "Records",
+        path: "/recruiting/records",
         icon: "applications",
         visibility: { statuses: ["Active"], allOf: ["applications.review-recruiter"] },
       },
@@ -476,6 +490,33 @@ function findDynamicRouteNodeByPath(sections, normalizedPath) {
       },
       params: {
         applicationId: decodeURIComponent(staffApplicantDetailMatch[1]),
+      },
+    };
+  }
+
+  const recruitingRecordDetailMatch = /^\/recruiting\/records\/([^/]+)$/.exec(normalizedPath);
+  if (recruitingRecordDetailMatch) {
+    const section = sections.find((item) => item.id === "recruiting");
+    const page = section?.pages?.find((item) => item.id === "recruiting_records");
+    if (!section || !page) {
+      return null;
+    }
+
+    return {
+      type: "detail",
+      section,
+      page,
+      node: {
+        ...compactNavigationNode({
+          ...page,
+          id: "recruiting_record_detail",
+          label: "Application Record",
+          path: normalizedPath,
+        }),
+        parentPageId: page.id,
+      },
+      params: {
+        applicationId: decodeURIComponent(recruitingRecordDetailMatch[1]),
       },
     };
   }

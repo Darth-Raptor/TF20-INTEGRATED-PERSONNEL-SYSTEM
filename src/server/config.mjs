@@ -31,6 +31,8 @@ export function loadConfig(overrides = {}) {
     databaseUrl: env.DATABASE_URL,
     sessionSecret: env.SESSION_SECRET,
     sessionCookieName: env.SESSION_COOKIE_NAME ?? "tf20_session",
+    cookieDomain:
+      env.COOKIE_DOMAIN ?? deriveCookieDomain(env.APP_BASE_URL ?? env.DISCORD_REDIRECT_URI ?? ""),
     oauthStateCookieName: env.OAUTH_STATE_COOKIE_NAME ?? "tf20_oauth_state",
     sessionTtlDays: parseInteger(env.SESSION_TTL_DAYS, 7),
     recentAuthWindowMinutes: parseInteger(env.RECENT_AUTH_WINDOW_MINUTES, 15),
@@ -94,4 +96,17 @@ function parseInteger(value, fallback) {
 function parseBoolean(value, fallback) {
   if (value === undefined || value === null || value === "") return fallback;
   return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+}
+
+function deriveCookieDomain(baseUrl) {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    if (hostname.startsWith("www.")) {
+      return hostname.slice(4);
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }

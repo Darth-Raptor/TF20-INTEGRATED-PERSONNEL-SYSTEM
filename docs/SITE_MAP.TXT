@@ -23,9 +23,11 @@ PAGES: PAGES WILL BE THE SECOND LAYER OF THE LEFT SIDE NAVAGATION BAR. CLICKING 
         TRAINING
         EVENTS
         SUPPORT
+        UNIT
         PERSONNEL MANAGEMENT
         APPLICANT REVIEW
         APPLICATIONS
+        RECORDS
         ROLES
     PAGE KEYS:
         user_profile
@@ -34,10 +36,12 @@ PAGES: PAGES WILL BE THE SECOND LAYER OF THE LEFT SIDE NAVAGATION BAR. CLICKING 
         user_training
         user_events
         user_support
+        staff_unit
         staff_personnelManagement
         staff_applicantReview
         recruiting_dashbaord
         recruiting_applications
+        recruiting_records
         training_records
         admin_dashbaord
         admin_roles

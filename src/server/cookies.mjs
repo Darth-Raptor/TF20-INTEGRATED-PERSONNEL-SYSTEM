@@ -58,6 +58,9 @@ export function buildCookie(name, value, options = {}) {
   if (options.secure) {
     attributes.push(`Secure`);
   }
+  if (options.domain) {
+    attributes.push(`Domain=${options.domain}`);
+  }
 
   return attributes.join("; ");
 }

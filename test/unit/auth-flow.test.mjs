@@ -40,16 +40,43 @@ test("discord auth start ignores unsafe return targets", async () => {
   }
 });
 
-async function startTestServer() {
+test("discord auth start shares oauth state cookies across apex and www", async () => {
+  const server = await startTestServer({
+    isProduction: true,
+    appBaseUrl: "https://www.taskforce20.com",
+    discordRedirectUri: "https://www.taskforce20.com/auth/discord/callback",
+    cookieDomain: "taskforce20.com",
+  });
+  try {
+    const response = await fetch(`${server.url}/auth/discord/start`, {
+      redirect: "manual",
+    });
+
+    assert.equal(response.status, 302);
+    const cookies = response.headers.getSetCookie?.() ?? [response.headers.get("set-cookie")];
+    const cookieText = cookies.filter(Boolean).join("\n");
+    assert.match(cookieText, /Domain=taskforce20\.com/);
+    assert.match(
+      response.headers.get("location"),
+      /redirect_uri=https%3A%2F%2Fwww\.taskforce20\.com%2Fauth%2Fdiscord%2Fcallback/,
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+async function startTestServer(overrides = {}) {
   const app = createApp({
     prisma: {},
     config: {
       nodeEnv: "test",
+      appBaseUrl: overrides.appBaseUrl ?? "http://127.0.0.1:3000",
+      cookieDomain: overrides.cookieDomain,
       discord: {
         clientId: "discord-client",
-        redirectUri: "http://127.0.0.1/auth/discord/callback",
+        redirectUri: overrides.discordRedirectUri ?? "http://127.0.0.1/auth/discord/callback",
       },
-      isProduction: false,
+      isProduction: overrides.isProduction ?? false,
       oauthStateCookieName: "tf20_oauth_state",
       sessionCookieName: "tf20_session",
       sessionSecret: "test-session-secret",

@@ -14,10 +14,13 @@ import {
   assignApplicationUnit,
   claimApplication,
   createOrResumeDraftApplication,
+  getApplicationById,
   getRecruitingOptions,
+  listReviewRecords,
   listReviewQueue,
   listUnitReviewQueue,
   recommendApplication,
+  reopenApplication,
   releaseApplicationClaim,
   recordApplicationIntakeAgreements,
   requestApplicationInfo,
@@ -33,7 +36,10 @@ import { flattenPermissions, resolveAuthenticatedAccount } from "../../src/serve
 import { getCurrentIntakeDocuments } from "../../src/server/intake-documents.mjs";
 import {
   getPersonnelEditOptions,
+  getStaffUnitOverview,
+  listPublicUnitOpenings,
   listScopedPersonnel,
+  updateUnitMOSSlots,
   updatePersonnelProfile,
 } from "../../src/server/personnel-service.mjs";
 import {
@@ -546,6 +552,131 @@ test("recruiter application claims gate recruiter-side writes", async () => {
   assert.equal(formerClaimantNote.code, "permission_denied");
 });
 
+test("recruiter records include closed applications and reopening requires recruiter plus system-admin", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const unitReviewer = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: targetUnit.id,
+  });
+  const recruiterOnly = await createAccountWithRole("recruiter", "Active");
+  const dualRole = await assignAdditionalRole(
+    await createAccountWithRole("recruiter", "Active"),
+    "system-admin",
+  );
+
+  const deniedPending = await createAccountWithRole("pending-user", "Pending");
+  await agreeToCurrentIntakeDocuments(deniedPending);
+  const deniedSubmitted = await submitOwnApplication({
+    prisma,
+    account: deniedPending,
+    body: await applicationBody(targetUnit.id, "Denied Record"),
+  });
+  assert.equal(deniedSubmitted.ok, true);
+  const deniedClaim = await claimApplication({
+    prisma,
+    actor: recruiterOnly,
+    applicationId: deniedSubmitted.application.id,
+  });
+  assert.equal(deniedClaim.ok, true);
+  const denied = await rejectApplication({
+    prisma,
+    actor: recruiterOnly,
+    applicationId: deniedSubmitted.application.id,
+    reason: "Denied for integration coverage.",
+  });
+  assert.equal(denied.ok, true);
+
+  const withdrawnPending = await createAccountWithRole("pending-user", "Pending");
+  await agreeToCurrentIntakeDocuments(withdrawnPending);
+  const withdrawnSubmitted = await submitOwnApplication({
+    prisma,
+    account: withdrawnPending,
+    body: await applicationBody(targetUnit.id, "Withdrawn Record"),
+  });
+  assert.equal(withdrawnSubmitted.ok, true);
+  const withdrawn = await withdrawOwnApplication({
+    prisma,
+    account: withdrawnPending,
+    reason: "Withdrawn for integration coverage.",
+  });
+  assert.equal(withdrawn.ok, true);
+
+  const convertedPending = await createAccountWithRole("pending-user", "Pending");
+  const converted = await createConvertedApplication({
+    pending: convertedPending,
+    reviewer: unitReviewer,
+    targetUnit,
+    preferredName: "Converted Record",
+  });
+  assert.equal(converted.status, "Converted");
+
+  const closedPending = await createAccountWithRole("pending-user", "Pending");
+  await agreeToCurrentIntakeDocuments(closedPending);
+  const closedSubmitted = await submitOwnApplication({
+    prisma,
+    account: closedPending,
+    body: await applicationBody(targetUnit.id, "Closed Record"),
+  });
+  assert.equal(closedSubmitted.ok, true);
+  const closedAt = new Date("2026-06-20T12:00:00.000Z");
+  const closed = await prisma.application.update({
+    where: { id: closedSubmitted.application.id },
+    data: {
+      status: "Closed",
+      closedAt,
+      decidedAt: closedAt,
+    },
+  });
+  assert.equal(closed.status, "Closed");
+
+  const activePending = await createAccountWithRole("pending-user", "Pending");
+  await agreeToCurrentIntakeDocuments(activePending);
+  const activeSubmitted = await submitOwnApplication({
+    prisma,
+    account: activePending,
+    body: await applicationBody(targetUnit.id, "Active Record Exclusion"),
+  });
+  assert.equal(activeSubmitted.ok, true);
+
+  const records = await listReviewRecords(prisma, recruiterOnly);
+  const recordIds = new Set(records.map((item) => item.id));
+  assert.ok(recordIds.has(denied.application.id));
+  assert.ok(recordIds.has(withdrawn.application.id));
+  assert.ok(recordIds.has(converted.id));
+  assert.ok(recordIds.has(closed.id));
+  assert.equal(recordIds.has(activeSubmitted.application.id), false);
+
+  const forbiddenReopen = await reopenApplication({
+    prisma,
+    actor: recruiterOnly,
+    applicationId: denied.application.id,
+    reason: "Recruiter-only reopen attempt.",
+  });
+  assert.equal(forbiddenReopen.ok, false);
+  assert.equal(forbiddenReopen.code, "permission_denied");
+
+  const reopened = await reopenApplication({
+    prisma,
+    actor: dualRole,
+    applicationId: denied.application.id,
+    reason: "Reopening denied record for review.",
+  });
+  assert.equal(reopened.ok, true);
+  assert.equal(reopened.application.status, "Submitted");
+  assert.equal(reopened.application.targetUnitId, null);
+  assert.equal(reopened.application.claimedByAccountId, null);
+  assert.equal(reopened.application.closedAt, null);
+
+  const convertedReopen = await reopenApplication({
+    prisma,
+    actor: dualRole,
+    applicationId: converted.id,
+    reason: "Converted reopen attempt.",
+  });
+  assert.equal(convertedReopen.ok, false);
+  assert.equal(convertedReopen.code, "invalid_transition");
+});
+
 test("least-privilege roles block cross-section application, personnel, and training authority", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const pending = await createAccountWithRole("pending-user", "Pending");
@@ -631,6 +762,191 @@ test("least-privilege roles block cross-section application, personnel, and trai
 
   const unitPersonnel = await listScopedPersonnel(prisma, unitStaff);
   assert.equal(unitPersonnel.ok, true);
+});
+
+test("staff unit overview resolves to the nearest 7000 root and updates MOS slots in scope", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const childUnit = await activeUnit("tf20_ranger_a_1p");
+  const squadUnit = await activeUnit("tf20_ranger_a_1p_1s");
+  const teamUnit = await activeUnit("tf20_ranger_a_1p_1s_at");
+  const unitStaff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: childUnit.id,
+  });
+  const commandStaff = await createAccountWithRole("command-staff", "Active");
+  const rootMos = await recruitingMOSForUnit(rootUnit.id);
+  const rootMember = await createActivePersonnel("Root Scope");
+  const childMember = await createActivePersonnel("Child Scope");
+  const squadMember = await createActivePersonnel("Squad Lead");
+  const teamMember = await createActivePersonnel("Team Member");
+  const [highBillet, lowBillet, captainRank, sergeantRank] = await Promise.all([
+    prisma.billet.findFirstOrThrow({
+      where: { status: "Active" },
+      orderBy: [{ commandPrecedence: "desc" }, { name: "asc" }],
+    }),
+    prisma.billet.findFirstOrThrow({
+      where: { status: "Active" },
+      orderBy: [{ commandPrecedence: "asc" }, { name: "asc" }],
+    }),
+    prisma.rank.findFirstOrThrow({
+      where: { status: "Active" },
+      orderBy: [{ precedence: "desc" }, { name: "asc" }],
+    }),
+    prisma.rank.findFirstOrThrow({
+      where: { status: "Active" },
+      orderBy: [{ precedence: "asc" }, { name: "asc" }],
+    }),
+  ]);
+
+  await prisma.personnelProfile.update({
+    where: { id: rootMember.profile.id },
+    data: {
+      currentUnitId: rootUnit.id,
+      currentMOSId: rootMos.id,
+    },
+  });
+  await prisma.personnelProfile.update({
+    where: { id: childMember.profile.id },
+    data: {
+      currentUnitId: childUnit.id,
+      currentMOSId: rootMos.id,
+    },
+  });
+  await prisma.personnelProfile.update({
+    where: { id: squadMember.profile.id },
+    data: {
+      currentUnitId: squadUnit.id,
+      currentMOSId: rootMos.id,
+      currentBilletId: highBillet.id,
+      currentRankId: captainRank.id,
+    },
+  });
+  await prisma.personnelProfile.update({
+    where: { id: teamMember.profile.id },
+    data: {
+      currentUnitId: teamUnit.id,
+      currentMOSId: rootMos.id,
+      currentBilletId: lowBillet.id,
+      currentRankId: sergeantRank.id,
+    },
+  });
+
+  const overview = await getStaffUnitOverview(prisma, unitStaff, rootUnit.id);
+  assert.equal(overview.ok, true);
+  assert.equal(overview.data.selectedUnit.id, rootUnit.id);
+  assert.ok(overview.data.roots.some((unit) => unit.id === rootUnit.id));
+  assert.ok(overview.data.rosterGroups.some((group) => group.unit.id === childUnit.id));
+  assert.equal(
+    overview.data.rosterGroups.some((group) => group.unit.id === teamUnit.id),
+    false,
+  );
+  const squadGroup = overview.data.rosterGroups.find((group) => group.unit.id === squadUnit.id);
+  assert.ok(squadGroup);
+  assert.deepEqual(
+    squadGroup.members.map((member) => member.id),
+    [squadMember.profile.id, teamMember.profile.id],
+  );
+  assert.equal(
+    squadGroup.members.find((member) => member.id === teamMember.profile.id)?.teamLabel,
+    "A",
+  );
+  assert.equal(overview.data.strengthRows.find((row) => row.id === rootMos.id)?.assigned, 4);
+
+  const globalOverview = await getStaffUnitOverview(prisma, commandStaff);
+  assert.equal(globalOverview.ok, true);
+  assert.ok(globalOverview.data.roots.some((unit) => unit.id === rootUnit.id));
+
+  const updatedSlots = await updateUnitMOSSlots({
+    prisma,
+    actor: unitStaff,
+    unitId: rootUnit.id,
+    mosId: rootMos.id,
+    authorizedSlots: 5,
+  });
+  assert.equal(updatedSlots.ok, true);
+  assert.equal(updatedSlots.row.authorizedSlots, 5);
+
+  const outsideRoot = await activeUnit("tf20_sfod_1a");
+  const outsideMos = await recruitingMOSForUnit(outsideRoot.id);
+  const deniedUpdate = await updateUnitMOSSlots({
+    prisma,
+    actor: unitStaff,
+    unitId: outsideRoot.id,
+    mosId: outsideMos.id,
+    authorizedSlots: 1,
+  });
+  assert.equal(deniedUpdate.ok, false);
+  assert.equal(deniedUpdate.code, "permission_denied");
+});
+
+test("application detail includes discord join and leave history entries", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const created = await createTargetUnitReviewApplication({
+    targetUnit,
+    applicationUnit: targetUnit,
+    preferredName: "Discord History Applicant",
+  });
+
+  await prisma.integrationLog.createMany({
+    data: [
+      {
+        provider: "Discord",
+        action: "guild-member-join",
+        status: "Success",
+        accountId: created.pending.id,
+        createdAt: new Date("2026-06-18T00:00:00.000Z"),
+      },
+      {
+        provider: "Discord",
+        action: "guild-member-leave",
+        status: "Success",
+        accountId: created.pending.id,
+        createdAt: new Date("2026-06-19T00:00:00.000Z"),
+      },
+    ],
+  });
+
+  const detail = await getApplicationById(prisma, created.application.id);
+  assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Join"));
+  assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Left"));
+});
+
+test("public unit openings only include units with open MOS slots", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const childUnit = await activeUnit("tf20_ranger_a_1p");
+  const rootMos = await recruitingMOSForUnit(rootUnit.id);
+  const member = await createActivePersonnel("Openings Scope");
+
+  await prisma.personnelProfile.update({
+    where: { id: member.profile.id },
+    data: {
+      currentUnitId: childUnit.id,
+      currentMOSId: rootMos.id,
+    },
+  });
+
+  await prisma.mOS.update({
+    where: { id: rootMos.id },
+    data: { authorizedSlots: 0 },
+  });
+
+  const closedOpenings = await listPublicUnitOpenings(prisma);
+  assert.equal(closedOpenings.ok, true);
+  assert.equal(
+    closedOpenings.items.some((group) => group.unit.id === rootUnit.id),
+    false,
+  );
+
+  await prisma.mOS.update({
+    where: { id: rootMos.id },
+    data: { authorizedSlots: 99 },
+  });
+
+  const openOpenings = await listPublicUnitOpenings(prisma);
+  assert.equal(openOpenings.ok, true);
+  const rootGroup = openOpenings.items.find((group) => group.unit.id === rootUnit.id);
+  assert.ok(rootGroup);
+  assert.ok(rootGroup.mos.some((row) => row.id === rootMos.id));
 });
 
 test("target-unit acceptance is denied outside scope and allowed inside scope", async () => {
@@ -847,7 +1163,6 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
       currentRankId: rank.id,
       currentBilletId: "",
       currentMOSId: mos.id,
-      goodStanding: "true",
     },
   });
 
@@ -865,7 +1180,6 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
       currentRankId: rank.id,
       currentBilletId: "",
       currentMOSId: mos.id,
-      goodStanding: "true",
       reason: "Integration personnel update.",
     },
   });
@@ -873,6 +1187,7 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
   assert.equal(updated.ok, true);
   assert.equal(updated.profile.name, "Falcon Two");
   assert.equal(updated.profile.currentMOSId, mos.id);
+  assert.equal(updated.profile.goodStanding, true);
   assert.equal(
     await prisma.personnelMOSHistory.count({
       where: { personnelProfileId: profile.id, mosId: mos.id },
@@ -901,7 +1216,6 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
       currentRankId: lowRank.id,
       currentBilletId: billet.id,
       currentMOSId: mos.id,
-      goodStanding: "true",
       reason: "Integration low-rank billet check.",
     },
   });
@@ -925,10 +1239,139 @@ test("personnel edit options expose scoped human-readable dropdown choices", asy
   assert.ok(result.options.ranks.every((rank) => rank.name));
   assert.ok(result.options.billets.every((billet) => billet.name));
   assert.ok(result.options.mos.every((mos) => mos.name || mos.identifier));
-  assert.deepEqual(result.options.standingOptions, [
-    { value: "true", label: "Good" },
-    { value: "false", label: "Restricted" },
-  ]);
+  assert.equal(result.options.standingOptions, undefined);
+});
+
+test("personnel standing is derived from status and discharged profiles drop off the roster", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const reviewer = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: targetUnit.id,
+  });
+  const target = await createAccountWithRole("member", "Active");
+  const mos = await prisma.mOS.findFirstOrThrow({ where: { status: "Active" } });
+  const rank = await prisma.rank.findFirstOrThrow({ where: { status: "Active" } });
+  const profile = await prisma.personnelProfile.create({
+    data: {
+      accountId: target.id,
+      name: "Standing Check",
+      status: "Active",
+      currentUnitId: targetUnit.id,
+      currentRankId: rank.id,
+      currentMOSId: mos.id,
+      goodStanding: false,
+    },
+  });
+
+  const awol = await updatePersonnelProfile({
+    prisma,
+    actor: reviewer,
+    personnelProfileId: profile.id,
+    body: {
+      name: "Standing Check",
+      status: "AWOL",
+      currentUnitId: targetUnit.id,
+      currentRankId: rank.id,
+      currentBilletId: "",
+      currentMOSId: mos.id,
+      reason: "Mark AWOL.",
+    },
+  });
+  assert.equal(awol.ok, true);
+  assert.equal(awol.profile.goodStanding, false);
+
+  const discharged = await updatePersonnelProfile({
+    prisma,
+    actor: reviewer,
+    personnelProfileId: profile.id,
+    body: {
+      name: "Standing Check",
+      status: "HonorableDischarge",
+      currentUnitId: targetUnit.id,
+      currentRankId: rank.id,
+      currentBilletId: "",
+      currentMOSId: mos.id,
+      reason: "Discharge member.",
+    },
+  });
+  assert.equal(discharged.ok, true);
+  assert.equal(discharged.profile.goodStanding, true);
+
+  const roster = await listScopedPersonnel(prisma, reviewer);
+  assert.equal(roster.ok, true);
+  assert.equal(
+    roster.items.some((item) => item.id === profile.id),
+    false,
+  );
+});
+
+test("unit-staff personnel scope ignores unrelated global member assignments", async () => {
+  const assignedUnit = await activeUnit("tf20_ranger_a_1p");
+  const descendantUnit = await activeUnit("tf20_ranger_a_1p_1s");
+  const outsideUnit = await activeUnit("tf20_ranger_a");
+  const actor = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: assignedUnit.id,
+  });
+  const memberRole = await prisma.role.findUniqueOrThrow({ where: { key: "member" } });
+  await prisma.roleAssignment.create({
+    data: {
+      accountId: actor.id,
+      roleId: memberRole.id,
+      scopeType: "Global",
+      scopeIncludesDescendants: true,
+      reason: "Baseline member access.",
+    },
+  });
+  const insideAccount = await createAccountWithRole("member", "Active");
+  const outsideAccount = await createAccountWithRole("member", "Active");
+  const insideProfile = await prisma.personnelProfile.create({
+    data: {
+      accountId: insideAccount.id,
+      name: "Scoped Inside",
+      status: "Active",
+      currentUnitId: descendantUnit.id,
+    },
+  });
+  const outsideProfile = await prisma.personnelProfile.create({
+    data: {
+      accountId: outsideAccount.id,
+      name: "Scoped Outside",
+      status: "Active",
+      currentUnitId: outsideUnit.id,
+    },
+  });
+
+  const refreshedActor = await prisma.account.findUniqueOrThrow({
+    where: { id: actor.id },
+    include: {
+      authIdentities: true,
+      roleAssignments: {
+        include: {
+          role: {
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const scoped = await listScopedPersonnel(prisma, refreshedActor);
+  assert.equal(scoped.ok, true);
+  assert.equal(
+    scoped.items.some((item) => item.id === insideProfile.id),
+    true,
+  );
+  assert.equal(
+    scoped.items.some((item) => item.id === outsideProfile.id),
+    false,
+  );
 });
 
 test("system admins manage audited roles with member and unit-scope safeguards", async () => {
@@ -1040,7 +1483,6 @@ test("unit-scoped roles follow personnel unit changes", async () => {
       name: "Scope Follow",
       status: "Active",
       currentUnitId: firstUnit.id,
-      goodStanding: true,
     },
   });
   const trainerRole = await prisma.role.findUniqueOrThrow({ where: { key: "trainer" } });
@@ -1065,7 +1507,6 @@ test("unit-scoped roles follow personnel unit changes", async () => {
       currentBilletId: "",
       currentMOSId: "",
       currentSecondaryMOSId: "",
-      goodStanding: "true",
       reason: "Transfer trainer to new unit.",
     },
   });
@@ -1574,6 +2015,40 @@ async function createAccountWithRole(roleKey, status, options = {}) {
       },
     });
   }
+
+  return prisma.account.findUniqueOrThrow({
+    where: { id: account.id },
+    include: {
+      authIdentities: true,
+      roleAssignments: {
+        include: {
+          role: {
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+async function assignAdditionalRole(account, roleKey, options = {}) {
+  const role = await prisma.role.findUniqueOrThrow({ where: { key: roleKey } });
+  await prisma.roleAssignment.create({
+    data: {
+      accountId: account.id,
+      roleId: role.id,
+      scopeType: options.scopeType ?? "Global",
+      scopeIncludesDescendants: options.scopeIncludesDescendants ?? true,
+      unitId: options.unitId,
+      reason: "Integration test additional role assignment.",
+    },
+  });
 
   return prisma.account.findUniqueOrThrow({
     where: { id: account.id },

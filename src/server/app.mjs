@@ -17,9 +17,11 @@ import {
   getOwnApplication,
   getRecruitingOptions,
   isHtmlRequest,
+  listReviewRecords,
   listReviewQueue,
   listUnitReviewQueue,
   recommendApplication,
+  reopenApplication,
   releaseApplicationClaim,
   recordApplicationIntakeAgreements,
   requestApplicationInfo,
@@ -41,8 +43,11 @@ import {
   getOwnPersonnelProfile,
   getPersonnelLookupData,
   getPersonnelProfileById,
+  getStaffUnitOverview,
   getScopedUnitFilters,
   listScopedPersonnel,
+  listPublicUnitOpenings,
+  updateUnitMOSSlots,
   updatePersonnelProfile,
 } from "./personnel-service.mjs";
 import {
@@ -119,6 +124,19 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
     });
   });
 
+  app.get("/public/openings", async (req, res, next) => {
+    try {
+      const result = await listPublicUnitOpenings(prisma);
+      if (!result.ok) {
+        return sendError(res, 400, result.code, result.message);
+      }
+
+      return sendDetail(res, result.items, { count: result.items.length });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.get("/", async (req, res, next) => {
     try {
       if (!req.context?.account) {
@@ -166,6 +184,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         config.oauthStateCookieName,
         signCookieValue(state, config.sessionSecret),
         {
+          domain: config.cookieDomain,
           secure: config.isProduction,
           maxAgeSeconds: 10 * 60,
         },
@@ -178,6 +197,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
             oauthReturnCookieName(config),
             signCookieValue(JSON.stringify({ state, returnTo }), config.sessionSecret),
             {
+              domain: config.cookieDomain,
               secure: config.isProduction,
               maxAgeSeconds: 10 * 60,
             },
@@ -270,6 +290,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       appendCookie(
         res,
         buildCookie(config.sessionCookieName, signCookieValue(session.id, config.sessionSecret), {
+          domain: config.cookieDomain,
           secure: config.isProduction,
           maxAgeSeconds: config.sessionTtlDays * 24 * 60 * 60,
         }),
@@ -306,6 +327,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       appendCookie(
         res,
         buildCookie(config.sessionCookieName, "", {
+          domain: config.cookieDomain,
           secure: config.isProduction,
           maxAgeSeconds: 0,
           expires: new Date(0),
@@ -782,6 +804,56 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
     }
   });
 
+  app.get("/units/staff-overview", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await getStaffUnitOverview(
+        prisma,
+        req.context.account,
+        String(req.query.unitId ?? ""),
+      );
+      if (!result.ok) {
+        return sendError(
+          res,
+          result.code === "permission_denied" ? 403 : 400,
+          result.code,
+          result.message,
+        );
+      }
+
+      return sendDetail(res, result.data);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch(
+    "/units/:unitId/mos/:mosId/slots",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await updateUnitMOSSlots({
+          prisma,
+          actor: req.context.account,
+          unitId: req.params.unitId,
+          mosId: req.params.mosId,
+          authorizedSlots: req.body.authorizedSlots,
+        });
+        if (!result.ok) {
+          return sendError(
+            res,
+            result.code === "permission_denied" ? 403 : 400,
+            result.code,
+            result.message,
+          );
+        }
+
+        return sendDetail(res, result.row);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
   app.get("/training/options", requireAuthenticatedSession, async (req, res, next) => {
     try {
       const result = await getTrainingOptions(prisma, req.context.account);
@@ -1107,6 +1179,27 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
     }
   });
 
+  app.get("/applications/review-records", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      if (!canRecruiterReview(req.context.account)) {
+        return sendError(
+          res,
+          403,
+          "permission_denied",
+          "Recruiter application review permission is required.",
+        );
+      }
+
+      const applications = await listReviewRecords(prisma, req.context.account);
+      return res.status(200).json({
+        items: applications,
+        meta: { count: applications.length },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   app.get("/applications/unit-review", requireAuthenticatedSession, async (req, res, next) => {
     try {
       if (!canTargetUnitReview(req.context.account)) {
@@ -1181,6 +1274,38 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         prisma,
         actor: req.context.account,
         applicationId: req.params.id,
+      });
+
+      if (!result.ok) {
+        return handleApplicationActionFailure({
+          req,
+          res,
+          prisma,
+          result,
+          applicationId: req.params.id,
+          account: req.context.account,
+          session: req.context.session,
+          authIdentity: req.context.authIdentity,
+        });
+      }
+
+      if (isHtmlRequest(req)) {
+        return res.redirect(`/applications/${req.params.id}`);
+      }
+
+      return sendDetail(res, result.application);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/applications/:id/reopen", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await reopenApplication({
+        prisma,
+        actor: req.context.account,
+        applicationId: req.params.id,
+        reason: String(req.body.reason ?? "").trim(),
       });
 
       if (!result.ok) {
@@ -1549,6 +1674,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         appendCookie(
           res,
           buildCookie(config.sessionCookieName, signCookieValue(sessionId, config.sessionSecret), {
+            domain: config.cookieDomain,
             secure: false,
             maxAgeSeconds: 4 * 60 * 60,
           }),
@@ -1605,6 +1731,11 @@ function isLoopbackRequest(ipAddress = "") {
 
 function buildPersonnelFormState(profileOrBody = {}) {
   const source = profileOrBody ?? {};
+  const derivedGoodStanding = ![
+    "AWOL",
+    "OtherThanHonorableDischarge",
+    "DishonorableDischarge",
+  ].includes(String(source.status ?? ""));
   return {
     name: String(source.name ?? ""),
     status: String(source.status ?? ""),
@@ -1613,9 +1744,7 @@ function buildPersonnelFormState(profileOrBody = {}) {
     currentBilletId: String(source.currentBilletId ?? ""),
     currentMOSId: String(source.currentMOSId ?? ""),
     currentSecondaryMOSId: String(source.currentSecondaryMOSId ?? ""),
-    goodStanding: String(
-      typeof source.goodStanding === "boolean" ? source.goodStanding : (source.goodStanding ?? ""),
-    ),
+    goodStanding: String(derivedGoodStanding),
     reason: String(source.reason ?? ""),
   };
 }
@@ -1837,6 +1966,7 @@ function oauthReturnCookieName(config) {
 
 function clearCookie(name, config) {
   return buildCookie(name, "", {
+    domain: config.cookieDomain,
     secure: config.isProduction,
     maxAgeSeconds: 0,
     expires: new Date(0),

@@ -12,6 +12,16 @@ const PERSONNEL_STATUS_OPTIONS = [
   "OtherThanHonorableDischarge",
   "DishonorableDischarge",
 ];
+const DISCHARGED_PERSONNEL_STATUSES = new Set([
+  "HonorableDischarge",
+  "OtherThanHonorableDischarge",
+  "DishonorableDischarge",
+]);
+const RESTRICTED_STANDING_STATUSES = new Set([
+  "AWOL",
+  "OtherThanHonorableDischarge",
+  "DishonorableDischarge",
+]);
 
 export function canViewOwnPersonnel(account) {
   return account.status === "Active" && hasPermission(account, "personnel.view-self");
@@ -26,17 +36,19 @@ export function canUpdateScopedPersonnel(account) {
 }
 
 export async function getOwnPersonnelProfile(prisma, accountId) {
-  return prisma.personnelProfile.findUnique({
+  const profile = await prisma.personnelProfile.findUnique({
     where: { accountId },
     include: personnelProfileInclude(),
   });
+  return applyDerivedStanding(profile);
 }
 
 export async function getPersonnelProfileById(prisma, personnelProfileId) {
-  return prisma.personnelProfile.findUnique({
+  const profile = await prisma.personnelProfile.findUnique({
     where: { id: personnelProfileId },
     include: personnelProfileInclude(),
   });
+  return applyDerivedStanding(profile);
 }
 
 export async function listScopedPersonnel(prisma, actor, filters = {}) {
@@ -51,9 +63,17 @@ export async function listScopedPersonnel(prisma, actor, filters = {}) {
   }
 
   const status = normalizeOptionalText(filters.status);
+  if (!status) {
+    where.status = {
+      notIn: [...DISCHARGED_PERSONNEL_STATUSES],
+    };
+  }
   if (status) {
     if (!PERSONNEL_STATUS_OPTIONS.includes(status)) {
       return failure("validation_error", "Selected personnel status is invalid.");
+    }
+    if (DISCHARGED_PERSONNEL_STATUSES.has(status)) {
+      return { ok: true, items: [] };
     }
     where.status = status;
   }
@@ -72,7 +92,7 @@ export async function listScopedPersonnel(prisma, actor, filters = {}) {
     include: rosterListInclude(),
   });
 
-  return { ok: true, items };
+  return { ok: true, items: items.map(applyDerivedStanding) };
 }
 
 export async function getPersonnelLookupData(prisma) {
@@ -105,10 +125,6 @@ export async function getPersonnelLookupData(prisma) {
     billets,
     mos,
     statuses: [...PERSONNEL_STATUS_OPTIONS],
-    standingOptions: [
-      { value: "true", label: "Good" },
-      { value: "false", label: "Restricted" },
-    ],
   };
 }
 
@@ -148,6 +164,271 @@ export async function getScopedUnitFilters(prisma, actor) {
     : allUnits;
 
   return { ok: true, units };
+}
+
+export async function getStaffUnitOverview(prisma, actor, selectedUnitId = "") {
+  if (!canViewScopedPersonnel(actor)) {
+    return failure("permission_denied", "Scoped personnel view is required.");
+  }
+
+  const unitScope = await resolveStaffUnitTreeScope(prisma, actor);
+  if (!unitScope.ok) {
+    return unitScope;
+  }
+
+  const normalizedUnitId = normalizeOptionalText(selectedUnitId);
+  const rootOptions = unitScope.rootUnits.map((unit) => ({
+    id: unit.id,
+    key: unit.key,
+    name: unit.name,
+    type: unit.type,
+    hierarchyBase: unit.hierarchyBase,
+  }));
+
+  const selectedRoot =
+    (normalizedUnitId
+      ? unitScope.rootUnits.find((unit) => unit.id === normalizedUnitId)
+      : unitScope.rootUnits[0]) ?? null;
+
+  if (normalizedUnitId && !selectedRoot) {
+    return failure("permission_denied", "Selected unit is outside your staff unit scope.");
+  }
+
+  if (!selectedRoot) {
+    return {
+      ok: true,
+      data: {
+        roots: [],
+        selectedUnit: null,
+        rosterGroups: [],
+        strengthRows: [],
+        permissions: { canEdit: false },
+      },
+    };
+  }
+
+  const treeUnitIds = new Set([
+    selectedRoot.id,
+    ...(unitScope.descendantMap.get(selectedRoot.id) ?? []),
+  ]);
+  const orderedUnits = orderUnitTree(
+    selectedRoot.id,
+    unitScope.unitsById,
+    unitScope.childrenByParentId,
+  );
+  const [rosterItems, strengthRows] = await Promise.all([
+    prisma.personnelProfile.findMany({
+      where: {
+        currentUnitId: { in: [...treeUnitIds] },
+        status: { notIn: [...DISCHARGED_PERSONNEL_STATUSES] },
+      },
+      include: rosterListInclude(),
+    }),
+    buildUnitStrengthRows(prisma, selectedRoot.id, treeUnitIds),
+  ]);
+
+  const membersByUnitId = new Map();
+  for (const item of rosterItems.map(applyDerivedStanding)) {
+    const groupUnitId = resolveRosterGroupUnitId(
+      item.currentUnitId,
+      unitScope.unitsById,
+      selectedRoot.id,
+    );
+    const members = membersByUnitId.get(groupUnitId) ?? [];
+    members.push({
+      ...item,
+      teamLabel: deriveRosterTeamLabel(item.currentUnit),
+    });
+    membersByUnitId.set(groupUnitId, members);
+  }
+
+  const rosterGroups = orderedUnits
+    .filter((unit) => unit.hierarchyBase >= 3000)
+    .map((unit) => ({
+      unit: {
+        id: unit.id,
+        key: unit.key,
+        name: unit.name,
+        type: unit.type,
+        hierarchyBase: unit.hierarchyBase,
+        depth: unit.depth,
+      },
+      members: sortUnitRosterMembers(membersByUnitId.get(unit.id) ?? []),
+    }))
+    .filter((group) => group.members.length > 0);
+
+  return {
+    ok: true,
+    data: {
+      roots: rootOptions,
+      selectedUnit: {
+        id: selectedRoot.id,
+        key: selectedRoot.key,
+        name: selectedRoot.name,
+        type: selectedRoot.type,
+        hierarchyBase: selectedRoot.hierarchyBase,
+      },
+      rosterGroups,
+      strengthRows,
+      permissions: {
+        canEdit: canUpdateScopedPersonnel(actor) && unitScope.editableRootIds.has(selectedRoot.id),
+      },
+    },
+  };
+}
+
+export async function updateUnitMOSSlots({ prisma, actor, unitId, mosId, authorizedSlots }) {
+  if (!canUpdateScopedPersonnel(actor)) {
+    return failure("permission_denied", "Scoped personnel update is required.");
+  }
+
+  const normalizedUnitId = normalizeOptionalText(unitId);
+  const normalizedMosId = normalizeOptionalText(mosId);
+  if (!normalizedUnitId || !normalizedMosId) {
+    return failure("validation_error", "Unit and MOS are required.");
+  }
+
+  const parsedSlots =
+    typeof authorizedSlots === "number"
+      ? authorizedSlots
+      : Number.parseInt(String(authorizedSlots), 10);
+  if (!Number.isInteger(parsedSlots) || parsedSlots < 0) {
+    return failure("validation_error", "Authorized slots must be a non-negative integer.");
+  }
+
+  const unitScope = await resolveStaffUnitTreeScope(prisma, actor);
+  if (!unitScope.ok) {
+    return unitScope;
+  }
+  if (!unitScope.editableRootIds.has(normalizedUnitId)) {
+    return failure("permission_denied", "Selected unit is outside your editable scope.");
+  }
+
+  const mos = await prisma.mOS.findFirst({
+    where: {
+      id: normalizedMosId,
+      unitId: normalizedUnitId,
+      status: "Active",
+    },
+    select: {
+      id: true,
+      identifier: true,
+      name: true,
+      authorizedSlots: true,
+      unit: { select: { id: true, key: true, name: true } },
+    },
+  });
+  if (!mos) {
+    return failure("validation_error", "Selected MOS does not belong to the selected unit.");
+  }
+
+  const updated = await prisma.mOS.update({
+    where: { id: mos.id },
+    data: { authorizedSlots: parsedSlots },
+    select: {
+      id: true,
+      key: true,
+      identifier: true,
+      name: true,
+      authorizedSlots: true,
+      unitId: true,
+    },
+  });
+
+  return { ok: true, row: updated };
+}
+
+export async function listPublicUnitOpenings(prisma) {
+  const [rootUnits, allUnits, mosRows, assignedProfiles] = await Promise.all([
+    prisma.unit.findMany({
+      where: {
+        status: "Active",
+        recruitingOpen: true,
+        hierarchyBase: 7000,
+      },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, key: true, name: true, parentId: true, type: true, hierarchyBase: true },
+    }),
+    prisma.unit.findMany({
+      where: { status: "Active" },
+      select: { id: true, parentId: true },
+    }),
+    prisma.mOS.findMany({
+      where: {
+        status: "Active",
+        recruitingOpen: true,
+        unit: {
+          status: "Active",
+          recruitingOpen: true,
+          hierarchyBase: 7000,
+        },
+      },
+      orderBy: [{ identifier: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        key: true,
+        identifier: true,
+        name: true,
+        unitId: true,
+        authorizedSlots: true,
+      },
+    }),
+    prisma.personnelProfile.findMany({
+      where: {
+        status: { notIn: [...DISCHARGED_PERSONNEL_STATUSES] },
+        currentMOSId: { not: null },
+        currentUnitId: { not: null },
+      },
+      select: {
+        currentMOSId: true,
+        currentUnitId: true,
+      },
+    }),
+  ]);
+
+  const descendantMap = buildDescendantMap(allUnits);
+  const rootTreeUnitIds = new Map(
+    rootUnits.map((unit) => [unit.id, new Set([unit.id, ...(descendantMap.get(unit.id) ?? [])])]),
+  );
+  const mosById = new Map(mosRows.map((row) => [row.id, row]));
+  const assignedCounts = new Map();
+
+  for (const profile of assignedProfiles) {
+    const mos = mosById.get(profile.currentMOSId);
+    if (!mos) continue;
+    const treeUnitIds = rootTreeUnitIds.get(mos.unitId);
+    if (!treeUnitIds?.has(profile.currentUnitId)) continue;
+    assignedCounts.set(mos.id, (assignedCounts.get(mos.id) ?? 0) + 1);
+  }
+
+  const openings = rootUnits
+    .map((unit) => {
+      const rows = mosRows
+        .filter((row) => row.unitId === unit.id)
+        .filter((row) => row.authorizedSlots > (assignedCounts.get(row.id) ?? 0))
+        .map((row) => ({
+          id: row.id,
+          key: row.key,
+          identifier: row.identifier,
+          name: row.name,
+        }));
+
+      if (!rows.length) {
+        return null;
+      }
+
+      return {
+        unit: {
+          id: unit.id,
+          key: unit.key,
+          name: unit.name,
+        },
+        mos: rows,
+      };
+    })
+    .filter(Boolean);
+
+  return { ok: true, items: openings };
 }
 
 export async function updatePersonnelProfile({ prisma, actor, personnelProfileId, body }) {
@@ -193,11 +474,7 @@ export async function updatePersonnelProfile({ prisma, actor, personnelProfileId
   const nextBilletId = normalizeNullableForeignKey(body.currentBilletId);
   const nextMOSId = normalizeNullableForeignKey(body.currentMOSId);
   const nextSecondaryMOSId = normalizeNullableForeignKey(body.currentSecondaryMOSId);
-  const nextGoodStanding = parseBooleanLike(body.goodStanding);
-
-  if (nextGoodStanding === null) {
-    return failure("validation_error", "Good standing selection is required.");
-  }
+  const nextGoodStanding = deriveGoodStanding(nextStatus);
 
   const [nextUnit, nextRank, nextBillet, nextMOS, nextSecondaryMOS] = await Promise.all([
     fetchActiveUnit(prisma, nextUnitId),
@@ -411,10 +688,11 @@ export async function updatePersonnelProfile({ prisma, actor, personnelProfileId
       },
     });
 
-    return tx.personnelProfile.findUnique({
+    const profile = await tx.personnelProfile.findUnique({
       where: { id: existing.id },
       include: personnelProfileInclude(),
     });
+    return applyDerivedStanding(profile);
   });
 
   return { ok: true, profile: updated };
@@ -513,7 +791,10 @@ async function resolvePersonnelScope(prisma, actor) {
   }
 
   const assignments = (actor.roleAssignments ?? []).filter(
-    (assignment) => isActiveRoleAssignment(assignment) && assignment.unitId,
+    (assignment) =>
+      isActiveRoleAssignment(assignment) &&
+      assignment.unitId &&
+      grantsPersonnelScope(assignment.role),
   );
 
   if (!assignments.length) {
@@ -538,21 +819,80 @@ async function resolvePersonnelScope(prisma, actor) {
   return { ok: true, unitIds: [...scopedUnitIds] };
 }
 
+async function resolveStaffUnitTreeScope(prisma, actor) {
+  if (!canViewScopedPersonnel(actor)) {
+    return failure("permission_denied", "Scoped personnel view is required.");
+  }
+
+  const units = await prisma.unit.findMany({
+    where: { status: "Active" },
+    orderBy: [{ hierarchyBase: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      type: true,
+      parentId: true,
+      hierarchyBase: true,
+    },
+  });
+  const unitsById = new Map(units.map((unit) => [unit.id, unit]));
+  const childrenByParentId = buildChildrenByParentId(units);
+  const descendantMap = buildDescendantMap(units);
+
+  let rootIds;
+  if (hasGlobalScope(actor)) {
+    rootIds = units.filter((unit) => unit.hierarchyBase === 7000).map((unit) => unit.id);
+  } else {
+    const assignments = (actor.roleAssignments ?? []).filter(
+      (assignment) =>
+        isActiveRoleAssignment(assignment) &&
+        assignment.unitId &&
+        grantsPersonnelScope(assignment.role),
+    );
+
+    if (!assignments.length) {
+      return failure("permission_denied", "No staff unit scope is assigned to this account.");
+    }
+
+    rootIds = assignments
+      .map((assignment) => findNearestHierarchyRootId(assignment.unitId, unitsById))
+      .filter(Boolean);
+  }
+
+  const uniqueRootIds = [...new Set(rootIds)];
+  const rootUnits = uniqueRootIds
+    .map((id) => unitsById.get(id))
+    .filter(Boolean)
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  if (!rootUnits.length) {
+    return failure("permission_denied", "No staff unit root is available for this account.");
+  }
+
+  return {
+    ok: true,
+    unitsById,
+    childrenByParentId,
+    descendantMap,
+    rootUnits,
+    editableRootIds: new Set(
+      canUpdateScopedPersonnel(actor) ? rootUnits.map((unit) => unit.id) : [],
+    ),
+  };
+}
+
 function hasGlobalScope(actor) {
   return (actor.roleAssignments ?? []).some(
-    (assignment) => isActiveRoleAssignment(assignment) && assignment.scopeType === "Global",
+    (assignment) =>
+      isActiveRoleAssignment(assignment) &&
+      assignment.scopeType === "Global" &&
+      grantsPersonnelScope(assignment.role),
   );
 }
 
 function buildDescendantMap(units) {
-  const childrenByParentId = new Map();
-  for (const unit of units) {
-    if (!unit.parentId) continue;
-    const children = childrenByParentId.get(unit.parentId) ?? [];
-    children.push(unit.id);
-    childrenByParentId.set(unit.parentId, children);
-  }
-
+  const childrenByParentId = buildChildrenByParentId(units);
   const descendantMap = new Map();
   for (const unit of units) {
     descendantMap.set(unit.id, collectDescendants(unit.id, childrenByParentId));
@@ -561,15 +901,164 @@ function buildDescendantMap(units) {
   return descendantMap;
 }
 
+function buildChildrenByParentId(units) {
+  const childrenByParentId = new Map();
+  for (const unit of units) {
+    if (!unit.parentId) continue;
+    const children = childrenByParentId.get(unit.parentId) ?? [];
+    children.push(unit);
+    childrenByParentId.set(unit.parentId, children);
+  }
+  for (const children of childrenByParentId.values()) {
+    children.sort((left, right) =>
+      String(left.name ?? left.id).localeCompare(String(right.name ?? right.id)),
+    );
+  }
+  return childrenByParentId;
+}
+
+function resolveRosterGroupUnitId(unitId, unitsById, fallbackUnitId) {
+  let current = unitsById.get(unitId);
+  while (current) {
+    if (current.hierarchyBase >= 3000) {
+      return current.id;
+    }
+    current = current.parentId ? unitsById.get(current.parentId) : null;
+  }
+  return fallbackUnitId;
+}
+
+function deriveRosterTeamLabel(unit) {
+  if (!unit || unit.hierarchyBase !== 1000) {
+    return "";
+  }
+
+  const firstSegment = String(unit.name ?? "")
+    .split(",")[0]
+    .trim();
+  const nameMatch = /^([A-Z])(?:\b|[^A-Za-z])/.exec(firstSegment);
+  if (nameMatch?.[1]) {
+    return nameMatch[1].toUpperCase();
+  }
+
+  const keyMatch = /_([ab])t$/i.exec(String(unit.key ?? ""));
+  return keyMatch?.[1]?.toUpperCase() ?? "";
+}
+
+function comparePersonnelNamesByLastName(leftName, rightName) {
+  const left = personNameSortParts(leftName);
+  const right = personNameSortParts(rightName);
+  return (
+    left.last.localeCompare(right.last) ||
+    left.first.localeCompare(right.first) ||
+    left.full.localeCompare(right.full)
+  );
+}
+
+function personNameSortParts(fullName) {
+  const tokens = String(fullName ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) {
+    return { last: "", first: "", full: "" };
+  }
+
+  return {
+    last: tokens.at(-1)?.toLowerCase() ?? "",
+    first: tokens[0]?.toLowerCase() ?? "",
+    full: tokens.join(" ").toLowerCase(),
+  };
+}
+
+function sortUnitRosterMembers(items) {
+  return [...items].sort((left, right) => {
+    return (
+      (right.currentBillet?.commandPrecedence ?? -1) -
+        (left.currentBillet?.commandPrecedence ?? -1) ||
+      (right.currentRank?.precedence ?? -1) - (left.currentRank?.precedence ?? -1) ||
+      comparePersonnelNamesByLastName(left.name, right.name)
+    );
+  });
+}
+
 function collectDescendants(unitId, childrenByParentId) {
   const descendants = [];
   const stack = [...(childrenByParentId.get(unitId) ?? [])];
   while (stack.length) {
-    const childId = stack.pop();
-    descendants.push(childId);
-    stack.push(...(childrenByParentId.get(childId) ?? []));
+    const child = stack.pop();
+    descendants.push(child.id);
+    stack.push(...(childrenByParentId.get(child.id) ?? []));
   }
   return descendants;
+}
+
+async function buildUnitStrengthRows(prisma, rootUnitId, treeUnitIds) {
+  const [mosRows, assignedProfiles] = await Promise.all([
+    prisma.mOS.findMany({
+      where: {
+        unitId: rootUnitId,
+        status: "Active",
+      },
+      orderBy: [{ identifier: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        key: true,
+        identifier: true,
+        name: true,
+        authorizedSlots: true,
+        unitId: true,
+      },
+    }),
+    prisma.personnelProfile.findMany({
+      where: {
+        currentUnitId: { in: [...treeUnitIds] },
+        status: { notIn: [...DISCHARGED_PERSONNEL_STATUSES] },
+        currentMOSId: { not: null },
+      },
+      select: {
+        currentMOSId: true,
+      },
+    }),
+  ]);
+
+  const assignedCounts = new Map();
+  for (const profile of assignedProfiles) {
+    assignedCounts.set(profile.currentMOSId, (assignedCounts.get(profile.currentMOSId) ?? 0) + 1);
+  }
+
+  return mosRows.map((row) => ({
+    ...row,
+    assigned: assignedCounts.get(row.id) ?? 0,
+  }));
+}
+
+function orderUnitTree(rootUnitId, unitsById, childrenByParentId, depth = 0) {
+  const root = unitsById.get(rootUnitId);
+  if (!root) {
+    return [];
+  }
+
+  const ordered = [{ ...root, depth }];
+  for (const child of childrenByParentId.get(rootUnitId) ?? []) {
+    ordered.push(...orderUnitTree(child.id, unitsById, childrenByParentId, depth + 1));
+  }
+  return ordered;
+}
+
+function findNearestHierarchyRootId(unitId, unitsById) {
+  let current = unitsById.get(unitId);
+  let fallback = current?.id ?? null;
+
+  while (current) {
+    if (current.hierarchyBase === 7000) {
+      return current.id;
+    }
+    fallback = current.id;
+    current = current.parentId ? unitsById.get(current.parentId) : null;
+  }
+
+  return fallback;
 }
 
 async function fetchActiveUnit(prisma, id) {
@@ -668,6 +1157,21 @@ function serializePersonnelProfile(profile) {
   };
 }
 
+function applyDerivedStanding(profile) {
+  if (!profile) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    goodStanding: deriveGoodStanding(profile.status),
+  };
+}
+
+function deriveGoodStanding(status) {
+  return !RESTRICTED_STANDING_STATUSES.has(status);
+}
+
 async function unitOwnsOrContainsAssignment(prisma, ownerUnitId, assignedUnitId) {
   if (!ownerUnitId || !assignedUnitId) {
     return false;
@@ -702,16 +1206,6 @@ function normalizeNullableForeignKey(value) {
   return normalized || null;
 }
 
-function parseBooleanLike(value) {
-  if (value === true || value === "true" || value === "1" || value === 1 || value === "on") {
-    return true;
-  }
-  if (value === false || value === "false" || value === "0" || value === 0) {
-    return false;
-  }
-  return null;
-}
-
 function hasPermission(account, permissionKey) {
   return (account.roleAssignments ?? []).some(
     (assignment) =>
@@ -724,6 +1218,14 @@ function hasPermission(account, permissionKey) {
 
 function isActiveRoleAssignment(assignment) {
   return !assignment.endsAt && assignment.role?.status === "Active";
+}
+
+function grantsPersonnelScope(role) {
+  return (role?.permissions ?? []).some(
+    (grant) =>
+      grant.permission?.status === "Active" &&
+      ["personnel.view-scoped", "personnel.update-scoped"].includes(grant.permission?.key),
+  );
 }
 
 function failure(code, message) {
