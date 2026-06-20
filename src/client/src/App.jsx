@@ -33,6 +33,7 @@ import {
   trainingOutcomeLabel,
   unitDisplayLabel,
 } from "../../shared/display-labels.mjs";
+import { APPLICATION_AVAILABILITY_COPY } from "../../shared/application-availability.mjs";
 import {
   findNavigationNodeByPath,
   findSiteMapNodeByPath,
@@ -1517,6 +1518,7 @@ function ApplicantApplicationWorkspace() {
     sources: [],
     branches: [],
     timeZones: [],
+    availabilitySlots: [],
     units: [],
     mos: [],
   };
@@ -2951,7 +2953,15 @@ function UnitRosterTree({ groups }) {
             <strong>{group.unit.name}</strong>
           </div>
           <div className="table-wrap">
-            <table>
+            <table className="unit-roster-table">
+              <colgroup>
+                <col className="unit-roster-col-name" />
+                <col className="unit-roster-col-status" />
+                <col className="unit-roster-col-rank" />
+                <col className="unit-roster-col-assignment" />
+                <col className="unit-roster-col-team" />
+                <col className="unit-roster-col-mos" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Name</th>
@@ -3074,6 +3084,7 @@ function ApplicationForm({ form, options, setForm }) {
     ? (options.mos ?? []).filter((mos) => selectedUnits.has(mos.unitId))
     : [];
   const timeZones = options.timeZones ?? [];
+  const availabilitySlots = options.availabilitySlots ?? [];
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const togglePriorService = (value) =>
@@ -3109,6 +3120,13 @@ function ApplicationForm({ form, options, setForm }) {
       desiredMOSIds: checked
         ? Array.from(new Set([...current.desiredMOSIds, mosId]))
         : current.desiredMOSIds.filter((id) => id !== mosId),
+    }));
+  const toggleAvailabilitySlot = (slotKey, checked) =>
+    setForm((current) => ({
+      ...current,
+      availabilitySlotKeys: checked
+        ? Array.from(new Set([...current.availabilitySlotKeys, slotKey]))
+        : current.availabilitySlotKeys.filter((key) => key !== slotKey),
     }));
   const updateServicePeriod = (index, field, value) =>
     setForm((current) => ({
@@ -3189,18 +3207,6 @@ function ApplicationForm({ form, options, setForm }) {
               value={form.reasonForJoining}
               onChange={(event) => update("reasonForJoining", event.target.value)}
             />
-          </Field>
-        </div>
-        <div className="application-section-row single">
-          <Field label="HOW DID YOU HEAR ABOUT US?">
-            <select value={form.source} onChange={(event) => update("source", event.target.value)}>
-              <option value="">CHOOSE ONE</option>
-              {(options.sources ?? []).map((source) => (
-                <option key={source} value={source}>
-                  {humanize(source)}
-                </option>
-              ))}
-            </select>
           </Field>
         </div>
       </ApplicationReviewSection>
@@ -3416,6 +3422,35 @@ function ApplicationForm({ form, options, setForm }) {
             selectedIds={form.desiredMOSIds}
             onToggle={toggleDesiredMOS}
           />
+        </div>
+      </ApplicationReviewSection>
+
+      <ApplicationReviewSection title="AVAILABILITY">
+        <p className="application-section-copy">{APPLICATION_AVAILABILITY_COPY}</p>
+        <div className="application-section-row single">
+          <ChoiceList
+            emptyMessage="No availability time slots are configured."
+            getLabel={(slot) => slot.label}
+            items={availabilitySlots}
+            label="AVAILABLE TIME SLOTS"
+            selectedIds={form.availabilitySlotKeys}
+            onToggle={toggleAvailabilitySlot}
+          />
+        </div>
+      </ApplicationReviewSection>
+
+      <ApplicationReviewSection title="SOURCE">
+        <div className="application-section-row single">
+          <Field label="HOW DID YOU HEAR ABOUT US?">
+            <select value={form.source} onChange={(event) => update("source", event.target.value)}>
+              <option value="">CHOOSE ONE</option>
+              {(options.sources ?? []).map((source) => (
+                <option key={source} value={source}>
+                  {humanize(source)}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
       </ApplicationReviewSection>
     </div>
@@ -3924,6 +3959,7 @@ function ReadOnlyApplication({ application }) {
   const servicePeriods = (application.servicePeriods ?? []).map(formatServicePeriod);
   const armaUnits = (application.armaUnits ?? []).map(formatArmaUnit);
   const interestedUnits = (application.interestedUnits ?? []).map((entry) => entry.unit?.name);
+  const availability = (application.availabilitySlots ?? []).map((entry) => entry.slotLabel);
   const desiredMOS = (application.desiredMOS ?? []).map(formatDesiredMOS);
   const serviceValue = application.priorService
     ? inlineList(servicePeriods, "No service details recorded.")
@@ -3958,6 +3994,7 @@ function ReadOnlyApplication({ application }) {
       <ReadOnlyField label="Unit Interest">
         {inlineList(interestedUnits, "No interested units recorded.")}
       </ReadOnlyField>
+      <ReadOnlyField label="Availability">{inlineList(availability, "Not recorded")}</ReadOnlyField>
       <ReadOnlyField label="Desired MOS">
         {inlineList(desiredMOS, "No desired MOS choices recorded.")}
       </ReadOnlyField>
@@ -4064,6 +4101,7 @@ function blankApplicationForm() {
     leadership: false,
     leadershipDetails: "",
     interestedUnitIds: [],
+    availabilitySlotKeys: [],
     desiredMOSIds: [],
   };
 }
@@ -4133,6 +4171,7 @@ function applicationToForm(application) {
     leadership: Boolean(application.leadership),
     leadershipDetails: application.leadershipDetails ?? "",
     interestedUnitIds: (application.interestedUnits ?? []).map((entry) => entry.unitId),
+    availabilitySlotKeys: (application.availabilitySlots ?? []).map((entry) => entry.slotKey),
     desiredMOSIds: (application.desiredMOS ?? []).map((entry) => entry.mosId),
   };
 }

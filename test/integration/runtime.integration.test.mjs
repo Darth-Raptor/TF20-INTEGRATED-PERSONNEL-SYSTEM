@@ -71,6 +71,8 @@ test("recruiting options expose only active open 7000-level units", async () => 
 
   assert.ok(options.units.length > 0);
   assert.deepEqual(options.timeZones, ["UTC", "EST", "CST", "MST", "PST", "GMT", "CET", "AEST"]);
+  assert.equal(options.availabilitySlots.length, 9);
+  assert.equal(options.availabilitySlots[0].id, "monday_evenings");
   assert.equal(
     options.units.every((unit) => unit.hierarchyBase === 7000),
     true,
@@ -112,6 +114,7 @@ test("application drafts allow new applicant questions to remain blank", async (
   delete body.age;
   delete body.timeZone;
   delete body.reasonForJoining;
+  delete body.availabilitySlotKeys;
   await agreeToCurrentIntakeDocuments(pending);
 
   const result = await updateOwnApplication({ prisma, account: pending, body });
@@ -120,6 +123,7 @@ test("application drafts allow new applicant questions to remain blank", async (
   assert.equal(result.application.age, null);
   assert.equal(result.application.timeZone, null);
   assert.equal(result.application.reasonForJoining, null);
+  assert.deepEqual(result.application.availabilitySlots, []);
 });
 
 test("application submit requires and validates new applicant questions", async () => {
@@ -129,6 +133,7 @@ test("application submit requires and validates new applicant questions", async 
   delete missingBody.age;
   delete missingBody.timeZone;
   delete missingBody.reasonForJoining;
+  delete missingBody.availabilitySlotKeys;
   await agreeToCurrentIntakeDocuments(pendingMissing);
 
   const missing = await submitOwnApplication({
@@ -141,6 +146,7 @@ test("application submit requires and validates new applicant questions", async 
   assert.match(missing.message, /Age is required/);
   assert.match(missing.message, /Time zone is required/);
   assert.match(missing.message, /Reason for joining is required/);
+  assert.match(missing.message, /availability time slot is required/i);
 
   const pendingInvalid = await createAccountWithRole("pending-user", "Pending");
   await agreeToCurrentIntakeDocuments(pendingInvalid);
@@ -151,12 +157,14 @@ test("application submit requires and validates new applicant questions", async 
       ...(await applicationBody(targetUnit.id, "Invalid Questions")),
       age: "twenty",
       timeZone: "Mars/Phobos",
+      availabilitySlotKeys: ["made_up_slot"],
     },
   });
   assert.equal(invalid.ok, false);
   assert.equal(invalid.code, "validation_error");
   assert.match(invalid.message, /Age must be a positive whole number/);
   assert.match(invalid.message, /Time zone is invalid/);
+  assert.match(invalid.message, /availability time slots are invalid/i);
 });
 
 test("pending account can draft, submit, and convert into an active member", async () => {
@@ -188,6 +196,10 @@ test("pending account can draft, submit, and convert into an active member", asy
   );
   assert.equal(updatedDraft.application.servicePeriods.length, 1);
   assert.equal(updatedDraft.application.armaUnits.length, 1);
+  assert.deepEqual(
+    updatedDraft.application.availabilitySlots.map((entry) => entry.slotKey),
+    ["tuesday_evenings", "thursday_evenings"],
+  );
 
   const submitted = await submitOwnApplication({ prisma, account: pending, body });
   assert.equal(submitted.ok, true);
@@ -909,6 +921,25 @@ test("application detail includes discord join and leave history entries", async
   const detail = await getApplicationById(prisma, created.application.id);
   assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Join"));
   assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Left"));
+});
+
+test("application availability selections persist and appear in review detail", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const created = await createTargetUnitReviewApplication({
+    targetUnit,
+    applicationUnit: targetUnit,
+    preferredName: "Availability Review Applicant",
+  });
+
+  const detail = await getApplicationById(prisma, created.application.id);
+  assert.deepEqual(
+    detail.availabilitySlots.map((entry) => entry.slotKey),
+    ["tuesday_evenings", "thursday_evenings"],
+  );
+  assert.deepEqual(
+    detail.availabilitySlots.map((entry) => entry.slotLabel),
+    ["Tuesday Evenings (19:00 CST - 23:00 CST)", "Thursday Evenings (19:00 CST - 23:00 CST)"],
+  );
 });
 
 test("public unit openings only include units with open MOS slots", async () => {
@@ -2121,6 +2152,7 @@ async function applicationBody(targetUnitId, preferredName) {
     leadership: true,
     leadershipDetails: "Integration test fireteam leadership.",
     interestedUnitIds: [targetUnitId],
+    availabilitySlotKeys: ["tuesday_evenings", "thursday_evenings"],
     desiredMOSIds: [mos.id],
   };
 }

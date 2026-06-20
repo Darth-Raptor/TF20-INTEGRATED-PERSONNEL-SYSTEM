@@ -963,6 +963,41 @@ th {
   gap: 10px;
 }
 
+.unit-roster-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.unit-roster-col-name {
+  width: 16%;
+}
+
+.unit-roster-col-status {
+  width: 13%;
+}
+
+.unit-roster-col-rank {
+  width: 8%;
+}
+
+.unit-roster-col-assignment {
+  width: 27%;
+}
+
+.unit-roster-col-team {
+  width: 6%;
+}
+
+.unit-roster-col-mos {
+  width: 30%;
+}
+
+.unit-roster-table th,
+.unit-roster-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .unit-roster-heading {
   padding-left: 0;
 }
@@ -1251,6 +1286,11 @@ textarea:disabled {
 
 .application-review-section .key-value-list div {
   background: var(--palette-text-input-background);
+}
+
+.application-section-copy {
+  margin: 0;
+  color: var(--palette-text);
 }
 
 .application-review-actions,

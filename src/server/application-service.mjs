@@ -8,8 +8,12 @@ import {
   getCurrentIntakeDocuments,
   hasCurrentIntakeAgreements,
 } from "./intake-documents.mjs";
+import {
+  APPLICATION_AVAILABILITY_SLOTS,
+  applicationAvailabilityLabel,
+} from "../shared/application-availability.mjs";
 
-const APPLICATION_FORM_VERSION = "enlistment-v3";
+const APPLICATION_FORM_VERSION = "enlistment-v4";
 const RECRUITING_SOURCES = ["Reddit", "Steam", "Discord"];
 const MILITARY_BRANCHES = ["Army", "Navy", "AirForce", "Marines", "CoastGuard"];
 const APPLICATION_TIME_ZONES = ["UTC", "EST", "CST", "MST", "PST", "GMT", "CET", "AEST"];
@@ -32,6 +36,9 @@ const REVIEW_QUEUE_RECRUITER_STATUSES = [
 const REVIEW_QUEUE_TARGET_STATUSES = ["RecruiterRecommended", "TargetUnitReview"];
 const CLAIMABLE_APPLICATION_STATUSES = REVIEW_QUEUE_RECRUITER_STATUSES;
 const TERMINAL_APPLICATION_STATUSES = ["Accepted", "Converted", "Denied", "Withdrawn", "Closed"];
+const APPLICATION_AVAILABILITY_SLOT_KEYS = new Set(
+  APPLICATION_AVAILABILITY_SLOTS.map((slot) => slot.key),
+);
 
 function hasPermission(account, permissionKey) {
   return (account.roleAssignments ?? []).some(
@@ -136,6 +143,10 @@ export async function getRecruitingOptions(prisma, selectedUnitIds = []) {
     sources: RECRUITING_SOURCES,
     branches: MILITARY_BRANCHES,
     timeZones: APPLICATION_TIME_ZONES,
+    availabilitySlots: APPLICATION_AVAILABILITY_SLOTS.map((slot) => ({
+      id: slot.key,
+      label: slot.label,
+    })),
     units,
     mos,
   };
@@ -1563,6 +1574,9 @@ function normalizeApplicationData(body = {}) {
     leadership,
     leadershipDetails: leadership ? normalizeText(body.leadershipDetails) : "",
     interestedUnitIds: normalizedInterestedUnitIds,
+    availabilitySlotKeys: uniqueValues(
+      coerceArray(body.availabilitySlotKeys ?? body.availabilitySlots),
+    ),
     desiredMOSIds: uniqueValues(coerceArray(body.desiredMOSIds ?? body.desiredMOS ?? body.mosIds)),
   };
 }
@@ -1581,6 +1595,7 @@ function normalizeLegacyApplicationBody(body = {}) {
     priorArma: body.priorArma ?? false,
     leadership: body.leadership ?? false,
     interestedUnitIds: coerceArray(body.interestedUnitIds ?? body.targetUnitId),
+    availabilitySlotKeys: coerceArray(body.availabilitySlotKeys ?? body.availabilitySlots),
     desiredMOSIds: coerceArray(body.desiredMOSIds),
   };
 }
@@ -1636,6 +1651,9 @@ async function validateApplicationData(prisma, data, { requireComplete }) {
     if (!data.reasonForJoining) errors.push("Reason for joining is required.");
     if (!data.source) errors.push("Recruiting source is required.");
     if (!data.interestedUnitIds.length) errors.push("At least one interested unit is required.");
+    if (!data.availabilitySlotKeys.length) {
+      errors.push("At least one availability time slot is required.");
+    }
     if (!data.desiredMOSIds.length) errors.push("At least one desired MOS is required.");
     if (data.priorService && !data.servicePeriods.length) {
       errors.push("At least one service period is required when prior service is yes.");
@@ -1656,6 +1674,11 @@ async function validateApplicationData(prisma, data, { requireComplete }) {
   }
   if (data.timeZone && !APPLICATION_TIME_ZONES.includes(data.timeZone)) {
     errors.push("Time zone is invalid.");
+  }
+  if (
+    data.availabilitySlotKeys.some((slotKey) => !APPLICATION_AVAILABILITY_SLOT_KEYS.has(slotKey))
+  ) {
+    errors.push("One or more availability time slots are invalid.");
   }
 
   for (const [index, period] of data.servicePeriods.entries()) {
@@ -1754,6 +1777,14 @@ async function persistApplicationData(tx, applicationId, data) {
         deleteMany: {},
         create: data.interestedUnitIds.map((unitId, index) => ({
           unitId,
+          sortOrder: index,
+        })),
+      },
+      availabilitySlots: {
+        deleteMany: {},
+        create: data.availabilitySlotKeys.map((slotKey, index) => ({
+          slotKey,
+          slotLabel: applicationAvailabilityLabel(slotKey),
           sortOrder: index,
         })),
       },
@@ -2029,6 +2060,9 @@ function applicationInclude() {
     interestedUnits: {
       orderBy: { sortOrder: "asc" },
       include: { unit: true },
+    },
+    availabilitySlots: {
+      orderBy: { sortOrder: "asc" },
     },
     desiredMOS: {
       orderBy: { sortOrder: "asc" },

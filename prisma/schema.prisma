@@ -733,6 +733,7 @@ model Application {
   servicePeriods                   ApplicationServicePeriod[]
   armaUnits                        ApplicationArmaUnit[]
   interestedUnits                  ApplicationInterestUnit[]
+  availabilitySlots                ApplicationAvailabilitySlot[]
   desiredMOS                       ApplicationDesiredMOS[]
   statusHistory                    ApplicationStatusHistory[]
   notes                            ApplicationReviewNote[]
@@ -819,6 +820,18 @@ model ApplicationInterestUnit {
 
   @@unique([applicationId, unitId])
   @@index([unitId])
+}
+
+model ApplicationAvailabilitySlot {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  slotKey       String
+  slotLabel     String
+  sortOrder     Int         @default(0)
+
+  @@unique([applicationId, slotKey])
+  @@index([applicationId])
 }
 
 model ApplicationDesiredMOS {
