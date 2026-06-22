@@ -452,7 +452,7 @@ export function renderApplicationReviewDetailScreen({
   const historyMarkup = application.statusHistory
     .map(
       (entry) =>
-        `<li><strong>${escapeHtml(applicationStatusLabel(entry.newStatus, ENUM_DISPLAY_LABELS))}</strong> - ${formatDate(entry.createdAt)}<br /><span class="muted">${escapeHtml(entry.reason || "No reason recorded.")}</span></li>`,
+        `<li><strong>${escapeHtml(entry.displayLabel ?? applicationStatusLabel(entry.newStatus, ENUM_DISPLAY_LABELS))}</strong> - ${formatDate(entry.createdAt)}<br /><span class="muted">${escapeHtml(entry.reason || "No reason recorded.")}</span></li>`,
     )
     .join("");
 

@@ -45,10 +45,36 @@ test("loadConfig parses runtime defaults and overrides", () => {
     assert.equal(config.trustProxy, true);
     assert.equal(config.cookieDomain, undefined);
     assert.equal(config.discordRecruitingBridge.enabled, false);
+    assert.equal(config.discordMembershipEventIngest.enabled, false);
     assert.equal(
       config.discordRecruitingBridge.url,
       "http://127.0.0.1:8787/ips/recruiting-event",
     );
+  `);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("loadConfig enables discord membership ingest when a secret is present", () => {
+  const result = runConfigProbe(`
+    import assert from "node:assert/strict";
+    import { loadConfig } from ${JSON.stringify(configModuleUrl)};
+    const config = loadConfig({
+      DATABASE_URL: "mysql://user:pass@127.0.0.1:3306/tf20_config_test",
+      SESSION_SECRET: "session-secret",
+      APP_BASE_URL: "http://127.0.0.1:3000",
+      DISCORD_CLIENT_ID: "client",
+      DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "http://127.0.0.1:3000/auth/discord/callback",
+      DISCORD_APPROVED_GUILD_ID: "guild",
+      DISCORD_BOT_TOKEN: "bot",
+      BOOTSTRAP_DISCORD_ID: "bootstrap",
+      SESSION_TTL_DAYS: "14",
+      RECENT_AUTH_WINDOW_MINUTES: "20",
+      DISCORD_MEMBERSHIP_EVENT_INGEST_SECRET: "ingest-secret"
+    });
+    assert.equal(config.discordMembershipEventIngest.enabled, true);
+    assert.equal(config.discordMembershipEventIngest.secret, "ingest-secret");
   `);
 
   assert.equal(result.status, 0, result.stderr);

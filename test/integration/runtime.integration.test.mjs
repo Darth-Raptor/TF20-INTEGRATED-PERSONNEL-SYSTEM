@@ -32,6 +32,7 @@ import {
   updateOwnApplication,
   withdrawOwnApplication,
 } from "../../src/server/application-service.mjs";
+import { ingestDiscordMembershipEvent } from "../../src/server/discord-membership-service.mjs";
 import { flattenPermissions, resolveAuthenticatedAccount } from "../../src/server/auth-service.mjs";
 import { getCurrentIntakeDocuments } from "../../src/server/intake-documents.mjs";
 import {
@@ -57,6 +58,12 @@ import {
 
 const prisma = new PrismaClient();
 let sequence = 0;
+const TEST_DISCORD_GUILD_ID = "test-approved-guild";
+const TEST_DISCORD_CONFIG = {
+  discord: {
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
+  },
+};
 
 test.before(async () => {
   await syncCatalogs(prisma, catalogSource, { mode: "sync" });
@@ -76,6 +83,31 @@ test("recruiting options expose only active open 7000-level units", async () => 
   assert.equal(
     options.units.every((unit) => unit.hierarchyBase === 7000),
     true,
+  );
+});
+
+test("applicant recruiting options only show live-open units and MOS rows", async () => {
+  const openUnit = await activeUnit("tf20_ranger_a");
+  const openMos = await ensureOpenRecruitingMOS(openUnit.id);
+  const closedUnit = await activeUnit("tf20_soar_b160");
+  const closedMos = await recruitingMOSForUnit(closedUnit.id);
+
+  await prisma.mOS.update({
+    where: { id: closedMos.id },
+    data: { authorizedSlots: 0 },
+  });
+
+  const options = await getRecruitingOptions(prisma, { liveOnly: true });
+
+  assert.ok(options.units.some((unit) => unit.id === openUnit.id));
+  assert.ok(options.mos.some((mos) => mos.id === openMos.id));
+  assert.equal(
+    options.units.some((unit) => unit.id === closedUnit.id),
+    false,
+  );
+  assert.equal(
+    options.mos.some((mos) => mos.id === closedMos.id),
+    false,
   );
 });
 
@@ -165,6 +197,46 @@ test("application submit requires and validates new applicant questions", async 
   assert.match(invalid.message, /Age must be a positive whole number/);
   assert.match(invalid.message, /Time zone is invalid/);
   assert.match(invalid.message, /availability time slots are invalid/i);
+});
+
+test("stale draft unit and MOS selections remain visible but are blocked on submit", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const targetMos = await ensureOpenRecruitingMOS(targetUnit.id);
+  const pending = await createAccountWithRole("pending-user", "Pending");
+  const body = await applicationBody(targetUnit.id, "Stale Openings");
+  body.desiredMOSIds = [targetMos.id];
+
+  await agreeToCurrentIntakeDocuments(pending);
+
+  const draft = await updateOwnApplication({ prisma, account: pending, body });
+  assert.equal(draft.ok, true);
+
+  await prisma.mOS.update({
+    where: { id: targetMos.id },
+    data: { authorizedSlots: 0 },
+  });
+
+  const applicantOptions = await getRecruitingOptions(prisma, {
+    liveOnly: true,
+    selectedUnitIds: draft.application.interestedUnits.map((entry) => entry.unitId),
+    selectedMOSIds: draft.application.desiredMOS.map((entry) => entry.mosId),
+  });
+  assert.equal(
+    applicantOptions.units.some((unit) => unit.id === targetUnit.id && unit.isStale),
+    true,
+  );
+  assert.equal(
+    applicantOptions.mos.some((mos) => mos.id === targetMos.id && mos.isStale),
+    true,
+  );
+
+  const updated = await updateOwnApplication({ prisma, account: pending, body });
+  assert.equal(updated.ok, true);
+
+  const submit = await submitOwnApplication({ prisma, account: pending, body });
+  assert.equal(submit.ok, false);
+  assert.equal(submit.code, "validation_error");
+  assert.match(submit.message, /current openings/i);
 });
 
 test("pending account can draft, submit, and convert into an active member", async () => {
@@ -891,36 +963,198 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
   assert.equal(deniedUpdate.code, "permission_denied");
 });
 
-test("application detail includes discord join and leave history entries", async () => {
+test("application detail preserves full discord join and leave cycles in order", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
   const created = await createTargetUnitReviewApplication({
     targetUnit,
     applicationUnit: targetUnit,
     preferredName: "Discord History Applicant",
   });
+  const discordIdentity = created.pending.authIdentities[0];
 
-  await prisma.integrationLog.createMany({
-    data: [
-      {
-        provider: "Discord",
-        action: "guild-member-join",
-        status: "Success",
-        accountId: created.pending.id,
-        createdAt: new Date("2026-06-18T00:00:00.000Z"),
+  for (const event of [
+    {
+      eventId: uniqueKey("discord-join"),
+      eventType: "join",
+      occurredAt: "2026-06-18T00:00:00.000Z",
+    },
+    {
+      eventId: uniqueKey("discord-leave"),
+      eventType: "leave",
+      occurredAt: "2026-06-19T00:00:00.000Z",
+    },
+    {
+      eventId: uniqueKey("discord-rejoin"),
+      eventType: "join",
+      occurredAt: "2026-06-20T00:00:00.000Z",
+    },
+  ]) {
+    const result = await ingestDiscordMembershipEvent({
+      prisma,
+      config: TEST_DISCORD_CONFIG,
+      payload: {
+        ...event,
+        discordUserId: discordIdentity.providerAccountId,
+        guildId: TEST_DISCORD_GUILD_ID,
       },
-      {
-        provider: "Discord",
-        action: "guild-member-leave",
-        status: "Success",
-        accountId: created.pending.id,
-        createdAt: new Date("2026-06-19T00:00:00.000Z"),
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.created, true);
+  }
+
+  const detail = await getApplicationById(prisma, created.application.id);
+  const discordEntries = detail.statusHistory.filter((entry) =>
+    ["Discord Server - Join", "Discord Server - Left"].includes(entry.displayLabel),
+  );
+  assert.deepEqual(
+    discordEntries.map((entry) => entry.displayLabel),
+    ["Discord Server - Join", "Discord Server - Left", "Discord Server - Join"],
+  );
+  assert.deepEqual(
+    discordEntries.map((entry) => new Date(entry.createdAt).toISOString()),
+    ["2026-06-18T00:00:00.000Z", "2026-06-19T00:00:00.000Z", "2026-06-20T00:00:00.000Z"],
+  );
+});
+
+test("discord membership ingest is idempotent by external event ID", async () => {
+  const pending = await createAccountWithRole("pending-user", "Pending");
+  const payload = {
+    eventId: uniqueKey("discord-idempotent"),
+    eventType: "join",
+    discordUserId: pending.authIdentities[0].providerAccountId,
+    guildId: TEST_DISCORD_GUILD_ID,
+    occurredAt: "2026-06-21T12:00:00.000Z",
+  };
+
+  const first = await ingestDiscordMembershipEvent({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    payload,
+  });
+  assert.equal(first.ok, true);
+  assert.equal(first.created, true);
+
+  const second = await ingestDiscordMembershipEvent({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    payload,
+  });
+  assert.equal(second.ok, true);
+  assert.equal(second.created, false);
+  assert.equal(
+    await prisma.discordMembershipEvent.count({
+      where: { externalEventId: payload.eventId },
+    }),
+    1,
+  );
+});
+
+test("unattached discord membership events link to the account after first oauth", async () => {
+  const discordUserId = uniqueKey("discord-prelogin");
+  const ingested = await ingestDiscordMembershipEvent({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    payload: {
+      eventId: uniqueKey("discord-prelogin-join"),
+      eventType: "join",
+      discordUserId,
+      guildId: TEST_DISCORD_GUILD_ID,
+      occurredAt: "2026-06-17T09:30:00.000Z",
+    },
+  });
+  assert.equal(ingested.ok, true);
+  assert.equal(ingested.event.accountId, null);
+
+  const resolved = await resolveAuthenticatedAccount({
+    prisma,
+    discordUser: {
+      id: discordUserId,
+      username: "prelogin-user",
+      global_name: "Prelogin User",
+    },
+    guildPayload: { joined_at: "2026-06-17T09:30:00.000Z" },
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
+  });
+
+  const linkedEvent = await prisma.discordMembershipEvent.findUniqueOrThrow({
+    where: { id: ingested.event.id },
+  });
+  assert.equal(linkedEvent.accountId, resolved.account.id);
+  assert.equal(
+    await prisma.discordMembershipEvent.count({
+      where: { providerAccountId: discordUserId, eventType: "Join" },
+    }),
+    1,
+  );
+});
+
+test("explicit discord join events suppress oauth fallback join creation", async () => {
+  const member = await createActivePersonnel("Explicit Join Member");
+  const identity = member.account.authIdentities[0];
+
+  const ingested = await ingestDiscordMembershipEvent({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    payload: {
+      eventId: uniqueKey("discord-explicit-join"),
+      eventType: "join",
+      discordUserId: identity.providerAccountId,
+      guildId: TEST_DISCORD_GUILD_ID,
+      occurredAt: "2026-06-13T00:00:00.000Z",
+    },
+  });
+  assert.equal(ingested.ok, true);
+
+  const resolved = await resolveAuthenticatedAccount({
+    prisma,
+    discordUser: {
+      id: identity.providerAccountId,
+      username: "explicit-join",
+      global_name: "Explicit Join",
+    },
+    guildPayload: { joined_at: "2026-06-13T00:00:00.000Z" },
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
+  });
+
+  assert.equal(resolved.created, false);
+  assert.equal(
+    await prisma.discordMembershipEvent.count({
+      where: { providerAccountId: identity.providerAccountId, eventType: "Join" },
+    }),
+    1,
+  );
+});
+
+test("application detail falls back to discord joined_at metadata when no join log exists", async () => {
+  const targetUnit = await activeUnit("tf20_ranger_a");
+  const created = await createTargetUnitReviewApplication({
+    targetUnit,
+    applicationUnit: targetUnit,
+    preferredName: "Discord Metadata Applicant",
+  });
+
+  const discordIdentity = await prisma.authIdentity.findFirstOrThrow({
+    where: {
+      accountId: created.pending.id,
+      provider: "Discord",
+    },
+  });
+
+  await prisma.authIdentity.update({
+    where: { id: discordIdentity.id },
+    data: {
+      metadata: {
+        joined_at: "2026-06-20T14:30:00.000Z",
       },
-    ],
+    },
   });
 
   const detail = await getApplicationById(prisma, created.application.id);
-  assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Join"));
-  assert.ok(detail.statusHistory.some((entry) => entry.displayLabel === "Discord Server - Left"));
+  const joinEntry = detail.statusHistory.find(
+    (entry) => entry.displayLabel === "Discord Server - Join",
+  );
+  assert.ok(joinEntry);
+  assert.equal(new Date(joinEntry.createdAt).toISOString(), "2026-06-20T14:30:00.000Z");
 });
 
 test("application availability selections persist and appear in review detail", async () => {
@@ -1711,6 +1945,7 @@ test("current members claim imported accounts through Discord authentication", a
       global_name: "Claimed Member",
     },
     guildPayload: { joined_at: "2026-06-13T00:00:00.000Z" },
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
   });
 
   assert.equal(resolved.created, false);
@@ -1740,8 +1975,18 @@ test("current members claim imported accounts through Discord authentication", a
       global_name: "Claimed Member",
     },
     guildPayload: { joined_at: "2026-06-13T00:00:00.000Z" },
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
   });
   assert.equal(secondLogin.created, false);
+  assert.equal(
+    await prisma.discordMembershipEvent.count({
+      where: {
+        providerAccountId: identity.providerAccountId,
+        eventType: "Join",
+      },
+    }),
+    1,
+  );
   assert.equal(
     await prisma.auditLog.count({
       where: {
@@ -2127,8 +2372,17 @@ async function recruitingMOSForUnit(unitId) {
   });
 }
 
+async function ensureOpenRecruitingMOS(unitId) {
+  const mos = await recruitingMOSForUnit(unitId);
+  await prisma.mOS.update({
+    where: { id: mos.id },
+    data: { authorizedSlots: 99 },
+  });
+  return prisma.mOS.findUniqueOrThrow({ where: { id: mos.id } });
+}
+
 async function applicationBody(targetUnitId, preferredName) {
-  const mos = await recruitingMOSForUnit(targetUnitId);
+  const mos = await ensureOpenRecruitingMOS(targetUnitId);
   const [firstName, ...lastNameParts] = preferredName.split(/\s+/);
   return {
     firstName,

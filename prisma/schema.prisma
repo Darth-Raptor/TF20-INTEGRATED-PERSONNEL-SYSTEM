@@ -226,6 +226,16 @@ enum DiscordDeliveryJobStatus {
   Dead
 }
 
+enum DiscordMembershipEventType {
+  Join
+  Leave
+}
+
+enum DiscordMembershipEventSource {
+  BotBridge
+  OAuthBackfill
+}
+
 model Account {
   id                          String                       @id @default(cuid())
   displayName                 String?
@@ -266,6 +276,7 @@ model Account {
   auditEvents                 AuditLog[]                   @relation("AuditActor")
   targetedAuditEvents         AuditLog[]                   @relation("AuditTargetAccount")
   integrationLogs             IntegrationLog[]
+  discordMembershipEvents     DiscordMembershipEvent[]
 
   @@index([status])
   @@index([email])
@@ -1303,4 +1314,24 @@ model IntegrationLog {
   @@index([status])
   @@index([accountId])
   @@index([relatedRecordType, relatedRecordId])
+}
+
+model DiscordMembershipEvent {
+  id                String                       @id @default(cuid())
+  externalEventId   String                       @unique
+  providerAccountId String
+  accountId         String?
+  account           Account?                     @relation(fields: [accountId], references: [id])
+  guildId           String
+  eventType         DiscordMembershipEventType
+  source            DiscordMembershipEventSource
+  username          String?
+  displayName       String?
+  serverNickname    String?
+  occurredAt        DateTime
+  capturedAt        DateTime                     @default(now())
+
+  @@index([providerAccountId])
+  @@index([accountId])
+  @@index([occurredAt])
 }

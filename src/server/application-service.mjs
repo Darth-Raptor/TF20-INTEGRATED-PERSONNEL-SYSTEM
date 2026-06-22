@@ -2,6 +2,7 @@ import {
   DISCORD_RECRUITING_EVENTS,
   queueDiscordRecruitingEvent,
 } from "./discord-delivery-service.mjs";
+import { listDiscordMembershipTimelineEntries } from "./discord-membership-service.mjs";
 import {
   attachIntakeDocumentStatuses,
   buildIntakeDocumentStatuses,
@@ -12,6 +13,10 @@ import {
   APPLICATION_AVAILABILITY_SLOTS,
   applicationAvailabilityLabel,
 } from "../shared/application-availability.mjs";
+import {
+  buildApplicantOpeningsOptions,
+  loadLiveRecruitingOpenings,
+} from "./recruiting-openings.mjs";
 
 const APPLICATION_FORM_VERSION = "enlistment-v4";
 const RECRUITING_SOURCES = ["Reddit", "Steam", "Discord"];
@@ -68,6 +73,32 @@ function normalizeAge(value) {
   return /^\d+$/.test(text) ? Number.parseInt(text, 10) : Number.NaN;
 }
 
+function normalizeRecruitingOptionsContext(context = {}) {
+  if (Array.isArray(context)) {
+    return {
+      liveOnly: false,
+      selectedUnitIds: [],
+      selectedMOSIds: [],
+      filteredUnitIds: uniqueValues(coerceArray(context).filter(Boolean)),
+    };
+  }
+
+  return {
+    liveOnly: Boolean(context.liveOnly),
+    selectedUnitIds: uniqueValues(
+      coerceArray(context.selectedUnitIds ?? context.interestedUnitIds).filter(Boolean),
+    ),
+    selectedMOSIds: uniqueValues(
+      coerceArray(context.selectedMOSIds ?? context.desiredMOSIds).filter(Boolean),
+    ),
+    filteredUnitIds: uniqueValues(
+      coerceArray(context.filteredUnitIds ?? context.unitIds ?? context.selectedUnitIds).filter(
+        Boolean,
+      ),
+    ),
+  };
+}
+
 export function canCreateOwnApplication(account) {
   return account.status === "Pending" && hasPermission(account, "applications.create-self");
 }
@@ -114,30 +145,66 @@ export async function getApplicationUnits(prisma) {
   return options.units;
 }
 
-export async function getRecruitingOptions(prisma, selectedUnitIds = []) {
-  const normalizedUnitIds = [...new Set(coerceArray(selectedUnitIds).filter(Boolean))];
-  const units = await prisma.unit.findMany({
-    where: { status: "Active", recruitingOpen: true, hierarchyBase: 7000 },
-    orderBy: { name: "asc" },
-    select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
-  });
-  const mosWhere = {
-    status: "Active",
-    recruitingOpen: true,
-    ...(normalizedUnitIds.length ? { unitId: { in: normalizedUnitIds } } : {}),
-  };
-  const mos = await prisma.mOS.findMany({
-    where: mosWhere,
-    orderBy: [{ identifier: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      key: true,
-      identifier: true,
-      name: true,
-      unitId: true,
-      unit: { select: { id: true, key: true, name: true } },
-    },
-  });
+export async function getRecruitingOptions(prisma, context = {}) {
+  const { liveOnly, selectedUnitIds, selectedMOSIds, filteredUnitIds } =
+    normalizeRecruitingOptionsContext(context);
+  let units;
+  let mos;
+
+  if (liveOnly) {
+    const openings = await loadLiveRecruitingOpenings(prisma);
+    const [selectedUnits, selectedMos] = await Promise.all([
+      selectedUnitIds.length
+        ? prisma.unit.findMany({
+            where: { id: { in: selectedUnitIds } },
+            select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
+          })
+        : [],
+      selectedMOSIds.length
+        ? prisma.mOS.findMany({
+            where: { id: { in: selectedMOSIds } },
+            orderBy: [{ identifier: "asc" }, { name: "asc" }],
+            select: {
+              id: true,
+              key: true,
+              identifier: true,
+              name: true,
+              unitId: true,
+              unit: { select: { id: true, key: true, name: true } },
+            },
+          })
+        : [],
+    ]);
+
+    ({ units, mos } = buildApplicantOpeningsOptions({
+      openings,
+      selectedUnits,
+      selectedMos,
+    }));
+  } else {
+    units = await prisma.unit.findMany({
+      where: { status: "Active", recruitingOpen: true, hierarchyBase: 7000 },
+      orderBy: { name: "asc" },
+      select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
+    });
+    const mosWhere = {
+      status: "Active",
+      recruitingOpen: true,
+      ...(filteredUnitIds.length ? { unitId: { in: filteredUnitIds } } : {}),
+    };
+    mos = await prisma.mOS.findMany({
+      where: mosWhere,
+      orderBy: [{ identifier: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        key: true,
+        identifier: true,
+        name: true,
+        unitId: true,
+        unit: { select: { id: true, key: true, name: true } },
+      },
+    });
+  }
 
   return {
     sources: RECRUITING_SOURCES,
@@ -383,7 +450,10 @@ export async function updateOwnApplication({ prisma, account, body }) {
   }
 
   const data = normalizeApplicationData(body);
-  const validation = await validateApplicationData(prisma, data, { requireComplete: false });
+  const validation = await validateApplicationData(prisma, data, {
+    requireComplete: false,
+    application,
+  });
   if (!validation.ok) return validation;
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -413,7 +483,10 @@ export async function submitOwnApplication({ prisma, account, body }) {
   }
 
   const data = normalizeApplicationData(body);
-  const validation = await validateApplicationData(prisma, data, { requireComplete: true });
+  const validation = await validateApplicationData(prisma, data, {
+    requireComplete: true,
+    application,
+  });
   if (!validation.ok) return validation;
 
   const now = new Date();
@@ -983,15 +1056,13 @@ export async function saveApplicationUnitReviewNote({ prisma, actor, application
 export async function createOrResumeOwnApplication({ prisma, account, body }) {
   const normalized = normalizeLegacyApplicationBody(body);
   if (!normalized.desiredMOSIds.length && normalized.interestedUnitIds.length) {
-    const fallbackMOS = await prisma.mOS.findFirst({
-      where: {
-        unitId: { in: normalized.interestedUnitIds },
-        status: "Active",
-        recruitingOpen: true,
-      },
-      orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: { id: true },
+    const applicantOptions = await getRecruitingOptions(prisma, {
+      liveOnly: true,
+      selectedUnitIds: normalized.interestedUnitIds,
     });
+    const fallbackMOS = applicantOptions.mos.find(
+      (mos) => !mos.isStale && normalized.interestedUnitIds.includes(mos.unitId),
+    );
     if (fallbackMOS) {
       normalized.desiredMOSIds = [fallbackMOS.id];
     }
@@ -1640,8 +1711,30 @@ async function findActiveOwnApplication(prisma, accountId) {
   });
 }
 
-async function validateApplicationData(prisma, data, { requireComplete }) {
+async function validateApplicationData(prisma, data, { requireComplete, application }) {
   const errors = [];
+  const [openings, units, mosEntries] =
+    data.interestedUnitIds.length || data.desiredMOSIds.length
+      ? await Promise.all([
+          loadLiveRecruitingOpenings(prisma),
+          data.interestedUnitIds.length
+            ? prisma.unit.findMany({
+                where: { id: { in: data.interestedUnitIds } },
+                select: { id: true },
+              })
+            : [],
+          data.desiredMOSIds.length
+            ? prisma.mOS.findMany({
+                where: { id: { in: data.desiredMOSIds } },
+                select: { id: true, unitId: true },
+              })
+            : [],
+        ])
+      : [null, [], []];
+  const openUnitIds = new Set(openings?.units.map((unit) => unit.id) ?? []);
+  const openMOSIds = new Set(openings?.mos.map((row) => row.id) ?? []);
+  const savedUnitIds = new Set((application?.interestedUnits ?? []).map((entry) => entry.unitId));
+  const savedMOSIds = new Set((application?.desiredMOS ?? []).map((entry) => entry.mosId));
 
   if (requireComplete) {
     if (!data.firstName) errors.push("First name is required.");
@@ -1703,21 +1796,23 @@ async function validateApplicationData(prisma, data, { requireComplete }) {
   }
 
   if (data.interestedUnitIds.length) {
-    const units = await prisma.unit.findMany({
-      where: { id: { in: data.interestedUnitIds }, status: "Active", recruitingOpen: true },
-      select: { id: true },
-    });
     const found = new Set(units.map((unit) => unit.id));
     for (const unitId of data.interestedUnitIds) {
-      if (!found.has(unitId)) errors.push("One or more interested units are invalid.");
+      if (!found.has(unitId)) {
+        errors.push("One or more interested units are invalid.");
+        continue;
+      }
+      if (openUnitIds.has(unitId)) continue;
+      if (!requireComplete && savedUnitIds.has(unitId)) continue;
+      errors.push(
+        requireComplete
+          ? "Interested units must have current openings."
+          : "One or more interested units no longer have current openings.",
+      );
     }
   }
 
   if (data.desiredMOSIds.length) {
-    const mosEntries = await prisma.mOS.findMany({
-      where: { id: { in: data.desiredMOSIds }, status: "Active", recruitingOpen: true },
-      select: { id: true, unitId: true },
-    });
     const found = new Map(mosEntries.map((mos) => [mos.id, mos]));
     const interestedUnitSet = new Set(data.interestedUnitIds);
     for (const mosId of data.desiredMOSIds) {
@@ -1728,7 +1823,16 @@ async function validateApplicationData(prisma, data, { requireComplete }) {
       }
       if (interestedUnitSet.size && !interestedUnitSet.has(mos.unitId)) {
         errors.push("Desired MOS choices must belong to selected interested units.");
+        continue;
       }
+      if (openMOSIds.has(mosId)) continue;
+      if (!requireComplete && savedMOSIds.has(mosId)) continue;
+      errors.push(
+        requireComplete
+          ? "Desired MOS choices must have current openings."
+          : "One or more desired MOS choices no longer have current openings.",
+      );
+      continue;
     }
   }
 
@@ -2089,25 +2193,7 @@ async function attachDiscordMembershipHistory(prisma, application) {
   if (!application?.accountId) {
     return application;
   }
-
-  const logs = await prisma.integrationLog.findMany({
-    where: {
-      accountId: application.accountId,
-      provider: "Discord",
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      action: true,
-      createdAt: true,
-      requestPayload: true,
-      responsePayload: true,
-    },
-  });
-
-  const discordHistory = logs
-    .map((entry) => mapDiscordMembershipHistoryEntry(entry))
-    .filter(Boolean);
+  const discordHistory = await listDiscordMembershipTimelineEntries(prisma, application);
 
   if (!discordHistory.length) {
     return withApplicationHistory(application, application.statusHistory ?? []);
@@ -2124,31 +2210,6 @@ function withApplicationHistory(application, statusHistory) {
   return {
     ...application,
     statusHistory,
-  };
-}
-
-function mapDiscordMembershipHistoryEntry(entry) {
-  const action = String(entry?.action ?? "")
-    .trim()
-    .toLowerCase();
-  if (!action) {
-    return null;
-  }
-
-  const joinAction =
-    action.includes("join") || action.includes("joined") || action.includes("member_add");
-  const leaveAction =
-    action.includes("leave") || action.includes("left") || action.includes("member_remove");
-  if (!joinAction && !leaveAction) {
-    return null;
-  }
-
-  return {
-    id: `integration:${entry.id}`,
-    newStatus: null,
-    createdAt: entry.createdAt,
-    reason: joinAction ? "Discord account joined the server." : "Discord account left the server.",
-    displayLabel: joinAction ? "Discord Server - Join" : "Discord Server - Left",
   };
 }
 

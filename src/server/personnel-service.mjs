@@ -1,4 +1,5 @@
 import { syncUnitScopedRoleAssignments } from "./role-management-service.mjs";
+import { loadLiveRecruitingOpenings } from "./recruiting-openings.mjs";
 
 const PERSONNEL_STATUS_OPTIONS = [
   "Applicant",
@@ -339,96 +340,8 @@ export async function updateUnitMOSSlots({ prisma, actor, unitId, mosId, authori
 }
 
 export async function listPublicUnitOpenings(prisma) {
-  const [rootUnits, allUnits, mosRows, assignedProfiles] = await Promise.all([
-    prisma.unit.findMany({
-      where: {
-        status: "Active",
-        recruitingOpen: true,
-        hierarchyBase: 7000,
-      },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, key: true, name: true, parentId: true, type: true, hierarchyBase: true },
-    }),
-    prisma.unit.findMany({
-      where: { status: "Active" },
-      select: { id: true, parentId: true },
-    }),
-    prisma.mOS.findMany({
-      where: {
-        status: "Active",
-        recruitingOpen: true,
-        unit: {
-          status: "Active",
-          recruitingOpen: true,
-          hierarchyBase: 7000,
-        },
-      },
-      orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        key: true,
-        identifier: true,
-        name: true,
-        unitId: true,
-        authorizedSlots: true,
-      },
-    }),
-    prisma.personnelProfile.findMany({
-      where: {
-        status: { notIn: [...DISCHARGED_PERSONNEL_STATUSES] },
-        currentMOSId: { not: null },
-        currentUnitId: { not: null },
-      },
-      select: {
-        currentMOSId: true,
-        currentUnitId: true,
-      },
-    }),
-  ]);
-
-  const descendantMap = buildDescendantMap(allUnits);
-  const rootTreeUnitIds = new Map(
-    rootUnits.map((unit) => [unit.id, new Set([unit.id, ...(descendantMap.get(unit.id) ?? [])])]),
-  );
-  const mosById = new Map(mosRows.map((row) => [row.id, row]));
-  const assignedCounts = new Map();
-
-  for (const profile of assignedProfiles) {
-    const mos = mosById.get(profile.currentMOSId);
-    if (!mos) continue;
-    const treeUnitIds = rootTreeUnitIds.get(mos.unitId);
-    if (!treeUnitIds?.has(profile.currentUnitId)) continue;
-    assignedCounts.set(mos.id, (assignedCounts.get(mos.id) ?? 0) + 1);
-  }
-
-  const openings = rootUnits
-    .map((unit) => {
-      const rows = mosRows
-        .filter((row) => row.unitId === unit.id)
-        .filter((row) => row.authorizedSlots > (assignedCounts.get(row.id) ?? 0))
-        .map((row) => ({
-          id: row.id,
-          key: row.key,
-          identifier: row.identifier,
-          name: row.name,
-        }));
-
-      if (!rows.length) {
-        return null;
-      }
-
-      return {
-        unit: {
-          id: unit.id,
-          key: unit.key,
-          name: unit.name,
-        },
-        mos: rows,
-      };
-    })
-    .filter(Boolean);
-
-  return { ok: true, items: openings };
+  const openings = await loadLiveRecruitingOpenings(prisma);
+  return { ok: true, items: openings.groups };
 }
 
 export async function updatePersonnelProfile({ prisma, actor, personnelProfileId, body }) {

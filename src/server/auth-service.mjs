@@ -1,5 +1,9 @@
 import { buildAccessContext } from "./access.mjs";
 import { createRandomId } from "./cookies.mjs";
+import {
+  ensureDiscordOAuthMembershipJoinEvent,
+  linkDiscordMembershipEventsToAccount,
+} from "./discord-membership-service.mjs";
 
 const DISCORD_API_BASE = "https://discord.com/api/v10";
 const ACCOUNT_ACCESS_INCLUDE = {
@@ -86,7 +90,12 @@ export async function verifyDiscordGuildMembership(config, userId) {
   };
 }
 
-export async function resolveAuthenticatedAccount({ prisma, discordUser, guildPayload }) {
+export async function resolveAuthenticatedAccount({
+  prisma,
+  discordUser,
+  guildPayload,
+  approvedGuildId = null,
+}) {
   const authIdentity = await prisma.authIdentity.findUnique({
     where: {
       provider_providerAccountId: {
@@ -122,6 +131,21 @@ export async function resolveAuthenticatedAccount({ prisma, discordUser, guildPa
         tx,
         account: refreshedIdentity.account,
         authIdentity: refreshedIdentity,
+      });
+
+      await linkDiscordMembershipEventsToAccount({
+        tx,
+        accountId: refreshedIdentity.accountId,
+        providerAccountId: discordUser.id,
+      });
+      await ensureDiscordOAuthMembershipJoinEvent({
+        tx,
+        accountId: refreshedIdentity.accountId,
+        providerAccountId: discordUser.id,
+        guildId: approvedGuildId ?? guildIdFromPayload(guildPayload),
+        guildPayload,
+        username: discordUser.username,
+        displayName: discordUser.global_name ?? discordUser.username,
       });
 
       return refreshedIdentity;
@@ -192,6 +216,21 @@ export async function resolveAuthenticatedAccount({ prisma, discordUser, guildPa
       },
     });
 
+    await linkDiscordMembershipEventsToAccount({
+      tx,
+      accountId: account.id,
+      providerAccountId: discordUser.id,
+    });
+    await ensureDiscordOAuthMembershipJoinEvent({
+      tx,
+      accountId: account.id,
+      providerAccountId: discordUser.id,
+      guildId: approvedGuildId ?? guildIdFromPayload(guildPayload),
+      guildPayload,
+      username: discordUser.username,
+      displayName: discordUser.global_name ?? discordUser.username,
+    });
+
     return { account, authIdentity: createdAuthIdentity };
   });
 
@@ -256,6 +295,13 @@ async function claimCurrentMemberAccount({ tx, account, authIdentity }) {
   });
 
   return true;
+}
+
+function guildIdFromPayload(guildPayload) {
+  if (!guildPayload || typeof guildPayload !== "object" || Array.isArray(guildPayload)) {
+    return null;
+  }
+  return guildPayload.guild_id ?? guildPayload.guildId ?? null;
 }
 
 export function flattenPermissions(account) {

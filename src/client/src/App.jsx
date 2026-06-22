@@ -3401,8 +3401,16 @@ function ApplicationForm({ form, options, setForm }) {
       <ApplicationReviewSection title="SELECTIONS">
         <div className="application-section-row single">
           <ChoiceList
-            emptyMessage="No recruiting-open 7000-level units are available."
+            emptyMessage="No units with current MOS openings are available."
             getLabel={(unit) => unit.name}
+            getNote={(unit, isSelected) =>
+              unit.isStale
+                ? isSelected
+                  ? "No current opening. Remove this selection before submitting."
+                  : "No current opening."
+                : ""
+            }
+            isOptionDisabled={(unit, isSelected) => unit.isStale && !isSelected}
             items={options.units ?? []}
             label="INTERESTED UNIT"
             selectedIds={form.interestedUnitIds}
@@ -3413,10 +3421,18 @@ function ApplicationForm({ form, options, setForm }) {
           <ChoiceList
             emptyMessage={
               selectedUnits.size
-                ? "No recruiting-open MOS choices are available for the selected unit."
+                ? "No MOS choices with current openings are available for the selected unit."
                 : "Select an interested unit first."
             }
             getLabel={(mos) => mosDisplayLabel(mos)}
+            getNote={(mos, isSelected) =>
+              mos.isStale
+                ? isSelected
+                  ? "No current opening. Remove this selection before submitting."
+                  : "No current opening."
+                : ""
+            }
+            isOptionDisabled={(mos, isSelected) => mos.isStale && !isSelected}
             items={mosOptions}
             label="INTERESTED MOS"
             selectedIds={form.desiredMOSIds}
@@ -3474,7 +3490,16 @@ function BooleanLine({ checked, label, onChange }) {
   );
 }
 
-function ChoiceList({ emptyMessage, getLabel, items, label, onToggle, selectedIds }) {
+function ChoiceList({
+  emptyMessage,
+  getLabel,
+  getNote,
+  isOptionDisabled,
+  items,
+  label,
+  onToggle,
+  selectedIds,
+}) {
   const selected = new Set(selectedIds ?? []);
   return (
     <section className="choice-section">
@@ -3483,14 +3508,23 @@ function ChoiceList({ emptyMessage, getLabel, items, label, onToggle, selectedId
         <div className="choice-list">
           {items.map((item) => {
             const isSelected = selected.has(item.id);
+            const note = getNote ? getNote(item, isSelected) : "";
+            const isDisabled = isOptionDisabled ? isOptionDisabled(item, isSelected) : false;
             return (
-              <label className={`choice-option${isSelected ? " selected" : ""}`} key={item.id}>
+              <label
+                className={`choice-option${isSelected ? " selected" : ""}${isDisabled ? " disabled" : ""}${item.isStale ? " stale" : ""}`}
+                key={item.id}
+              >
                 <input
                   checked={isSelected}
+                  disabled={isDisabled}
                   type="checkbox"
                   onChange={(event) => onToggle(item.id, event.target.checked)}
                 />
-                <span>{getLabel(item)}</span>
+                <span className="choice-copy">
+                  <span>{getLabel(item)}</span>
+                  {note ? <small>{note}</small> : null}
+                </span>
               </label>
             );
           })}
@@ -3659,7 +3693,7 @@ function StaffApplicationDetail({
         <ApplicationStatusSummary application={application} showTargetUnit={false} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="APPLICATION DETAILS">
-        <ReadOnlyApplication application={application} />
+        <ReadOnlyApplication application={application} reviewMode />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="INTAKE AGREEMENTS">
         <IntakeAgreementsSummary application={application} />
@@ -3753,13 +3787,13 @@ function RecruiterApplicationRecordDetail({ application, detail }) {
         <ApplicationStatusSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="APPLICATION DETAILS">
-        <ReadOnlyApplication application={application} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="INTAKE AGREEMENTS">
-        <IntakeAgreementsSummary application={application} />
+        <ReadOnlyApplication application={application} reviewMode />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="RECRUITING NOTES">
         <ApplicationNotesHistory items={application.notes ?? []} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="INTAKE AGREEMENTS">
+        <IntakeAgreementsSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="STATUS HISTORY">
         <Timeline items={application.statusHistory ?? []} showTitle={false} />
@@ -3810,10 +3844,29 @@ function ReviewerApplicationDetail({
         <ApplicationStatusSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="APPLICATION DETAILS">
-        <ReadOnlyApplication application={application} />
+        <ReadOnlyApplication application={application} reviewMode />
       </ApplicationReviewSection>
-      <ApplicationReviewSection title="INTAKE AGREEMENTS">
-        <IntakeAgreementsSummary application={application} />
+      <ApplicationReviewSection title="RECRUITING NOTES">
+        <div className="application-review-actions">
+          <Field label="Notes">
+            <textarea
+              disabled={!claimedByCurrentUser}
+              value={actionState.noteBody}
+              onChange={(event) => updateAction("noteBody", event.target.value)}
+            />
+          </Field>
+          <div className="button-row">
+            <button
+              className="secondary-action"
+              disabled={!claimedByCurrentUser}
+              type="button"
+              onClick={onSaveNote}
+            >
+              Save note
+            </button>
+          </div>
+          <ApplicationNotesHistory items={application.notes ?? []} />
+        </div>
       </ApplicationReviewSection>
       <ApplicationReviewSection title="RECRUITING">
         <div className="application-review-actions">
@@ -3905,27 +3958,8 @@ function ReviewerApplicationDetail({
           </Field>
         </div>
       </ApplicationReviewSection>
-      <ApplicationReviewSection title="RECRUITING NOTES">
-        <div className="application-review-actions">
-          <Field label="Notes">
-            <textarea
-              disabled={!claimedByCurrentUser}
-              value={actionState.noteBody}
-              onChange={(event) => updateAction("noteBody", event.target.value)}
-            />
-          </Field>
-          <div className="button-row">
-            <button
-              className="secondary-action"
-              disabled={!claimedByCurrentUser}
-              type="button"
-              onClick={onSaveNote}
-            >
-              Save note
-            </button>
-          </div>
-          <ApplicationNotesHistory items={application.notes ?? []} />
-        </div>
+      <ApplicationReviewSection title="INTAKE AGREEMENTS">
+        <IntakeAgreementsSummary application={application} />
       </ApplicationReviewSection>
       <ApplicationReviewSection title="STATUS HISTORY">
         <Timeline items={application.statusHistory ?? []} showTitle={false} />
@@ -3955,21 +3989,47 @@ function ApplicationStatusSummary({ application, showTargetUnit = true }) {
   return <KeyValueList items={items} />;
 }
 
-function ReadOnlyApplication({ application }) {
+function ReadOnlyApplication({ application, reviewMode = false }) {
   const servicePeriods = (application.servicePeriods ?? []).map(formatServicePeriod);
   const armaUnits = (application.armaUnits ?? []).map(formatArmaUnit);
   const interestedUnits = (application.interestedUnits ?? []).map((entry) => entry.unit?.name);
   const availability = (application.availabilitySlots ?? []).map((entry) => entry.slotLabel);
   const desiredMOS = (application.desiredMOS ?? []).map(formatDesiredMOS);
-  const serviceValue = application.priorService
-    ? inlineList(servicePeriods, "No service details recorded.")
-    : "No";
-  const armaValue = application.priorArma
-    ? inlineList(armaUnits, "No previous Arma details recorded.")
-    : "No";
-  const leadershipValue = application.leadership
-    ? application.leadershipDetails || "No leadership details recorded."
-    : "No";
+  const serviceValue = reviewMode
+    ? renderListValue(
+        application.priorService ? servicePeriods : [],
+        application.priorService ? "No service details recorded." : "No",
+      )
+    : application.priorService
+      ? inlineList(servicePeriods, "No service details recorded.")
+      : "No";
+  const armaValue = reviewMode
+    ? renderListValue(
+        application.priorArma ? armaUnits : [],
+        application.priorArma ? "No previous Arma details recorded." : "No",
+      )
+    : application.priorArma
+      ? inlineList(armaUnits, "No previous Arma details recorded.")
+      : "No";
+  const leadershipValue = reviewMode
+    ? renderListValue(
+        application.leadership
+          ? [application.leadershipDetails || "No leadership details recorded."]
+          : [],
+        application.leadership ? "No leadership details recorded." : "No",
+      )
+    : application.leadership
+      ? application.leadershipDetails || "No leadership details recorded."
+      : "No";
+  const unitInterestValue = reviewMode
+    ? renderListValue(interestedUnits, "No interested units recorded.")
+    : inlineList(interestedUnits, "No interested units recorded.");
+  const desiredMOSValue = reviewMode
+    ? renderListValue(desiredMOS, "No desired MOS choices recorded.")
+    : inlineList(desiredMOS, "No desired MOS choices recorded.");
+  const availabilityValue = reviewMode
+    ? renderListValue(availability, "Not recorded")
+    : inlineList(availability, "Not recorded");
 
   return (
     <div className="readonly-application-form">
@@ -3991,13 +4051,9 @@ function ReadOnlyApplication({ application }) {
       <ReadOnlyField label="Current/Prior Service">{serviceValue}</ReadOnlyField>
       <ReadOnlyField label="Previous Arma Experience">{armaValue}</ReadOnlyField>
       <ReadOnlyField label="Leadership Experience">{leadershipValue}</ReadOnlyField>
-      <ReadOnlyField label="Unit Interest">
-        {inlineList(interestedUnits, "No interested units recorded.")}
-      </ReadOnlyField>
-      <ReadOnlyField label="Availability">{inlineList(availability, "Not recorded")}</ReadOnlyField>
-      <ReadOnlyField label="Desired MOS">
-        {inlineList(desiredMOS, "No desired MOS choices recorded.")}
-      </ReadOnlyField>
+      <ReadOnlyField label="Unit Interest">{unitInterestValue}</ReadOnlyField>
+      <ReadOnlyField label="Desired MOS">{desiredMOSValue}</ReadOnlyField>
+      <ReadOnlyField label="Availability">{availabilityValue}</ReadOnlyField>
       <ReadOnlyField label="Source">
         {application.source ? humanize(application.source) : "Not recorded"}
       </ReadOnlyField>
@@ -4009,8 +4065,23 @@ function ReadOnlyField({ children, label }) {
   return (
     <div className="readonly-field">
       <span>{label}</span>
-      <strong>{children}</strong>
+      <div className="readonly-field-value">{children}</div>
     </div>
+  );
+}
+
+function renderListValue(items, empty) {
+  const filtered = (items ?? []).filter(Boolean);
+  if (!filtered.length) {
+    return empty;
+  }
+
+  return (
+    <ul className="readonly-response-list">
+      {filtered.map((item, index) => (
+        <li key={`${index}-${item}`}>{item}</li>
+      ))}
+    </ul>
   );
 }
 
@@ -4030,7 +4101,7 @@ function Timeline({ items, showTitle = true }) {
         {items.map((item) => (
           <li key={item.id}>
             {item.displayLabel ?? applicationStatusLabel(item.newStatus)} -{" "}
-            {formatDate(item.createdAt)}
+            {formatDateTime(item.createdAt)}
             <br />
             <span>{item.reason}</span>
           </li>
@@ -4406,6 +4477,25 @@ function formatDate(value) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  }).format(date);
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 

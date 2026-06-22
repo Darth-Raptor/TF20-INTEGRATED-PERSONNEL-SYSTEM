@@ -52,6 +52,13 @@ export function loadConfig(overrides = {}) {
       batchSize: parseInteger(env.DISCORD_RECRUITING_BRIDGE_BATCH_SIZE, 10),
       maxAttempts: parseInteger(env.DISCORD_RECRUITING_BRIDGE_MAX_ATTEMPTS, 8),
     },
+    discordMembershipEventIngest: {
+      enabled: parseBoolean(
+        env.DISCORD_MEMBERSHIP_EVENT_INGEST_ENABLED,
+        Boolean(env.DISCORD_MEMBERSHIP_EVENT_INGEST_SECRET),
+      ),
+      secret: env.DISCORD_MEMBERSHIP_EVENT_INGEST_SECRET ?? "",
+    },
     bootstrapDiscordId: env.BOOTSTRAP_DISCORD_ID,
     isProduction: (env.NODE_ENV ?? "development") === "production",
     trustProxy: env.TRUST_PROXY === "true",

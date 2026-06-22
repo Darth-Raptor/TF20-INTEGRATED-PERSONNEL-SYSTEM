@@ -85,6 +85,7 @@ import {
   verifySignedCookieValue,
 } from "./cookies.mjs";
 import { sendDetail, sendError } from "./errors.mjs";
+import { ingestDiscordMembershipEvent } from "./discord-membership-service.mjs";
 import { buildRequestContextMiddleware, requireAuthenticatedSession } from "./middleware.mjs";
 import {
   renderApplicationReviewDetailScreen,
@@ -122,6 +123,50 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         timestamp: new Date().toISOString(),
       },
     });
+  });
+
+  app.post("/integrations/discord/guild-membership-events", async (req, res, next) => {
+    try {
+      if (!config.discordMembershipEventIngest?.enabled) {
+        return sendError(
+          res,
+          404,
+          "discord_membership_ingest_disabled",
+          "Discord membership event ingest is disabled.",
+        );
+      }
+      if (!hasBearerToken(req, config.discordMembershipEventIngest.secret)) {
+        return sendError(
+          res,
+          401,
+          "invalid_ingest_secret",
+          "Valid ingest authorization is required.",
+        );
+      }
+
+      const result = await ingestDiscordMembershipEvent({
+        prisma,
+        config,
+        payload: req.body,
+      });
+      if (!result.ok) {
+        return sendError(res, 400, result.code, result.message);
+      }
+
+      return sendDetail(
+        res,
+        {
+          id: result.event.id,
+          externalEventId: result.event.externalEventId,
+          accountId: result.event.accountId,
+          eventType: result.event.eventType,
+          occurredAt: result.event.occurredAt,
+        },
+        { created: result.created },
+      );
+    } catch (error) {
+      return next(error);
+    }
   });
 
   app.get("/public/openings", async (req, res, next) => {
@@ -262,6 +307,7 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         prisma,
         discordUser,
         guildPayload: guildVerification.payload,
+        approvedGuildId: config.discord.approvedGuildId,
       });
 
       const session = await createSession({
@@ -505,7 +551,11 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         }
 
         const application = intakeStatus.application;
-        const options = await getRecruitingOptions(prisma);
+        const options = await getRecruitingOptions(prisma, {
+          liveOnly: true,
+          selectedUnitIds: (application?.interestedUnits ?? []).map((entry) => entry.unitId),
+          selectedMOSIds: (application?.desiredMOS ?? []).map((entry) => entry.mosId),
+        });
         const summary = buildSessionSummary({
           account: req.context.account,
           session: req.context.session,
@@ -995,10 +1045,11 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       if (!result.ok) {
         if (isHtmlRequest(req)) {
           const application = await getOwnApplication(prisma, req.context.account.id);
-          const options = await getRecruitingOptions(
-            prisma,
-            (application?.interestedUnits ?? []).map((entry) => entry.unitId),
-          );
+          const options = await getRecruitingOptions(prisma, {
+            liveOnly: true,
+            selectedUnitIds: (application?.interestedUnits ?? []).map((entry) => entry.unitId),
+            selectedMOSIds: (application?.desiredMOS ?? []).map((entry) => entry.mosId),
+          });
           const summary = buildSessionSummary({
             account: req.context.account,
             session: req.context.session,
@@ -1958,6 +2009,15 @@ function safeVerifySignedCookieValue(value, secret) {
   } catch {
     return null;
   }
+}
+
+function hasBearerToken(req, expectedSecret) {
+  const header = req.headers.authorization ?? "";
+  if (!expectedSecret || !header.startsWith("Bearer ")) {
+    return false;
+  }
+
+  return header.slice("Bearer ".length).trim() === expectedSecret;
 }
 
 function oauthReturnCookieName(config) {
