@@ -740,6 +740,15 @@ function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
       return <TrainingRecordsWorkspace />;
     case "admin_roles":
       return <AdminRolesWorkspace />;
+    case "admin_user_records":
+      return <AdminUserRecordsWorkspace onNavigate={onNavigate} />;
+    case "admin_user_record_detail":
+      return (
+        <AdminUserRecordsWorkspace
+          accountId={visibleMatch.params?.accountId}
+          onNavigate={onNavigate}
+        />
+      );
     default:
       return <ContractPlaceholder match={visibleMatch} />;
   }
@@ -1054,6 +1063,463 @@ function RoleAssignmentTable({ account, onRemove, reasonReady }) {
   );
 }
 
+function AdminUserRecordsWorkspace({ accountId = "", onNavigate }) {
+  if (accountId) {
+    return <AdminUserRecordDetailWorkspace accountId={accountId} onNavigate={onNavigate} />;
+  }
+
+  return <AdminUserRecordListWorkspace onNavigate={onNavigate} />;
+}
+
+function AdminUserRecordListWorkspace({ onNavigate }) {
+  const [resource, setResource] = useState({ status: "loading", items: [], error: null });
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function load() {
+      const result = await fetchJson("/admin/user-records");
+      if (!isActive) return;
+
+      if (!result.ok) {
+        setResource({
+          status: "error",
+          items: [],
+          error: result.payload?.error?.message ?? "Unable to load user records.",
+        });
+        return;
+      }
+
+      setResource({ status: "ready", items: result.payload.items ?? [], error: null });
+    }
+
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return (
+    <div className="workspace-grid">
+      <section className="wide-panel">
+        <PanelHeader title="Admin User Records" />
+        <AdminUserRecordList
+          error={resource.error}
+          items={resource.items}
+          loading={resource.status === "loading"}
+          onOpen={(nextAccountId) =>
+            onNavigate(`/admin/user-records/${encodeURIComponent(nextAccountId)}`)
+          }
+        />
+      </section>
+    </div>
+  );
+}
+
+function AdminUserRecordDetailWorkspace({ accountId, onNavigate }) {
+  const [detail, setDetail] = useState({
+    status: "loading",
+    record: null,
+    options: null,
+    permissions: {},
+    error: null,
+  });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(() => blankAdminUserRecordForm());
+  const [reason, setReason] = useState("");
+  const [noteBody, setNoteBody] = useState("");
+  const [message, setMessage] = useState("");
+
+  const load = async () => {
+    if (!accountId) {
+      setDetail({
+        status: "error",
+        record: null,
+        options: null,
+        permissions: {},
+        error: "Account ID is required.",
+      });
+      return;
+    }
+
+    setDetail({
+      status: "loading",
+      record: null,
+      options: null,
+      permissions: {},
+      error: null,
+    });
+
+    const result = await fetchJson(`/admin/user-records/${encodeURIComponent(accountId)}`);
+    if (!result.ok) {
+      setDetail({
+        status: "error",
+        record: null,
+        options: null,
+        permissions: {},
+        error: result.payload?.error?.message ?? "Unable to load the user record.",
+      });
+      return;
+    }
+
+    const record = result.payload.data;
+    setDetail({
+      status: "ready",
+      record,
+      options: result.payload.options ?? {},
+      permissions: result.payload.permissions ?? {},
+      error: null,
+    });
+    setForm(adminUserRecordToForm(record));
+    setEditing(false);
+    setReason("");
+    setMessage("");
+  };
+
+  useEffect(() => {
+    load();
+  }, [accountId]);
+
+  const canUpdate = Boolean(detail.permissions?.canUpdate);
+  const record = detail.record;
+  const profile = record?.personnelProfile ?? null;
+  const viewModel = profile ? buildPersonnelProfileViewModel(profile) : null;
+
+  const save = async () => {
+    setMessage("Saving user record...");
+    const result = await fetchJson(`/admin/user-records/${encodeURIComponent(accountId)}`, {
+      method: "PATCH",
+      body: {
+        accountStatus: form.accountStatus,
+        personnelStatus: form.personnelStatus,
+        reason,
+      },
+    });
+
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to save the user record.");
+      return;
+    }
+
+    const nextRecord = result.payload.data;
+    setDetail((current) => ({
+      ...current,
+      record: nextRecord,
+      options: result.payload.options ?? current.options,
+      permissions: result.payload.permissions ?? current.permissions,
+    }));
+    setForm(adminUserRecordToForm(nextRecord));
+    setEditing(false);
+    setReason("");
+    setMessage("User record saved.");
+  };
+
+  const saveNote = async () => {
+    setMessage("Saving note...");
+    const result = await fetchJson(`/admin/user-records/${encodeURIComponent(accountId)}/notes`, {
+      method: "POST",
+      body: { noteBody },
+    });
+
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to save note.");
+      return;
+    }
+
+    const nextRecord = result.payload.data;
+    setDetail((current) => ({
+      ...current,
+      record: nextRecord,
+      options: result.payload.options ?? current.options,
+      permissions: result.payload.permissions ?? current.permissions,
+    }));
+    setNoteBody("");
+    setMessage("Note saved.");
+  };
+
+  if (detail.status === "loading") {
+    return <SkeletonRows />;
+  }
+
+  if (detail.status === "error") {
+    return <EmptyState title="User record unavailable" detail={detail.error} />;
+  }
+
+  const actions = (
+    <>
+      <button
+        className="secondary-action"
+        type="button"
+        onClick={() => onNavigate("/admin/user-records")}
+      >
+        Back to user records
+      </button>
+      {editing ? (
+        <>
+          <button
+            className="primary-action button-like"
+            disabled={!canUpdate || !reason.trim()}
+            type="button"
+            onClick={save}
+          >
+            Save
+          </button>
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={() => {
+              setForm(adminUserRecordToForm(record));
+              setEditing(false);
+              setReason("");
+              setMessage("");
+            }}
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button
+          className="secondary-action"
+          disabled={!canUpdate}
+          type="button"
+          onClick={() => setEditing(true)}
+        >
+          Edit
+        </button>
+      )}
+    </>
+  );
+
+  return (
+    <div className="workspace-grid">
+      <section className="wide-panel personnel-profile-card">
+        <div className="personnel-profile-stack">
+          <PersonnelProfileHeading actions={actions} />
+          <ApplicationReviewSection title="ACCOUNT">
+            <div className="profile-format-grid admin-user-record-grid">
+              <ReadOnlyField label="Name">{adminUserRecordName(record)}</ReadOnlyField>
+              <ReadOnlyField label="Discord User">
+                {record.authIdentities?.[0]?.username ?? "Not recorded"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Discord ID">
+                {record.authIdentities?.[0]?.providerAccountId ?? "Not recorded"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Latest Application">
+                {record.latestApplication
+                  ? applicationStatusLabel(record.latestApplication.status)
+                  : "None"}
+              </ReadOnlyField>
+            </div>
+          </ApplicationReviewSection>
+
+          {editing ? (
+            <ApplicationReviewSection title="ADMINISTRATIVE STATUS">
+              <div className="profile-format-grid admin-user-record-grid">
+                <Field label="Account Status">
+                  <select
+                    value={form.accountStatus}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, accountStatus: event.target.value }))
+                    }
+                  >
+                    {(detail.options?.accountStatuses ?? []).map((status) => (
+                      <option key={status} value={status}>
+                        {accountStatusLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {profile ? (
+                  <Field label="Personnel Status">
+                    <select
+                      value={form.personnelStatus}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, personnelStatus: event.target.value }))
+                      }
+                    >
+                      {(detail.options?.personnelStatuses ?? []).map((status) => (
+                        <option key={status} value={status}>
+                          {personnelStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : (
+                  <ReadOnlyField label="Personnel Status">Not on personnel roster</ReadOnlyField>
+                )}
+                <ReadOnlyField label="Standing">
+                  {profile
+                    ? standingDisplayLabel(
+                        derivePersonnelStanding(form.personnelStatus || profile.status),
+                      )
+                    : "Not on personnel roster"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Submitted">
+                  {formatDate(record.latestApplication?.submittedAt)}
+                </ReadOnlyField>
+              </div>
+              <Field label="Audit Reason">
+                <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
+              </Field>
+            </ApplicationReviewSection>
+          ) : (
+            <ApplicationReviewSection title="ADMINISTRATIVE STATUS">
+              <div className="profile-format-grid admin-user-record-grid">
+                <ReadOnlyField label="Account Status">
+                  {accountStatusLabel(record.status)}
+                </ReadOnlyField>
+                <ReadOnlyField label="Personnel Status">
+                  {profile ? personnelStatusLabel(profile.status) : "Not on personnel roster"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Standing">
+                  {profile ? standingDisplayLabel(profile.goodStanding) : "Not on personnel roster"}
+                </ReadOnlyField>
+                <ReadOnlyField label="Submitted">
+                  {formatDate(record.latestApplication?.submittedAt)}
+                </ReadOnlyField>
+              </div>
+            </ApplicationReviewSection>
+          )}
+
+          {viewModel ? <PersonnelProfileSections viewModel={viewModel} /> : null}
+
+          <ApplicationReviewSection title="SYSTEM ADMIN NOTES">
+            <Field label="Add Note">
+              <textarea value={noteBody} onChange={(event) => setNoteBody(event.target.value)} />
+            </Field>
+            <div className="button-row">
+              <button
+                className="primary-action button-like"
+                disabled={!noteBody.trim()}
+                type="button"
+                onClick={saveNote}
+              >
+                Save note
+              </button>
+            </div>
+            <AdminUserRecordNotesHistory items={record.adminNotes ?? []} />
+          </ApplicationReviewSection>
+        </div>
+        {!canUpdate ? (
+          <p className="muted-copy profile-edit-message">
+            You can view this record, but you do not have user-record update permission.
+          </p>
+        ) : null}
+        {message ? <p className="muted-copy profile-edit-message">{message}</p> : null}
+      </section>
+    </div>
+  );
+}
+
+function PersonnelProfileSections({ viewModel }) {
+  return (
+    <>
+      <ProfileFieldGrid items={viewModel.profileFields} />
+      <ApplicationReviewSection title="QUALIFICATIONS">
+        <ProfileRecordList items={viewModel.qualifications} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="AWARDS">
+        <ProfileRecordList items={viewModel.awards} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="RIBBONS">
+        <ProfileRecordList items={viewModel.ribbons} />
+      </ApplicationReviewSection>
+      <ApplicationReviewSection title="ACHIEVEMENTS">
+        <ProfileRecordList items={viewModel.achievements} />
+      </ApplicationReviewSection>
+    </>
+  );
+}
+
+function AdminUserRecordList({ error = null, items, loading = false, onOpen = null }) {
+  if (loading) {
+    return <SkeletonRows />;
+  }
+
+  if (error) {
+    return <EmptyState title="User records unavailable" detail={error} />;
+  }
+
+  if (!items.length) {
+    return (
+      <EmptyState
+        title="No user records"
+        detail="No accounts currently match the admin user-record criteria."
+      />
+    );
+  }
+
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Account Status</th>
+            <th>Personnel Status</th>
+            <th>
+              <span className="visually-hidden">Open user record</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>
+                <div className="admin-user-record-name">
+                  <strong>{adminUserRecordName(item)}</strong>
+                  <small>
+                    {item.authIdentities?.[0]?.username ?? "No Discord identity"}
+                    {item.authIdentities?.[0]?.providerAccountId
+                      ? ` / ${item.authIdentities[0].providerAccountId}`
+                      : ""}
+                  </small>
+                </div>
+              </td>
+              <td>{accountStatusLabel(item.status)}</td>
+              <td>
+                {item.personnelProfile?.status
+                  ? personnelStatusLabel(item.personnelProfile.status)
+                  : "Not on personnel roster"}
+              </td>
+              <td className="application-open-cell">
+                <button
+                  className="secondary-action compact-action"
+                  disabled={!onOpen}
+                  type="button"
+                  onClick={() => onOpen?.(item.id)}
+                >
+                  OPEN
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AdminUserRecordNotesHistory({ items }) {
+  if (!items?.length) {
+    return <EmptyState title="No notes" detail="No admin notes have been recorded yet." />;
+  }
+
+  return (
+    <div className="status-history-list">
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>
+            {adminNoteAuthorLabel(item)} - {formatDateTime(item.createdAt)}
+            <br />
+            <span>{item.body}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ProfileWorkspace({ session }) {
   const resource = useApiResource("/personnel/self");
 
@@ -1087,19 +1553,7 @@ function PersonnelProfileReadOnly({ actions = null, viewModel }) {
   return (
     <div className="personnel-profile-stack">
       <PersonnelProfileHeading actions={actions} />
-      <ProfileFieldGrid items={viewModel.profileFields} />
-      <ApplicationReviewSection title="QUALIFICATIONS">
-        <ProfileRecordList items={viewModel.qualifications} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="AWARDS">
-        <ProfileRecordList items={viewModel.awards} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="RIBBONS">
-        <ProfileRecordList items={viewModel.ribbons} />
-      </ApplicationReviewSection>
-      <ApplicationReviewSection title="ACHIEVEMENTS">
-        <ProfileRecordList items={viewModel.achievements} />
-      </ApplicationReviewSection>
+      <PersonnelProfileSections viewModel={viewModel} />
     </div>
   );
 }
@@ -4260,6 +4714,13 @@ function blankPersonnelProfileForm() {
   };
 }
 
+function blankAdminUserRecordForm() {
+  return {
+    accountStatus: "",
+    personnelStatus: "",
+  };
+}
+
 function personnelProfileToForm(profile) {
   if (!profile) {
     return blankPersonnelProfileForm();
@@ -4275,6 +4736,17 @@ function personnelProfileToForm(profile) {
     currentMOSId: profile.currentMOSId ?? "",
     currentSecondaryMOSId: profile.currentSecondaryMOSId ?? "",
     goodStanding: String(derivedStanding),
+  };
+}
+
+function adminUserRecordToForm(record) {
+  if (!record) {
+    return blankAdminUserRecordForm();
+  }
+
+  return {
+    accountStatus: record.status ?? "",
+    personnelStatus: record.personnelProfile?.status ?? "",
   };
 }
 
@@ -4386,11 +4858,29 @@ function personnelOptionLabel(profile) {
 
 function accountDisplayName(account, fallback = "another recruiter") {
   const fullName =
+    account?.personnelProfile?.name ||
     account?.displayName ||
     account?.authIdentities?.[0]?.displayName ||
     account?.authIdentities?.[0]?.username ||
     "";
   return personDisplayName({ fullName }, fallback);
+}
+
+function adminUserRecordName(record) {
+  return personDisplayName(
+    {
+      fullName:
+        record?.personnelProfile?.name ||
+        record?.displayName ||
+        record?.authIdentities?.[0]?.displayName ||
+        record?.authIdentities?.[0]?.username,
+    },
+    "Unknown account",
+  );
+}
+
+function adminNoteAuthorLabel(note) {
+  return accountDisplayName(note?.authorAccount, "System");
 }
 
 function roleAccountOptionLabel(account) {

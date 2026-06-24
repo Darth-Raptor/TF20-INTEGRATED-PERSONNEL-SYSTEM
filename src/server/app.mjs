@@ -2,6 +2,12 @@ import express from "express";
 
 import { mountClientApp } from "./client-app.mjs";
 import {
+  getAdminUserRecord,
+  listAdminUserRecords,
+  saveAdminUserRecordNote,
+  updateAdminUserRecord,
+} from "./admin-user-records-service.mjs";
+import {
   applicantFormState,
   assignApplicationUnit,
   canCreateOwnApplication,
@@ -514,6 +520,79 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         });
         if (!result.ok) return sendRoleManagementError(res, result);
         return sendDetail(res, result.account);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.get("/admin/user-records", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await listAdminUserRecords(prisma, req.context.account);
+      if (!result.ok) return sendRoleManagementError(res, result);
+      return res.status(200).json({
+        items: result.items,
+        meta: { count: result.items.length },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get("/admin/user-records/:accountId", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await getAdminUserRecord(prisma, req.context.account, req.params.accountId);
+      if (!result.ok) return sendRoleManagementError(res, result);
+      return res.status(200).json({
+        data: result.record,
+        options: result.options,
+        permissions: result.permissions,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch(
+    "/admin/user-records/:accountId",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await updateAdminUserRecord({
+          prisma,
+          actor: req.context.account,
+          accountId: req.params.accountId,
+          body: req.body,
+        });
+        if (!result.ok) return sendRoleManagementError(res, result);
+        return res.status(200).json({
+          data: result.record,
+          options: result.options,
+          permissions: result.permissions,
+        });
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/admin/user-records/:accountId/notes",
+    requireAuthenticatedSession,
+    async (req, res, next) => {
+      try {
+        const result = await saveAdminUserRecordNote({
+          prisma,
+          actor: req.context.account,
+          accountId: req.params.accountId,
+          noteBody: req.body.noteBody,
+        });
+        if (!result.ok) return sendRoleManagementError(res, result);
+        return res.status(200).json({
+          data: result.record,
+          options: result.options,
+          permissions: result.permissions,
+        });
       } catch (error) {
         return next(error);
       }
@@ -1802,10 +1881,10 @@ function buildPersonnelFormState(profileOrBody = {}) {
 
 async function createLocalPreviewSession({ prisma }) {
   const previewRoles = await prisma.role.findMany({
-    where: { key: { in: ["member", "unit-staff", "recruiter"] } },
+    where: { key: { in: ["member", "unit-staff", "recruiter", "system-admin"] } },
   });
   const rolesByKey = new Map(previewRoles.map((role) => [role.key, role]));
-  for (const roleKey of ["member", "unit-staff", "recruiter"]) {
+  for (const roleKey of ["member", "unit-staff", "recruiter", "system-admin"]) {
     if (!rolesByKey.has(roleKey)) {
       throw new Error(`Local preview requires the ${roleKey} role to be seeded.`);
     }
@@ -1851,7 +1930,7 @@ async function createLocalPreviewSession({ prisma }) {
     });
   }
 
-  for (const roleKey of ["member", "unit-staff", "recruiter"]) {
+  for (const roleKey of ["member", "unit-staff", "recruiter", "system-admin"]) {
     const role = rolesByKey.get(roleKey);
     const assignment = await prisma.roleAssignment.findFirst({
       where: {

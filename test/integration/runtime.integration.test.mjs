@@ -34,6 +34,12 @@ import {
 } from "../../src/server/application-service.mjs";
 import { ingestDiscordMembershipEvent } from "../../src/server/discord-membership-service.mjs";
 import { flattenPermissions, resolveAuthenticatedAccount } from "../../src/server/auth-service.mjs";
+import {
+  getAdminUserRecord,
+  listAdminUserRecords,
+  saveAdminUserRecordNote,
+  updateAdminUserRecord,
+} from "../../src/server/admin-user-records-service.mjs";
 import { getCurrentIntakeDocuments } from "../../src/server/intake-documents.mjs";
 import {
   getPersonnelEditOptions,
@@ -1813,6 +1819,164 @@ test("the final active system admin assignment is protected", async () => {
   });
   assert.equal(result.ok, false);
   assert.equal(result.code, "invalid_transition");
+});
+
+test("system admins manage account-first admin user records with notes and status history", async () => {
+  const admin = await createAccountWithRole("system-admin", "Active");
+  const unauthorized = await createAccountWithRole("member", "Active");
+
+  const freshDiscordOnly = await createAccountWithRole("pending-user", "Pending");
+  const draftDiscordOnly = await createAccountWithRole("pending-user", "Pending");
+  const submittedDiscordOnly = await createAccountWithRole("pending-user", "Pending");
+  const closedDiscordOnly = await createAccountWithRole("pending-user", "Pending");
+  const dischargedAccount = await createAccountWithRole("member", "Active");
+  const awolAccount = await createAccountWithRole("member", "Active");
+  const editablePersonnelAccount = await createAccountWithRole("member", "Active");
+
+  await prisma.application.create({
+    data: {
+      accountId: draftDiscordOnly.id,
+      status: "Draft",
+      formVersion: "enlistment-v4",
+    },
+  });
+  await prisma.application.create({
+    data: {
+      accountId: submittedDiscordOnly.id,
+      status: "Submitted",
+      formVersion: "enlistment-v4",
+      submittedAt: new Date(),
+    },
+  });
+  await prisma.application.create({
+    data: {
+      accountId: closedDiscordOnly.id,
+      status: "Closed",
+      formVersion: "enlistment-v4",
+      closedAt: new Date(),
+    },
+  });
+
+  await prisma.personnelProfile.create({
+    data: {
+      accountId: dischargedAccount.id,
+      name: "Discharged Account",
+      status: "HonorableDischarge",
+      goodStanding: true,
+    },
+  });
+  await prisma.personnelProfile.create({
+    data: {
+      accountId: awolAccount.id,
+      name: "Awol Account",
+      status: "AWOL",
+      goodStanding: false,
+    },
+  });
+  const editableProfile = await prisma.personnelProfile.create({
+    data: {
+      accountId: editablePersonnelAccount.id,
+      name: "Editable Personnel",
+      status: "Active",
+      goodStanding: true,
+    },
+  });
+
+  const deniedList = await listAdminUserRecords(prisma, unauthorized);
+  assert.equal(deniedList.ok, false);
+  assert.equal(deniedList.code, "permission_denied");
+
+  const list = await listAdminUserRecords(prisma, admin);
+  assert.equal(list.ok, true);
+  assert.equal(
+    list.items.some((item) => item.id === freshDiscordOnly.id),
+    true,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === draftDiscordOnly.id),
+    true,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === closedDiscordOnly.id),
+    true,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === dischargedAccount.id),
+    true,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === submittedDiscordOnly.id),
+    false,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === awolAccount.id),
+    false,
+  );
+  assert.equal(
+    list.items.some((item) => item.id === editablePersonnelAccount.id),
+    false,
+  );
+
+  const directDetail = await getAdminUserRecord(prisma, admin, submittedDiscordOnly.id);
+  assert.equal(directDetail.ok, true);
+  assert.equal(directDetail.record.latestApplication?.status, "Submitted");
+
+  const lockedAccount = await updateAdminUserRecord({
+    prisma,
+    actor: admin,
+    accountId: freshDiscordOnly.id,
+    body: {
+      accountStatus: "Locked",
+      personnelStatus: "",
+      reason: "Lock fresh Discord-only record.",
+    },
+  });
+  assert.equal(lockedAccount.ok, true);
+  assert.equal(lockedAccount.record.status, "Locked");
+  assert.equal(lockedAccount.record.lockedAt instanceof Date, true);
+  assert.equal(lockedAccount.record.personnelProfile, null);
+
+  const firstNote = await saveAdminUserRecordNote({
+    prisma,
+    actor: admin,
+    accountId: freshDiscordOnly.id,
+    noteBody: "First admin note.",
+  });
+  assert.equal(firstNote.ok, true);
+  const secondNote = await saveAdminUserRecordNote({
+    prisma,
+    actor: admin,
+    accountId: freshDiscordOnly.id,
+    noteBody: "Second admin note.",
+  });
+  assert.equal(secondNote.ok, true);
+  assert.deepEqual(
+    secondNote.record.adminNotes.map((note) => note.body),
+    ["First admin note.", "Second admin note."],
+  );
+
+  const updatedPersonnel = await updateAdminUserRecord({
+    prisma,
+    actor: admin,
+    accountId: editablePersonnelAccount.id,
+    body: {
+      accountStatus: "Disabled",
+      personnelStatus: "Reserve",
+      reason: "Move user out of active service.",
+    },
+  });
+  assert.equal(updatedPersonnel.ok, true);
+  assert.equal(updatedPersonnel.record.status, "Disabled");
+  assert.equal(updatedPersonnel.record.personnelProfile.status, "Reserve");
+  assert.equal(updatedPersonnel.record.personnelProfile.goodStanding, true);
+  assert.ok(
+    await prisma.personnelStatusHistory.findFirst({
+      where: {
+        personnelProfileId: editableProfile.id,
+        newStatus: "Reserve",
+      },
+    }),
+  );
 });
 
 test("trainer records pass/fail course sessions and owns corrections", async () => {

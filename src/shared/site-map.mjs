@@ -219,6 +219,16 @@ export const SITE_MAP_SECTIONS = [
           allOf: ["access.roles.manage"],
         },
       },
+      {
+        id: "admin_user_records",
+        label: "User Records",
+        path: "/admin/user-records",
+        icon: "admin",
+        visibility: {
+          statuses: ["Active"],
+          allOf: ["access.roles.manage"],
+        },
+      },
     ],
   },
 ];
@@ -440,6 +450,33 @@ function normalizePath(pathname) {
 }
 
 function findDynamicRouteNodeByPath(sections, normalizedPath) {
+  const adminUserRecordDetailMatch = /^\/admin\/user-records\/([^/]+)$/.exec(normalizedPath);
+  if (adminUserRecordDetailMatch) {
+    const section = sections.find((item) => item.id === "admin");
+    const page = section?.pages?.find((item) => item.id === "admin_user_records");
+    if (!section || !page) {
+      return null;
+    }
+
+    return {
+      type: "detail",
+      section,
+      page,
+      node: {
+        ...compactNavigationNode({
+          ...page,
+          id: "admin_user_record_detail",
+          label: "User Record",
+          path: normalizedPath,
+        }),
+        parentPageId: page.id,
+      },
+      params: {
+        accountId: decodeURIComponent(adminUserRecordDetailMatch[1]),
+      },
+    };
+  }
+
   const staffPersonnelDetailMatch = /^\/staff\/personnel-management\/([^/]+)$/.exec(normalizedPath);
   if (staffPersonnelDetailMatch) {
     const section = sections.find((item) => item.id === "staff");

@@ -272,6 +272,8 @@ model Account {
   supportTicketsCreated       SupportTicket[]              @relation("SupportTicketCreatedBy")
   supportTicketsAssigned      SupportTicket[]              @relation("SupportTicketAssignedTo")
   supportComments             SupportTicketComment[]
+  adminNotes                  AccountAdministrativeNote[]  @relation("AccountAdministrativeNoteSubject")
+  authoredAdminNotes          AccountAdministrativeNote[]  @relation("AccountAdministrativeNoteAuthor")
   notifications               Notification[]
   auditEvents                 AuditLog[]                   @relation("AuditActor")
   targetedAuditEvents         AuditLog[]                   @relation("AuditTargetAccount")
@@ -1205,6 +1207,19 @@ model AdministrativeNote {
 
   @@index([personnelProfileId])
   @@index([visibility])
+}
+
+model AccountAdministrativeNote {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         Account  @relation("AccountAdministrativeNoteSubject", fields: [accountId], references: [id])
+  body            String   @db.Text
+  authorAccountId String?
+  authorAccount   Account? @relation("AccountAdministrativeNoteAuthor", fields: [authorAccountId], references: [id])
+  createdAt       DateTime @default(now())
+  auditLogId      String?
+
+  @@index([accountId])
 }
 
 model SupportTicket {

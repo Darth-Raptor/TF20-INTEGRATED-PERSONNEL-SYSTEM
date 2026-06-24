@@ -834,6 +834,10 @@ a {
   gap: 12px;
 }
 
+.admin-user-record-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .personnel-profile-heading .button-row {
   margin-top: 0;
 }
@@ -951,6 +955,15 @@ th {
 .record-list {
   display: grid;
   gap: 8px;
+}
+
+.admin-user-record-name {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-user-record-name small {
+  color: var(--muted);
 }
 
 .unit-roster-tree {

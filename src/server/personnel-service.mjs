@@ -1,7 +1,7 @@
 import { syncUnitScopedRoleAssignments } from "./role-management-service.mjs";
 import { loadLiveRecruitingOpenings } from "./recruiting-openings.mjs";
 
-const PERSONNEL_STATUS_OPTIONS = [
+export const PERSONNEL_STATUS_OPTIONS = [
   "Applicant",
   "Recruit",
   "Active",
@@ -1081,7 +1081,7 @@ function applyDerivedStanding(profile) {
   };
 }
 
-function deriveGoodStanding(status) {
+export function deriveGoodStanding(status) {
   return !RESTRICTED_STANDING_STATUSES.has(status);
 }
 

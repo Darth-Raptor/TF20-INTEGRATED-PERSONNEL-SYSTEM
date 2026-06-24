@@ -28,6 +28,8 @@ export function applicationStatusLabel(status, enumDisplayLabels = {}) {
 }
 
 export function personnelStatusLabel(status, enumDisplayLabels = {}) {
+  if (status === "LeaveOfAbsence") return "LOA";
+  if (status === "ExtendedLeaveOfAbsence") return "ELOA";
   return enumDisplayLabel("PersonnelStatus", status, enumDisplayLabels);
 }
 

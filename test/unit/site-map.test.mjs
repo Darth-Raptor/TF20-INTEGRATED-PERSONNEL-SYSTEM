@@ -29,7 +29,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 15);
+  assert.equal(result.parsed.pages.length, 16);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -213,6 +213,20 @@ test("admin roles route requires role-management permission", () => {
   assert.equal(match.section.id, "admin");
   assert.equal(match.node.id, "admin_roles");
   assert.equal(match.node.label, "Roles");
+});
+
+test("admin user-record detail route keeps user-records navigation active", () => {
+  const navigation = resolveVisibleNavigation("Active", ["access.roles.manage"]);
+  const visibleMatch = findNavigationNodeByPath(navigation, "/admin/user-records/test-account-id");
+  const siteMapMatch = findSiteMapNodeByPath("/admin/user-records/test-account-id");
+
+  assert.equal(visibleMatch.type, "detail");
+  assert.equal(visibleMatch.section.id, "admin");
+  assert.equal(visibleMatch.page.id, "admin_user_records");
+  assert.equal(visibleMatch.node.id, "admin_user_record_detail");
+  assert.equal(visibleMatch.node.label, "User Record");
+  assert.equal(visibleMatch.params.accountId, "test-account-id");
+  assert.equal(siteMapMatch.page.id, "admin_user_records");
 });
 
 test("training records page replaces reserved training dashboard", () => {
