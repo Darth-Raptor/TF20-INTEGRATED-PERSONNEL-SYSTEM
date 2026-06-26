@@ -234,6 +234,7 @@ enum DiscordMembershipEventType {
 enum DiscordMembershipEventSource {
   BotBridge
   OAuthBackfill
+  GuildRosterBackfill
 }
 
 model Account {

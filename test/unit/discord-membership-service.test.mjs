@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  buildGuildRosterBackfillEventId,
   buildOAuthBackfillEventId,
   extractDiscordGuildJoinedAt,
   mapDiscordMembershipEventToTimelineEntry,
@@ -57,4 +58,11 @@ test("oauth fallback event IDs are deterministic and joined_at metadata parses c
     occurredAt,
   });
   assert.equal(eventId, "oauth-joined-at:guild:123:2026-06-13T00:00:00.000Z");
+
+  const rosterEventId = buildGuildRosterBackfillEventId({
+    guildId: "guild",
+    providerAccountId: "123",
+    occurredAt,
+  });
+  assert.equal(rosterEventId, "guild-roster-backfill:guild:123:2026-06-13T00:00:00.000Z");
 });

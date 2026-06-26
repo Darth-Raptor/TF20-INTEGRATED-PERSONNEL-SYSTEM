@@ -1,5 +1,6 @@
 import { buildAccessContext } from "./access.mjs";
 import { createRandomId } from "./cookies.mjs";
+import { createPendingDiscordAccount } from "./discord-account-service.mjs";
 import {
   ensureDiscordOAuthMembershipJoinEvent,
   linkDiscordMembershipEventsToAccount,
@@ -164,56 +165,15 @@ export async function resolveAuthenticatedAccount({
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const account = await tx.account.create({
-      data: {
-        displayName: discordUser.global_name ?? discordUser.username,
-        status: "Pending",
-      },
-    });
-
-    const createdAuthIdentity = await tx.authIdentity.create({
-      data: {
-        accountId: account.id,
-        provider: "Discord",
-        providerAccountId: discordUser.id,
-        username: discordUser.username,
-        displayName: discordUser.global_name ?? discordUser.username,
-        lastGuildVerifiedAt: new Date(),
-        guildMembershipRequired: true,
-        isPrimary: true,
-        metadata: guildPayload ?? {},
-      },
-    });
-
-    const pendingRole = await tx.role.findFirst({
-      where: { key: "pending-user", status: "Active" },
-    });
-
-    if (pendingRole) {
-      await tx.roleAssignment.create({
-        data: {
-          accountId: account.id,
-          roleId: pendingRole.id,
-          scopeType: "Global",
-          scopeIncludesDescendants: true,
-          reason: "Initial pending-user assignment after approved-guild Discord login.",
-        },
-      });
-    }
-
-    await tx.auditLog.create({
-      data: {
-        targetAccountId: account.id,
-        module: "accounts",
-        action: "create-pending-account",
-        recordType: "Account",
-        recordId: account.id,
-        newValue: {
-          status: "Pending",
-          provider: "Discord",
-        },
-        reason: "Created pending account from approved Discord guild login.",
-      },
+    const { account, authIdentity: createdAuthIdentity } = await createPendingDiscordAccount({
+      tx,
+      providerAccountId: discordUser.id,
+      username: discordUser.username,
+      displayName: discordUser.global_name ?? discordUser.username,
+      metadata: guildPayload ?? {},
+      lastGuildVerifiedAt: new Date(),
+      roleAssignmentReason: "Initial pending-user assignment after approved-guild Discord login.",
+      auditReason: "Created pending account from approved Discord guild login.",
     });
 
     await linkDiscordMembershipEventsToAccount({

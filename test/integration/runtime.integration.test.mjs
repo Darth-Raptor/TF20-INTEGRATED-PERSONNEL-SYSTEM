@@ -32,7 +32,11 @@ import {
   updateOwnApplication,
   withdrawOwnApplication,
 } from "../../src/server/application-service.mjs";
-import { ingestDiscordMembershipEvent } from "../../src/server/discord-membership-service.mjs";
+import {
+  backfillCurrentDiscordGuildMembers,
+  backfillPendingDiscordAccountsFromMembershipEvents,
+  ingestDiscordMembershipEvent,
+} from "../../src/server/discord-membership-service.mjs";
 import { flattenPermissions, resolveAuthenticatedAccount } from "../../src/server/auth-service.mjs";
 import {
   getAdminUserRecord,
@@ -1055,7 +1059,7 @@ test("discord membership ingest is idempotent by external event ID", async () =>
   );
 });
 
-test("unattached discord membership events link to the account after first oauth", async () => {
+test("discord guild join creates a pending account and admin user record", async () => {
   const discordUserId = uniqueKey("discord-prelogin");
   const ingested = await ingestDiscordMembershipEvent({
     prisma,
@@ -1069,7 +1073,38 @@ test("unattached discord membership events link to the account after first oauth
     },
   });
   assert.equal(ingested.ok, true);
-  assert.equal(ingested.event.accountId, null);
+  assert.ok(ingested.event.accountId);
+  assert.equal(ingested.pendingAccountCreated, true);
+
+  const createdAccount = await prisma.account.findUniqueOrThrow({
+    where: { id: ingested.event.accountId },
+    include: {
+      authIdentities: true,
+      roleAssignments: {
+        where: { endsAt: null },
+        include: { role: true },
+      },
+    },
+  });
+  assert.equal(createdAccount.status, "Pending");
+  assert.equal(
+    createdAccount.authIdentities.some(
+      (identity) => identity.provider === "Discord" && identity.providerAccountId === discordUserId,
+    ),
+    true,
+  );
+  assert.equal(
+    createdAccount.roleAssignments.some((assignment) => assignment.role.key === "pending-user"),
+    true,
+  );
+
+  const admin = await createAccountWithRole("system-admin", "Active");
+  const list = await listAdminUserRecords(prisma, admin);
+  assert.equal(list.ok, true);
+  assert.equal(
+    list.items.some((item) => item.id === createdAccount.id),
+    true,
+  );
 
   const resolved = await resolveAuthenticatedAccount({
     prisma,
@@ -1081,6 +1116,8 @@ test("unattached discord membership events link to the account after first oauth
     guildPayload: { joined_at: "2026-06-17T09:30:00.000Z" },
     approvedGuildId: TEST_DISCORD_GUILD_ID,
   });
+  assert.equal(resolved.created, false);
+  assert.equal(resolved.account.id, createdAccount.id);
 
   const linkedEvent = await prisma.discordMembershipEvent.findUniqueOrThrow({
     where: { id: ingested.event.id },
@@ -1092,6 +1129,39 @@ test("unattached discord membership events link to the account after first oauth
     }),
     1,
   );
+});
+
+test("unattached discord leave events link to the account after first oauth", async () => {
+  const discordUserId = uniqueKey("discord-prelogin-leave");
+  const ingested = await ingestDiscordMembershipEvent({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    payload: {
+      eventId: uniqueKey("discord-prelogin-leave"),
+      eventType: "leave",
+      discordUserId,
+      guildId: TEST_DISCORD_GUILD_ID,
+      occurredAt: "2026-06-17T09:30:00.000Z",
+    },
+  });
+  assert.equal(ingested.ok, true);
+  assert.equal(ingested.event.accountId, null);
+
+  const resolved = await resolveAuthenticatedAccount({
+    prisma,
+    discordUser: {
+      id: discordUserId,
+      username: "prelogin-leave-user",
+      global_name: "Prelogin Leave User",
+    },
+    guildPayload: { joined_at: "2026-06-17T09:30:00.000Z" },
+    approvedGuildId: TEST_DISCORD_GUILD_ID,
+  });
+
+  const linkedEvent = await prisma.discordMembershipEvent.findUniqueOrThrow({
+    where: { id: ingested.event.id },
+  });
+  assert.equal(linkedEvent.accountId, resolved.account.id);
 });
 
 test("explicit discord join events suppress oauth fallback join creation", async () => {
@@ -1161,6 +1231,193 @@ test("application detail falls back to discord joined_at metadata when no join l
   );
   assert.ok(joinEntry);
   assert.equal(new Date(joinEntry.createdAt).toISOString(), "2026-06-20T14:30:00.000Z");
+});
+
+test("discord membership backfill creates pending accounts for legacy unattached join events", async () => {
+  const providerAccountId = uniqueKey("discord-backfill");
+  await prisma.discordMembershipEvent.createMany({
+    data: [
+      {
+        externalEventId: uniqueKey("discord-backfill-join"),
+        providerAccountId,
+        accountId: null,
+        guildId: TEST_DISCORD_GUILD_ID,
+        eventType: "Join",
+        source: "BotBridge",
+        username: "backfill-user",
+        displayName: "Backfill User",
+        occurredAt: new Date("2026-06-12T00:00:00.000Z"),
+      },
+      {
+        externalEventId: uniqueKey("discord-backfill-leave"),
+        providerAccountId,
+        accountId: null,
+        guildId: TEST_DISCORD_GUILD_ID,
+        eventType: "Leave",
+        source: "BotBridge",
+        username: "backfill-user",
+        displayName: "Backfill User",
+        occurredAt: new Date("2026-06-13T00:00:00.000Z"),
+      },
+    ],
+  });
+
+  const dryRun = await backfillPendingDiscordAccountsFromMembershipEvents({ prisma, apply: false });
+  assert.equal(dryRun.creatableAccountCount >= 1, true);
+
+  const applied = await backfillPendingDiscordAccountsFromMembershipEvents({ prisma, apply: true });
+  assert.equal(applied.appliedAccountsCreated >= 1, true);
+  assert.equal(applied.appliedEventsAttached >= 2, true);
+
+  const createdIdentity = await prisma.authIdentity.findUniqueOrThrow({
+    where: {
+      provider_providerAccountId: {
+        provider: "Discord",
+        providerAccountId,
+      },
+    },
+    include: {
+      account: {
+        include: {
+          roleAssignments: {
+            where: { endsAt: null },
+            include: { role: true },
+          },
+        },
+      },
+    },
+  });
+  assert.equal(createdIdentity.account.status, "Pending");
+  assert.equal(
+    createdIdentity.account.roleAssignments.some(
+      (assignment) => assignment.role.key === "pending-user",
+    ),
+    true,
+  );
+  assert.equal(
+    await prisma.discordMembershipEvent.count({
+      where: { providerAccountId, accountId: createdIdentity.accountId },
+    }),
+    2,
+  );
+});
+
+test("current discord guild roster backfill creates pending accounts and refreshes existing members", async () => {
+  const providerAccountId = uniqueKey("discord-current-member");
+  const activeMember = await createActivePersonnel("Guild Roster Refresh");
+  const activeIdentity = activeMember.account.authIdentities[0];
+  const admin = await createAccountWithRole("system-admin", "Active");
+
+  await prisma.authIdentity.update({
+    where: { id: activeIdentity.id },
+    data: {
+      username: "stale-user",
+      displayName: "Stale Display",
+      unlinkedAt: new Date("2026-01-01T00:00:00.000Z"),
+      lastGuildVerifiedAt: null,
+      metadata: null,
+    },
+  });
+
+  const listMembers = async () => [
+    {
+      providerAccountId,
+      guildId: TEST_DISCORD_GUILD_ID,
+      username: "current-user",
+      displayName: "Current User",
+      serverNickname: "Roster Nick",
+      joinedAt: "2026-06-01T00:00:00.000Z",
+      isBot: false,
+    },
+    {
+      providerAccountId: activeIdentity.providerAccountId,
+      guildId: TEST_DISCORD_GUILD_ID,
+      username: "refreshed-user",
+      displayName: "Refreshed User",
+      serverNickname: "Refreshed Nick",
+      joinedAt: "2026-05-01T00:00:00.000Z",
+      isBot: false,
+    },
+    {
+      providerAccountId: uniqueKey("discord-current-bot"),
+      guildId: TEST_DISCORD_GUILD_ID,
+      username: "bot-user",
+      displayName: "Bot User",
+      joinedAt: "2026-06-02T00:00:00.000Z",
+      isBot: true,
+    },
+  ];
+
+  const dryRun = await backfillCurrentDiscordGuildMembers({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    apply: false,
+    listMembers,
+  });
+  assert.equal(dryRun.guildMemberCount, 3);
+  assert.equal(dryRun.skippedBotCount, 1);
+  assert.equal(dryRun.creatableAccountCount, 1);
+  assert.equal(dryRun.refreshOnlyCount, 1);
+  assert.equal(dryRun.joinEventCreateCount, 2);
+
+  const applied = await backfillCurrentDiscordGuildMembers({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    apply: true,
+    listMembers,
+  });
+  assert.equal(applied.appliedAccountsCreated, 1);
+  assert.equal(applied.appliedJoinEventsCreated, 2);
+
+  const createdIdentity = await prisma.authIdentity.findUniqueOrThrow({
+    where: {
+      provider_providerAccountId: {
+        provider: "Discord",
+        providerAccountId,
+      },
+    },
+    include: {
+      account: true,
+    },
+  });
+  assert.equal(createdIdentity.account.status, "Pending");
+
+  const refreshedIdentity = await prisma.authIdentity.findUniqueOrThrow({
+    where: { id: activeIdentity.id },
+  });
+  assert.equal(refreshedIdentity.unlinkedAt, null);
+  assert.equal(refreshedIdentity.username, "refreshed-user");
+  assert.equal(refreshedIdentity.displayName, "Refreshed User");
+  assert.equal(refreshedIdentity.metadata.joined_at, "2026-05-01T00:00:00.000Z");
+
+  const list = await listAdminUserRecords(prisma, admin);
+  assert.equal(list.ok, true);
+  assert.equal(
+    list.items.some((item) => item.id === createdIdentity.accountId),
+    true,
+  );
+
+  const reapplied = await backfillCurrentDiscordGuildMembers({
+    prisma,
+    config: TEST_DISCORD_CONFIG,
+    apply: true,
+    listMembers,
+  });
+  assert.equal(reapplied.appliedAccountsCreated, 0);
+  assert.equal(reapplied.appliedJoinEventsCreated, 0);
+  assert.equal(
+    await prisma.account.count({
+      where: {
+        authIdentities: {
+          some: {
+            provider: "Discord",
+            providerAccountId,
+          },
+        },
+      },
+    }),
+    1,
+  );
 });
 
 test("application availability selections persist and appear in review detail", async () => {
