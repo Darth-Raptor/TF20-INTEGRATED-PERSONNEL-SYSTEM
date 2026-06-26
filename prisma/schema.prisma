@@ -115,6 +115,24 @@ enum EventStatus {
   Archived
 }
 
+enum EventType {
+  CombatOperation
+  UnitTraining
+  QualificationCourse
+  Meeting
+}
+
+enum EventLocation {
+  UnitServer
+  Discord
+  TeamSpeak
+}
+
+enum EventAttendanceScope {
+  Open
+  UnitOnly
+}
+
 enum EventRosterSource {
   Template
   UnitRoster
@@ -275,6 +293,8 @@ model Account {
   supportComments             SupportTicketComment[]
   adminNotes                  AccountAdministrativeNote[]  @relation("AccountAdministrativeNoteSubject")
   authoredAdminNotes          AccountAdministrativeNote[]  @relation("AccountAdministrativeNoteAuthor")
+  ownedEvents                 Event[]                      @relation("EventOwner")
+  createdEvents               Event[]                      @relation("EventCreatedBy")
   notifications               Notification[]
   auditEvents                 AuditLog[]                   @relation("AuditActor")
   targetedAuditEvents         AuditLog[]                   @relation("AuditTargetAccount")
@@ -460,9 +480,10 @@ model Unit {
   personnel            PersonnelProfile[]
   unitAssignments      PersonnelUnitAssignment[]
   billets              Billet[]
-  mos                  MOS[]
+  mos                  MOS[]                         
   targetedApplications Application[]             @relation("ApplicationTargetUnit")
   applicationInterests ApplicationInterestUnit[]
+  sourceEvents         Event[]                   @relation("EventSourceUnit")
 
   @@index([parentId])
   @@index([status])
@@ -906,7 +927,7 @@ model ApplicationReviewNote {
 model EventTemplate {
   id             String        @id @default(cuid())
   name           String
-  eventType      String
+  eventType      EventType
   recurrenceRule String?
   status         CatalogStatus @default(Draft)
   createdAt      DateTime      @default(now())
@@ -919,16 +940,20 @@ model Event {
   templateId                     String?
   template                       EventTemplate?    @relation(fields: [templateId], references: [id])
   title                          String
-  eventType                      String
+  eventType                      EventType
   status                         EventStatus       @default(Scheduled)
   rosterSource                   EventRosterSource @default(Template)
-  sourceUnitId                   String?
+  sourceUnitId                   String
+  sourceUnit                     Unit              @relation("EventSourceUnit", fields: [sourceUnitId], references: [id])
   startsAt                       DateTime
-  endsAt                         DateTime?
-  location                       String?
-  details                        String?           @db.Text
+  endsAt                         DateTime
+  location                       EventLocation
+  attendanceScope                EventAttendanceScope @default(Open)
+  details                        String            @db.Text
   ownerAccountId                 String?
+  ownerAccount                   Account?          @relation("EventOwner", fields: [ownerAccountId], references: [id])
   createdByAccountId             String?
+  createdByAccount               Account?          @relation("EventCreatedBy", fields: [createdByAccountId], references: [id])
   rosterFinalizedAt              DateTime?
   rosterFinalizedByAccountId     String?
   attendanceFinalizedAt          DateTime?

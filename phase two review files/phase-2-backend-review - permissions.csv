@@ -1,4 +1,4 @@
-permission_key,display_name,role_keys
+﻿permission_key,display_name,role_keys
 accounts.view-self,View Own Account,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 access.recovery.request,Request Account Recovery,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 access.recovery.review,Review Account Recovery,system-admin
@@ -14,7 +14,7 @@ personnel.view-self,View Own Personnel Record,"member,recruiter,trainer,unit-sta
 personnel.view-scoped,View Scoped Personnel Records,"unit-staff,command-staff"
 personnel.update-scoped,Update Scoped Personnel Records,"unit-staff,command-staff"
 events.view-self,View Own Events,"member,recruiter,trainer,unit-staff,command-staff"
-events.manage-scoped,Manage Scoped Events,command-staff
+events.manage-scoped,Manage Scoped Events,"unit-staff,command-staff"
 attendance.view-self,View Own Attendance,"member,recruiter,trainer,unit-staff,command-staff"
 attendance.review-scoped,Review Scoped Attendance,command-staff
 loa.create-self,Create Own Leave of Absence,"member,recruiter,trainer,unit-staff,command-staff"
@@ -29,3 +29,4 @@ notifications.view-self,View Own Notifications,"pending-user,member,recruiter,tr
 notifications.archive-self,Archive Own Notifications,"pending-user,member,recruiter,trainer,unit-staff,command-staff"
 integrations.view,View Integrations,system-admin
 integrations.manage,Manage Integrations,system-admin
+

@@ -35,6 +35,19 @@ import {
 } from "../../shared/display-labels.mjs";
 import { APPLICATION_AVAILABILITY_COPY } from "../../shared/application-availability.mjs";
 import {
+  EVENT_ATTENDANCE_SCOPE_OPTIONS,
+  EVENT_LOCATION_OPTIONS,
+  EVENT_TYPE_OPTIONS,
+  buildCalendarMonth,
+  eventAttendanceScopeLabel,
+  eventDateKeys,
+  eventLocationLabel,
+  eventTypeLabel,
+  localMonthKey,
+  nextCalendarMonth,
+  previousCalendarMonth,
+} from "../../shared/events.mjs";
+import {
   findNavigationNodeByPath,
   findSiteMapNodeByPath,
   isSectionDashboardMatch,
@@ -688,8 +701,18 @@ function Workspace({ path, session, siteMapMatch, visibleMatch, onNavigate }) {
       return <ApplicantApplicationWorkspace />;
     case "user_training":
       return <UserTrainingWorkspace />;
+    case "user_events":
+      return <UserEventsWorkspace onNavigate={onNavigate} />;
+    case "user_event_detail":
+      return <UserEventsWorkspace eventId={visibleMatch.params?.eventId} onNavigate={onNavigate} />;
     case "staff_unit":
       return <StaffUnitWorkspace />;
+    case "staff_events":
+      return <StaffEventsWorkspace onNavigate={onNavigate} />;
+    case "staff_event_detail":
+      return (
+        <StaffEventsWorkspace eventId={visibleMatch.params?.eventId} onNavigate={onNavigate} />
+      );
     case "staff_personnel_management":
       return (
         <StaffPersonnelManagementWorkspace
@@ -2149,6 +2172,632 @@ function UserTrainingContent({ resource }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function UserEventsWorkspace({ eventId = null, onNavigate }) {
+  return <EventsWorkspace mode="user" eventId={eventId} onNavigate={onNavigate} />;
+}
+
+function StaffEventsWorkspace({ eventId = null, onNavigate }) {
+  return <EventsWorkspace mode="staff" eventId={eventId} onNavigate={onNavigate} />;
+}
+
+function EventsWorkspace({ mode, eventId = null, onNavigate }) {
+  if (eventId) {
+    return <EventDetailWorkspace eventId={eventId} mode={mode} onNavigate={onNavigate} />;
+  }
+
+  return <EventCalendarWorkspace mode={mode} onNavigate={onNavigate} />;
+}
+
+function EventCalendarWorkspace({ mode, onNavigate }) {
+  const staffMode = mode === "staff";
+  const [month, setMonth] = useState(() => localMonthKey(new Date()));
+  const [calendar, setCalendar] = useState({ status: "loading", items: [], error: null });
+  const [options, setOptions] = useState({
+    status: staffMode ? "loading" : "ready",
+    data: { units: [] },
+    error: null,
+  });
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [form, setForm] = useState(() => blankEventForm());
+  const [message, setMessage] = useState("");
+  const monthView = useMemo(() => buildCalendarMonth(month), [month]);
+  const manageableUnits = options.data?.units ?? [];
+  const singleUnit = manageableUnits.length === 1 ? manageableUnits[0] : null;
+
+  const loadCalendar = async (nextMonth = month) => {
+    setCalendar((current) => ({ ...current, status: "loading", error: null }));
+    const result = await fetchJson(`/events?month=${encodeURIComponent(nextMonth)}`);
+    if (!result.ok) {
+      setCalendar({
+        status: "error",
+        items: [],
+        error: result.payload?.error?.message ?? "Unable to load events.",
+      });
+      return;
+    }
+
+    setCalendar({
+      status: "ready",
+      items: result.payload.items ?? [],
+      error: null,
+    });
+  };
+
+  const loadOptions = async () => {
+    if (!staffMode) {
+      return;
+    }
+
+    setOptions((current) => ({ ...current, status: "loading", error: null }));
+    const result = await fetchJson("/events/options");
+    if (!result.ok) {
+      setOptions({
+        status: "error",
+        data: { units: [] },
+        error: result.payload?.error?.message ?? "Unable to load event options.",
+      });
+      return;
+    }
+
+    setOptions({
+      status: "ready",
+      data: result.payload.data ?? { units: [] },
+      error: null,
+    });
+  };
+
+  useEffect(() => {
+    loadCalendar(month);
+  }, [month]);
+
+  useEffect(() => {
+    if (staffMode) {
+      loadOptions();
+    }
+  }, [staffMode]);
+
+  useEffect(() => {
+    if (singleUnit && !form.sourceUnitId) {
+      setForm((current) => ({ ...current, sourceUnitId: singleUnit.id }));
+    }
+  }, [singleUnit, form.sourceUnitId]);
+
+  const submitCreate = async () => {
+    setMessage("Posting event...");
+    const result = await fetchJson("/events", {
+      method: "POST",
+      body: buildEventPayload(form, singleUnit?.id ?? ""),
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to post event.");
+      return;
+    }
+
+    setMessage("Event posted.");
+    setShowCreateForm(false);
+    setForm(blankEventForm(singleUnit?.id ?? ""));
+    await loadCalendar(month);
+  };
+
+  return (
+    <div className="workspace-grid">
+      <section className="wide-panel application-panel">
+        {message ? (
+          <div className="form-message">
+            <strong>{message}</strong>
+          </div>
+        ) : null}
+        <div className="detail-stack application-review-stack">
+          {staffMode ? (
+            <div className="button-row">
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={() => {
+                  setShowCreateForm((current) => !current);
+                  setMessage("");
+                  if (showCreateForm) {
+                    setForm(blankEventForm(singleUnit?.id ?? ""));
+                  }
+                }}
+              >
+                {showCreateForm ? "Close create event" : "Create event"}
+              </button>
+            </div>
+          ) : null}
+
+          {staffMode && showCreateForm ? (
+            <ApplicationReviewSection title="CREATE EVENT">
+              {options.status === "loading" ? <SkeletonRows /> : null}
+              {options.status === "error" ? (
+                <EmptyState title="Event options unavailable" detail={options.error} />
+              ) : null}
+              {options.status === "ready" ? (
+                <>
+                  <EventEditorFields
+                    form={form}
+                    onChange={(field, value) =>
+                      setForm((current) => ({ ...current, [field]: value }))
+                    }
+                    sourceUnitLockedLabel={singleUnit?.name ?? ""}
+                    units={manageableUnits}
+                  />
+                  <div className="button-row">
+                    <button
+                      className="primary-action button-like"
+                      type="button"
+                      onClick={submitCreate}
+                    >
+                      Post event
+                    </button>
+                    <button
+                      className="secondary-action"
+                      type="button"
+                      onClick={() => {
+                        setForm(blankEventForm(singleUnit?.id ?? ""));
+                        setShowCreateForm(false);
+                        setMessage("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </ApplicationReviewSection>
+          ) : null}
+
+          <ApplicationReviewSection title="EVENT CALENDAR">
+            <EventCalendarToolbar
+              monthLabel={monthView.label}
+              onNext={() => setMonth((current) => nextCalendarMonth(current))}
+              onPrevious={() => setMonth((current) => previousCalendarMonth(current))}
+            />
+            {calendar.status === "loading" ? <SkeletonRows /> : null}
+            {calendar.status === "error" ? (
+              <EmptyState title="Events unavailable" detail={calendar.error} />
+            ) : null}
+            {calendar.status === "ready" ? (
+              <>
+                {!calendar.items.length ? (
+                  <p className="muted-copy">No posted events were found for this month.</p>
+                ) : null}
+                <EventMonthCalendar
+                  items={calendar.items}
+                  monthView={monthView}
+                  onOpenEvent={(item) =>
+                    onNavigate(eventPathForMode(mode, encodeURIComponent(item.id)))
+                  }
+                />
+              </>
+            ) : null}
+          </ApplicationReviewSection>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EventDetailWorkspace({ eventId, mode, onNavigate }) {
+  const staffMode = mode === "staff";
+  const [detail, setDetail] = useState({ status: "loading", event: null, error: null });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(() => blankEventForm());
+  const [message, setMessage] = useState("");
+
+  const loadDetail = async () => {
+    setDetail({ status: "loading", event: null, error: null });
+    const result = await fetchJson(`/events/${encodeURIComponent(eventId)}`);
+    if (!result.ok) {
+      setDetail({
+        status: "error",
+        event: null,
+        error: result.payload?.error?.message ?? "Unable to load event detail.",
+      });
+      return;
+    }
+
+    const event = result.payload.data ?? null;
+    setDetail({ status: "ready", event, error: null });
+    setForm(eventToForm(event));
+    setEditing(false);
+  };
+
+  useEffect(() => {
+    loadDetail();
+  }, [eventId]);
+
+  const event = detail.event;
+
+  const saveEdit = async () => {
+    if (!event) {
+      return;
+    }
+
+    setMessage("Saving event...");
+    const result = await fetchJson(`/events/${encodeURIComponent(event.id)}`, {
+      method: "PATCH",
+      body: buildEventPayload(form, event.sourceUnitId),
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to save event.");
+      return;
+    }
+
+    setMessage("Event updated.");
+    await loadDetail();
+  };
+
+  const cancelScheduledEvent = async () => {
+    if (!event) {
+      return;
+    }
+
+    setMessage("Cancelling event...");
+    const result = await fetchJson(`/events/${encodeURIComponent(event.id)}/cancel`, {
+      method: "POST",
+    });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to cancel event.");
+      return;
+    }
+
+    setMessage("Event cancelled.");
+    await loadDetail();
+  };
+
+  const handleRsvp = async (action) => {
+    if (!event) {
+      return;
+    }
+
+    const path =
+      action === "signup"
+        ? `/events/${encodeURIComponent(event.id)}/signup`
+        : `/events/${encodeURIComponent(event.id)}/withdraw`;
+    setMessage(action === "signup" ? "Signing up..." : "Withdrawing...");
+    const result = await fetchJson(path, { method: "POST" });
+    if (!result.ok) {
+      setMessage(result.payload?.error?.message ?? "Unable to update RSVP.");
+      return;
+    }
+
+    setMessage(action === "signup" ? "You are signed up for this event." : "RSVP withdrawn.");
+    await loadDetail();
+  };
+
+  const actions = (
+    <div className="button-row">
+      <button
+        className="secondary-action"
+        type="button"
+        onClick={() => onNavigate(eventListPathForMode(mode))}
+      >
+        Back to events
+      </button>
+      {staffMode && event?.permissions?.canEdit && !editing ? (
+        <button className="secondary-action" type="button" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+      ) : null}
+      {staffMode && editing ? (
+        <>
+          <button className="primary-action button-like" type="button" onClick={saveEdit}>
+            Save
+          </button>
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={() => {
+              setForm(eventToForm(event));
+              setEditing(false);
+              setMessage("");
+            }}
+          >
+            Cancel
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className="workspace-grid">
+      <section className="wide-panel application-panel">
+        {message ? (
+          <div className="form-message">
+            <strong>{message}</strong>
+          </div>
+        ) : null}
+        {detail.status === "loading" ? <SkeletonRows /> : null}
+        {detail.status === "error" ? (
+          <EmptyState title="Event unavailable" detail={detail.error} />
+        ) : null}
+        {detail.status === "ready" && event ? (
+          <div className="detail-stack application-review-stack">
+            {actions}
+            {editing ? (
+              <ApplicationReviewSection title="EDIT EVENT">
+                <EventEditorFields
+                  form={form}
+                  onChange={(field, value) =>
+                    setForm((current) => ({ ...current, [field]: value }))
+                  }
+                  sourceUnitLockedLabel={event.sourceUnit?.name ?? "Unassigned"}
+                  units={[]}
+                />
+              </ApplicationReviewSection>
+            ) : null}
+            <ApplicationReviewSection title="EVENT DETAILS">
+              <EventDetailSummary event={event} />
+              {staffMode && event.permissions?.canCancel ? (
+                <div className="button-row">
+                  <button className="danger-action" type="button" onClick={cancelScheduledEvent}>
+                    Cancel event
+                  </button>
+                </div>
+              ) : null}
+            </ApplicationReviewSection>
+            {!staffMode ? (
+              <ApplicationReviewSection title="RSVP">
+                <EventRsvpPanel event={event} onRsvp={handleRsvp} />
+              </ApplicationReviewSection>
+            ) : null}
+            {staffMode ? (
+              <ApplicationReviewSection title="SIGNUP ROSTER">
+                <EventSignupRosterTable items={event.signups ?? []} />
+              </ApplicationReviewSection>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+function EventCalendarToolbar({ monthLabel, onNext, onPrevious }) {
+  return (
+    <div className="event-toolbar">
+      <strong className="event-month-label">{monthLabel}</strong>
+      <div className="event-toolbar-actions">
+        <button className="secondary-action compact-action" type="button" onClick={onPrevious}>
+          Previous
+        </button>
+        <button className="secondary-action compact-action" type="button" onClick={onNext}>
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EventMonthCalendar({ items, monthView, onOpenEvent }) {
+  const eventsByDay = useMemo(() => groupEventsByDay(items), [items]);
+  const weeks = useMemo(() => chunkCalendarDays(monthView.days), [monthView.days]);
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="event-calendar-shell">
+      <div className="event-calendar-grid event-calendar-weekdays" role="presentation">
+        {weekdayLabels.map((label) => (
+          <div className="event-weekday" key={label}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <div className="event-calendar-weeks">
+        {weeks.map((week, weekIndex) => (
+          <div className="event-calendar-grid" key={weekIndex}>
+            {week.map((day) => {
+              const dayEvents = eventsByDay.get(day.key) ?? [];
+              const visibleEvents = dayEvents.slice(0, 3);
+              const overflowCount = Math.max(dayEvents.length - visibleEvents.length, 0);
+
+              return (
+                <div
+                  className={`event-day-cell${day.inMonth ? "" : " out-of-month"}${day.isToday ? " today" : ""}`}
+                  key={day.key}
+                >
+                  <div className="event-day-header">
+                    <span className="event-day-number">{day.dayOfMonth}</span>
+                  </div>
+                  <div className="event-day-events">
+                    {visibleEvents.map((item) => (
+                      <button
+                        className="event-pill"
+                        key={`${day.key}-${item.id}`}
+                        type="button"
+                        onClick={() => onOpenEvent(item)}
+                      >
+                        <time>{formatEventTime(item.startsAt)}</time>
+                        <span>{item.title}</span>
+                      </button>
+                    ))}
+                    {overflowCount > 0 ? (
+                      <span className="event-overflow">+{overflowCount} more</span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventDetailSummary({ event }) {
+  return (
+    <div className="event-detail-stack">
+      <div className="event-detail-heading">
+        <strong>{event.title}</strong>
+        <p className="event-description">{event.details}</p>
+      </div>
+      <KeyValueList
+        items={[
+          ["Type", eventTypeLabel(event.eventType)],
+          ["Location", eventLocationLabel(event.location)],
+          ["Attendance", eventAttendanceScopeLabel(event.attendanceScope)],
+          ["Owning Unit", unitDisplayLabel(event.sourceUnit)],
+          ["Start", formatDateTime(event.startsAt)],
+          ["Estimated End", formatDateTime(event.endsAt)],
+          ["Status", humanize(event.status)],
+        ]}
+      />
+    </div>
+  );
+}
+
+function EventRsvpPanel({ event, onRsvp }) {
+  const statusMessage = eventRsvpStatusMessage(event);
+
+  return (
+    <div className="application-review-actions">
+      <p className="muted-copy">{statusMessage}</p>
+      <div className="button-row">
+        {event.permissions?.canSignup ? (
+          <button
+            className="primary-action button-like"
+            type="button"
+            onClick={() => onRsvp("signup")}
+          >
+            Sign up
+          </button>
+        ) : null}
+        {event.permissions?.canWithdraw ? (
+          <button className="secondary-action" type="button" onClick={() => onRsvp("withdraw")}>
+            Withdraw
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EventSignupRosterTable({ items }) {
+  if (!items.length) {
+    return <EmptyState title="No signups" detail="No members have signed up for this event yet." />;
+  }
+
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Unit</th>
+            <th>Rank</th>
+            <th>Signed Up</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>
+                {personDisplayName({ fullName: item.personnelProfile?.name }, "Unnamed member")}
+              </td>
+              <td>{personnelStatusLabel(item.personnelProfile?.status)}</td>
+              <td>{unitDisplayLabel(item.personnelProfile?.currentUnit)}</td>
+              <td>{rankDisplayLabel(item.personnelProfile?.currentRank, { compact: true })}</td>
+              <td>{formatDateTime(item.signedUpAt ?? item.createdAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EventEditorFields({ form, onChange, sourceUnitLockedLabel = "", units }) {
+  return (
+    <>
+      <div className="event-form-grid">
+        <Field label="Event Name">
+          <input value={form.title} onChange={(event) => onChange("title", event.target.value)} />
+        </Field>
+        <Field label="Event Type">
+          <select
+            value={form.eventType}
+            onChange={(event) => onChange("eventType", event.target.value)}
+          >
+            <option value="">Choose one</option>
+            {EVENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Location">
+          <select
+            value={form.location}
+            onChange={(event) => onChange("location", event.target.value)}
+          >
+            <option value="">Choose one</option>
+            {EVENT_LOCATION_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Attendance Restriction">
+          <select
+            value={form.attendanceScope}
+            onChange={(event) => onChange("attendanceScope", event.target.value)}
+          >
+            <option value="">Choose one</option>
+            {EVENT_ATTENDANCE_SCOPE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {sourceUnitLockedLabel ? (
+          <ReadOnlyField label="Owning Unit">{sourceUnitLockedLabel}</ReadOnlyField>
+        ) : (
+          <Field label="Owning Unit">
+            <select
+              value={form.sourceUnitId}
+              onChange={(event) => onChange("sourceUnitId", event.target.value)}
+            >
+              <option value="">Choose one</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label="Start Date And Time">
+          <input
+            type="datetime-local"
+            value={form.startsAt}
+            onChange={(event) => onChange("startsAt", event.target.value)}
+          />
+        </Field>
+        <Field label="Estimated End Date And Time">
+          <input
+            type="datetime-local"
+            value={form.endsAt}
+            onChange={(event) => onChange("endsAt", event.target.value)}
+          />
+        </Field>
+      </div>
+      <Field label="Short Description">
+        <textarea
+          value={form.details}
+          onChange={(event) => onChange("details", event.target.value)}
+        />
+      </Field>
+    </>
   );
 }
 
@@ -4640,6 +5289,19 @@ function blankTrainingForm() {
   };
 }
 
+function blankEventForm(sourceUnitId = "") {
+  return {
+    title: "",
+    eventType: "",
+    location: "",
+    attendanceScope: "",
+    sourceUnitId,
+    startsAt: "",
+    endsAt: "",
+    details: "",
+  };
+}
+
 function blankTrainingAttendee() {
   return {
     personnelProfileId: "",
@@ -4664,6 +5326,23 @@ function trainingSessionToForm(session) {
           notes: record.notes ?? "",
         }))
       : [blankTrainingAttendee()],
+  };
+}
+
+function eventToForm(event) {
+  if (!event) {
+    return blankEventForm();
+  }
+
+  return {
+    title: event.title ?? "",
+    eventType: event.eventType ?? "",
+    location: event.location ?? "",
+    attendanceScope: event.attendanceScope ?? "",
+    sourceUnitId: event.sourceUnitId ?? "",
+    startsAt: dateTimeLocalInputValue(event.startsAt),
+    endsAt: dateTimeLocalInputValue(event.endsAt),
+    details: event.details ?? "",
   };
 }
 
@@ -5033,6 +5712,113 @@ function dateInputValue(value) {
 
 function todayDateInput() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dateTimeLocalInputValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return (
+    [
+      date.getFullYear().toString().padStart(4, "0"),
+      (date.getMonth() + 1).toString().padStart(2, "0"),
+      date.getDate().toString().padStart(2, "0"),
+    ].join("-") +
+    "T" +
+    [
+      date.getHours().toString().padStart(2, "0"),
+      date.getMinutes().toString().padStart(2, "0"),
+    ].join(":")
+  );
+}
+
+function formatEventTime(value) {
+  if (!value) {
+    return "--:--";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function buildEventPayload(form, fallbackSourceUnitId = "") {
+  return {
+    title: form.title,
+    eventType: form.eventType,
+    location: form.location,
+    attendanceScope: form.attendanceScope,
+    sourceUnitId: form.sourceUnitId || fallbackSourceUnitId,
+    startsAt: form.startsAt,
+    endsAt: form.endsAt,
+    details: form.details,
+  };
+}
+
+function eventListPathForMode(mode) {
+  return mode === "staff" ? "/staff/events" : "/user/events";
+}
+
+function eventPathForMode(mode, eventId) {
+  return `${eventListPathForMode(mode)}/${eventId}`;
+}
+
+function groupEventsByDay(items) {
+  const groups = new Map();
+  for (const item of items ?? []) {
+    for (const key of eventDateKeys(item.startsAt, item.endsAt)) {
+      const existing = groups.get(key) ?? [];
+      existing.push(item);
+      groups.set(key, existing);
+    }
+  }
+  return groups;
+}
+
+function chunkCalendarDays(days) {
+  const weeks = [];
+  for (let index = 0; index < days.length; index += 7) {
+    weeks.push(days.slice(index, index + 7));
+  }
+  return weeks;
+}
+
+function eventRsvpStatusMessage(event) {
+  if (!event) {
+    return "Event status unavailable.";
+  }
+
+  if (event.status === "Cancelled") {
+    return "This event has been cancelled.";
+  }
+
+  if (event.currentUserSignupStatus === "Expected") {
+    return "You are currently signed up for this event.";
+  }
+
+  if (new Date(event.startsAt) <= new Date()) {
+    return "RSVPs are closed for this event.";
+  }
+
+  if (!event.currentUserEligible) {
+    return event.attendanceScope === "UnitOnly"
+      ? "This event is limited to members of the owning unit and its descendants."
+      : "A personnel profile is required to sign up for this event.";
+  }
+
+  return "Sign up if you are available to attend this event.";
 }
 
 function JsonPreview({ data }) {

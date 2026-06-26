@@ -71,6 +71,13 @@ export const SITE_MAP_SECTIONS = [
         visibility: { statuses: ["Active"], allOf: ["personnel.view-scoped"] },
       },
       {
+        id: "staff_events",
+        label: "Events",
+        path: "/staff/events",
+        icon: "events",
+        visibility: { statuses: ["Active"], allOf: ["events.manage-scoped"] },
+      },
+      {
         id: "staff_personnel_management",
         label: "Personnel Management",
         path: "/staff/personnel-management",
@@ -504,6 +511,33 @@ function findDynamicRouteNodeByPath(sections, normalizedPath) {
     };
   }
 
+  const staffEventDetailMatch = /^\/staff\/events\/([^/]+)$/.exec(normalizedPath);
+  if (staffEventDetailMatch) {
+    const section = sections.find((item) => item.id === "staff");
+    const page = section?.pages?.find((item) => item.id === "staff_events");
+    if (!section || !page) {
+      return null;
+    }
+
+    return {
+      type: "detail",
+      section,
+      page,
+      node: {
+        ...compactNavigationNode({
+          ...page,
+          id: "staff_event_detail",
+          label: "Event Detail",
+          path: normalizedPath,
+        }),
+        parentPageId: page.id,
+      },
+      params: {
+        eventId: decodeURIComponent(staffEventDetailMatch[1]),
+      },
+    };
+  }
+
   const staffApplicantDetailMatch = /^\/staff\/applicant-review\/([^/]+)$/.exec(normalizedPath);
   if (staffApplicantDetailMatch) {
     const section = sections.find((item) => item.id === "staff");
@@ -527,6 +561,33 @@ function findDynamicRouteNodeByPath(sections, normalizedPath) {
       },
       params: {
         applicationId: decodeURIComponent(staffApplicantDetailMatch[1]),
+      },
+    };
+  }
+
+  const userEventDetailMatch = /^\/user\/events\/([^/]+)$/.exec(normalizedPath);
+  if (userEventDetailMatch) {
+    const section = sections.find((item) => item.id === "user");
+    const page = section?.pages?.find((item) => item.id === "user_events");
+    if (!section || !page) {
+      return null;
+    }
+
+    return {
+      type: "detail",
+      section,
+      page,
+      node: {
+        ...compactNavigationNode({
+          ...page,
+          id: "user_event_detail",
+          label: "Event Detail",
+          path: normalizedPath,
+        }),
+        parentPageId: page.id,
+      },
+      params: {
+        eventId: decodeURIComponent(userEventDetailMatch[1]),
       },
     };
   }

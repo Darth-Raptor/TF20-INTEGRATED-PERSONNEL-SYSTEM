@@ -107,6 +107,7 @@ export const catalogSource = {
         "applications.review-target-unit",
         "applications.view-self",
         "attendance.view-self",
+        "events.manage-scoped",
         "events.view-self",
         "loa.create-self",
         "notifications.archive-self",

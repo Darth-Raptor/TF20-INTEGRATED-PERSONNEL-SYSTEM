@@ -1,4 +1,4 @@
-
+﻿
 
 SECTIONS: SECTIONS WILL BE THE FIRST LAYER OF THE LEFT SIDE NAVIGATION BAR. CLICKING ON A SECTION WILL DIRECT USERS TO THE FIRST AVAILABLE PAGE IN THAT SECTION. EACH SECTION WILL THEN HAVE A LAYER OF PAGES THAT ARE GROUPED INTO THAT SECTION. 
     SECTION LIST: 
@@ -38,6 +38,7 @@ PAGES: PAGES WILL BE THE SECOND LAYER OF THE LEFT SIDE NAVAGATION BAR. CLICKING 
         user_events
         user_support
         staff_unit
+        staff_events
         staff_personnelManagement
         staff_applicantReview
         recruiting_dashbaord
@@ -60,3 +61,4 @@ SUBPAGES: SUBPAGES WILL BE PAGES THAT ARE OPENED FROM THEIR LINKED PAGE. THE SUB
         staff_personnelManagement_awards
         staff_personnelManagement_leave
         staff_personnelManagement_intake
+

@@ -57,6 +57,16 @@ import {
   updatePersonnelProfile,
 } from "./personnel-service.mjs";
 import {
+  cancelEvent,
+  createEvent,
+  getEventDetail,
+  getEventOptions,
+  listEventsForMonth,
+  signupForEvent,
+  updateEvent,
+  withdrawFromEvent,
+} from "./event-service.mjs";
+import {
   createTrainingSession,
   getTrainingOptions,
   getTrainingSession,
@@ -982,6 +992,151 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
       }
     },
   );
+
+  app.get("/events", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await listEventsForMonth(prisma, req.context.account, req.query.month);
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        items: result.items,
+        meta: {
+          count: result.items.length,
+          month: result.month,
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get("/events/options", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await getEventOptions(prisma, req.context.account);
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.options,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get("/events/:id", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await getEventDetail(prisma, req.context.account, req.params.id);
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/events", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await createEvent({
+        prisma,
+        actor: req.context.account,
+        body: req.body,
+      });
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(201).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.patch("/events/:id", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await updateEvent({
+        prisma,
+        actor: req.context.account,
+        eventId: req.params.id,
+        body: req.body,
+      });
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/events/:id/cancel", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await cancelEvent({
+        prisma,
+        actor: req.context.account,
+        eventId: req.params.id,
+      });
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/events/:id/signup", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await signupForEvent({
+        prisma,
+        actor: req.context.account,
+        eventId: req.params.id,
+      });
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/events/:id/withdraw", requireAuthenticatedSession, async (req, res, next) => {
+    try {
+      const result = await withdrawFromEvent({
+        prisma,
+        actor: req.context.account,
+        eventId: req.params.id,
+      });
+      if (!result.ok) {
+        return sendEventError(res, result);
+      }
+
+      return res.status(200).json({
+        data: result.event,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
 
   app.get("/training/options", requireAuthenticatedSession, async (req, res, next) => {
     try {
@@ -2019,6 +2174,18 @@ async function handleApplicationActionFailure({
 function sendTrainingError(res, result) {
   const statusCode =
     result.code === "permission_denied" ? 403 : result.code === "not_found" ? 404 : 400;
+  return sendError(res, statusCode, result.code, result.message);
+}
+
+function sendEventError(res, result) {
+  const statusCode =
+    result.code === "permission_denied"
+      ? 403
+      : result.code === "not_found"
+        ? 404
+        : result.code === "invalid_transition"
+          ? 409
+          : 400;
   return sendError(res, statusCode, result.code, result.message);
 }
 

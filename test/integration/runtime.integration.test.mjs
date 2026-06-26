@@ -65,6 +65,16 @@ import {
   listOwnTrainingRecords,
   updateTrainingSession,
 } from "../../src/server/training-service.mjs";
+import {
+  cancelEvent,
+  createEvent,
+  getEventDetail,
+  getEventOptions,
+  listEventsForMonth,
+  signupForEvent,
+  updateEvent,
+  withdrawFromEvent,
+} from "../../src/server/event-service.mjs";
 
 const prisma = new PrismaClient();
 let sequence = 0;
@@ -2354,6 +2364,250 @@ test("trainer records pass/fail course sessions and owns corrections", async () 
   assert.equal(correctedHistory.items[0].outcome, "Fail");
 });
 
+test("staff create events, members view them, and RSVP rules are enforced", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const otherUnit = await activeUnit("tf20_soar_b160");
+  const staff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: rootUnit.id,
+  });
+  const openMember = await createActivePersonnel("Open Event Member");
+  const eligibleUnitMember = await createActivePersonnel("Eligible Unit Member");
+  const outsider = await createActivePersonnel("Outside Unit Member");
+
+  await assignPersonnelCurrentUnit(eligibleUnitMember.profile.id, rootUnit.id);
+  await assignPersonnelCurrentUnit(outsider.profile.id, otherUnit.id);
+
+  const openEvent = await createEvent({
+    prisma,
+    actor: staff,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Open Attendance Event",
+      attendanceScope: "Open",
+    }),
+  });
+  assert.equal(openEvent.ok, true);
+
+  const visibleMonth = await listEventsForMonth(prisma, openMember.account, "2026-07");
+  assert.equal(visibleMonth.ok, true);
+  assert.equal(
+    visibleMonth.items.some((item) => item.id === openEvent.event.id),
+    true,
+  );
+
+  const openSignup = await signupForEvent({
+    prisma,
+    actor: openMember.account,
+    eventId: openEvent.event.id,
+  });
+  assert.equal(openSignup.ok, true);
+
+  const staffDetail = await getEventDetail(prisma, staff, openEvent.event.id);
+  assert.equal(staffDetail.ok, true);
+  assert.equal(staffDetail.event.signups.length, 1);
+  assert.equal(staffDetail.event.signups[0].personnelProfileId, openMember.profile.id);
+
+  const withdrawn = await withdrawFromEvent({
+    prisma,
+    actor: openMember.account,
+    eventId: openEvent.event.id,
+  });
+  assert.equal(withdrawn.ok, true);
+  assert.equal(withdrawn.event.signups.length, 0);
+
+  const unitOnlyEvent = await createEvent({
+    prisma,
+    actor: staff,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Unit Only Event",
+      attendanceScope: "UnitOnly",
+      startsAt: "2026-07-13T19:00",
+      endsAt: "2026-07-13T21:00",
+    }),
+  });
+  assert.equal(unitOnlyEvent.ok, true);
+
+  const eligibleSignup = await signupForEvent({
+    prisma,
+    actor: eligibleUnitMember.account,
+    eventId: unitOnlyEvent.event.id,
+  });
+  assert.equal(eligibleSignup.ok, true);
+
+  const blockedSignup = await signupForEvent({
+    prisma,
+    actor: outsider.account,
+    eventId: unitOnlyEvent.event.id,
+  });
+  assert.equal(blockedSignup.ok, false);
+  assert.equal(blockedSignup.code, "permission_denied");
+});
+
+test("global event managers receive root-unit event options", async () => {
+  const globalStaff = await createAccountWithRole("unit-staff", "Active");
+
+  const result = await getEventOptions(prisma, globalStaff);
+
+  assert.equal(result.ok, true);
+  assert.ok((result.options.units ?? []).length > 1);
+  assert.equal(
+    result.options.units.some((unit) => unit.name === "A Co, 1/75th Ranger Regiment"),
+    true,
+  );
+});
+
+test("unit server scheduling rejects overlaps and out-of-scope staff cannot change another unit event", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const otherUnit = await activeUnit("tf20_soar_b160");
+  const owner = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: rootUnit.id,
+  });
+  const outsiderStaff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: otherUnit.id,
+  });
+
+  const first = await createEvent({
+    prisma,
+    actor: owner,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Reserved Unit Server Window",
+      location: "UnitServer",
+      startsAt: "2026-07-14T19:00",
+      endsAt: "2026-07-14T21:00",
+    }),
+  });
+  assert.equal(first.ok, true);
+
+  const overlapping = await createEvent({
+    prisma,
+    actor: owner,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Conflicting Unit Server Window",
+      location: "UnitServer",
+      startsAt: "2026-07-14T20:00",
+      endsAt: "2026-07-14T22:00",
+    }),
+  });
+  assert.equal(overlapping.ok, false);
+  assert.equal(overlapping.code, "validation_error");
+
+  const blockedUpdate = await updateEvent({
+    prisma,
+    actor: outsiderStaff,
+    eventId: first.event.id,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Unauthorized Update",
+      location: "Discord",
+      startsAt: "2026-07-14T19:00",
+      endsAt: "2026-07-14T21:00",
+    }),
+  });
+  assert.equal(blockedUpdate.ok, false);
+  assert.equal(blockedUpdate.code, "permission_denied");
+
+  const blockedCancel = await cancelEvent({
+    prisma,
+    actor: outsiderStaff,
+    eventId: first.event.id,
+  });
+  assert.equal(blockedCancel.ok, false);
+  assert.equal(blockedCancel.code, "permission_denied");
+});
+
+test("event edits cannot invalidate active signups and cancelled events remain visible", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const otherUnit = await activeUnit("tf20_soar_b160");
+  const staff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: rootUnit.id,
+  });
+  const outsider = await createActivePersonnel("Open Signup Outsider");
+  await assignPersonnelCurrentUnit(outsider.profile.id, otherUnit.id);
+
+  const created = await createEvent({
+    prisma,
+    actor: staff,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Editable Open Attendance Event",
+      attendanceScope: "Open",
+      startsAt: "2026-07-15T19:00",
+      endsAt: "2026-07-15T21:00",
+    }),
+  });
+  assert.equal(created.ok, true);
+
+  const signup = await signupForEvent({
+    prisma,
+    actor: outsider.account,
+    eventId: created.event.id,
+  });
+  assert.equal(signup.ok, true);
+
+  const blockedRestriction = await updateEvent({
+    prisma,
+    actor: staff,
+    eventId: created.event.id,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Editable Open Attendance Event",
+      attendanceScope: "UnitOnly",
+      startsAt: "2026-07-15T19:00",
+      endsAt: "2026-07-15T21:00",
+    }),
+  });
+  assert.equal(blockedRestriction.ok, false);
+  assert.equal(blockedRestriction.code, "validation_error");
+
+  const cancelled = await cancelEvent({
+    prisma,
+    actor: staff,
+    eventId: created.event.id,
+  });
+  assert.equal(cancelled.ok, true);
+  assert.equal(cancelled.event.status, "Cancelled");
+
+  const visibleAfterCancel = await getEventDetail(prisma, outsider.account, created.event.id);
+  assert.equal(visibleAfterCancel.ok, true);
+  assert.equal(visibleAfterCancel.event.status, "Cancelled");
+});
+
+test("event signups close when the event start time has passed", async () => {
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const staff = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: rootUnit.id,
+  });
+  const member = await createActivePersonnel("Late RSVP Member");
+
+  const pastEvent = await createEvent({
+    prisma,
+    actor: staff,
+    body: eventBody({
+      sourceUnitId: rootUnit.id,
+      title: "Past Event Window",
+      startsAt: "2026-01-10T19:00",
+      endsAt: "2026-01-10T21:00",
+    }),
+  });
+  assert.equal(pastEvent.ok, true);
+
+  const result = await signupForEvent({
+    prisma,
+    actor: member.account,
+    eventId: pastEvent.event.id,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "invalid_transition");
+});
+
 test("current members claim imported accounts through Discord authentication", async () => {
   const member = await createActivePersonnel("Claimable Member");
   const identity = member.account.authIdentities[0];
@@ -2782,6 +3036,15 @@ async function createActivePersonnel(name) {
   return { account, profile };
 }
 
+async function assignPersonnelCurrentUnit(personnelProfileId, unitId) {
+  await prisma.personnelProfile.update({
+    where: { id: personnelProfileId },
+    data: {
+      currentUnitId: unitId,
+    },
+  });
+}
+
 async function activeUnit(key) {
   return prisma.unit.findFirstOrThrow({ where: { key, status: "Active" } });
 }
@@ -2829,6 +3092,20 @@ async function applicationBody(targetUnitId, preferredName) {
     interestedUnitIds: [targetUnitId],
     availabilitySlotKeys: ["tuesday_evenings", "thursday_evenings"],
     desiredMOSIds: [mos.id],
+  };
+}
+
+function eventBody(overrides = {}) {
+  return {
+    title: uniqueKey("integration-event"),
+    eventType: "Meeting",
+    location: "Discord",
+    attendanceScope: "Open",
+    sourceUnitId: "",
+    startsAt: "2026-07-10T19:00",
+    endsAt: "2026-07-10T21:00",
+    details: "Integration event detail.",
+    ...overrides,
   };
 }
 

@@ -1301,6 +1301,156 @@ textarea:disabled {
   background: var(--palette-text-input-background);
 }
 
+.event-toolbar,
+.event-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.event-toolbar {
+  justify-content: space-between;
+}
+
+.event-month-label {
+  color: var(--palette-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.event-calendar-shell {
+  display: grid;
+  gap: 1px;
+  overflow-x: auto;
+}
+
+.event-calendar-weeks {
+  display: grid;
+  gap: 1px;
+}
+
+.event-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  min-width: 760px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--border);
+}
+
+.event-weekday,
+.event-day-cell {
+  background: var(--palette-text-input-background);
+}
+
+.event-weekday {
+  padding: 10px;
+  color: var(--palette-text);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.event-day-cell {
+  min-height: 148px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  padding: 10px;
+}
+
+.event-day-cell.out-of-month {
+  opacity: 0.58;
+}
+
+.event-day-cell.today {
+  box-shadow: inset 0 0 0 1px var(--amber);
+}
+
+.event-day-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.event-day-number {
+  color: var(--palette-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.event-day-events {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.event-pill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--palette-page-bar);
+  color: var(--palette-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.event-pill:hover {
+  border-color: var(--amber);
+}
+
+.event-pill time {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.event-pill span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-overflow {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.event-detail-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.event-detail-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.event-detail-heading strong {
+  color: var(--palette-text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.event-description {
+  margin: 0;
+  color: var(--palette-text);
+  white-space: pre-wrap;
+}
+
+.event-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
 .application-section-copy {
   margin: 0;
   color: var(--palette-text);

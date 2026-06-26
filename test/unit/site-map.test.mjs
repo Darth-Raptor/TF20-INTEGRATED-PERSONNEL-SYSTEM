@@ -29,7 +29,7 @@ test("implementation sitemap matches SITE_MAP.TXT after normalization", () => {
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
   assert.deepEqual(result.parsed.sections, ["user", "staff", "recruiting", "training", "admin"]);
-  assert.equal(result.parsed.pages.length, 16);
+  assert.equal(result.parsed.pages.length, 17);
   assert.equal(result.parsed.subpages.length, 5);
 });
 
@@ -127,6 +127,24 @@ test("staff applicant review detail route keeps applicant review navigation acti
   assert.equal(visibleMatch.node.label, "Applicant Detail");
   assert.equal(visibleMatch.params.applicationId, "test-application-id");
   assert.equal(siteMapMatch.page.id, "staff_applicant_review");
+  assert.equal(isSectionDashboardMatch(visibleMatch), false);
+});
+
+test("staff events detail route keeps events navigation active", () => {
+  const navigation = resolveVisibleNavigation("Active", [
+    "personnel.view-scoped",
+    "events.manage-scoped",
+  ]);
+  const visibleMatch = findNavigationNodeByPath(navigation, "/staff/events/test-event-id");
+  const siteMapMatch = findSiteMapNodeByPath("/staff/events/test-event-id");
+
+  assert.equal(visibleMatch.type, "detail");
+  assert.equal(visibleMatch.section.id, "staff");
+  assert.equal(visibleMatch.page.id, "staff_events");
+  assert.equal(visibleMatch.node.id, "staff_event_detail");
+  assert.equal(visibleMatch.node.label, "Event Detail");
+  assert.equal(visibleMatch.params.eventId, "test-event-id");
+  assert.equal(siteMapMatch.page.id, "staff_events");
   assert.equal(isSectionDashboardMatch(visibleMatch), false);
 });
 
@@ -239,6 +257,21 @@ test("training records page replaces reserved training dashboard", () => {
   assert.equal(visibleMatch.node.id, "training_records");
   assert.equal(visibleMatch.node.label, "Training Records");
   assert.equal(siteMapMatch.node.id, "training_records");
+  assert.equal(isSectionDashboardMatch(visibleMatch), false);
+});
+
+test("user events detail route keeps events navigation active", () => {
+  const navigation = resolveVisibleNavigation("Active", ["accounts.view-self", "events.view-self"]);
+  const visibleMatch = findNavigationNodeByPath(navigation, "/user/events/test-event-id");
+  const siteMapMatch = findSiteMapNodeByPath("/user/events/test-event-id");
+
+  assert.equal(visibleMatch.type, "detail");
+  assert.equal(visibleMatch.section.id, "user");
+  assert.equal(visibleMatch.page.id, "user_events");
+  assert.equal(visibleMatch.node.id, "user_event_detail");
+  assert.equal(visibleMatch.node.label, "Event Detail");
+  assert.equal(visibleMatch.params.eventId, "test-event-id");
+  assert.equal(siteMapMatch.page.id, "user_events");
   assert.equal(isSectionDashboardMatch(visibleMatch), false);
 });
 
