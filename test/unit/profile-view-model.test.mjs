@@ -51,6 +51,27 @@ test("unit hierarchy separates unit from platoon squad team assignment", () => {
   });
 });
 
+test("recruiting-root teams display themselves as the visible unit", () => {
+  const currentUnit = {
+    id: "rrc",
+    name: "TEAM 1, RRC, RSTB, 75th RR",
+    type: "Team",
+    hierarchyBase: 7000,
+    parent: {
+      id: "hhc",
+      name: "Task Force 20 HHC",
+      type: "Headquarters",
+      hierarchyBase: 8000,
+      parent: null,
+    },
+  };
+
+  assert.deepEqual(resolveUnitDisplay(currentUnit), {
+    unit: "TEAM 1, RRC, RSTB, 75th RR",
+    assignment: "Unassigned",
+  });
+});
+
 test("award records split ribbons from other award types", () => {
   assert.deepEqual(
     splitAwardRecords([

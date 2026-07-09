@@ -88,6 +88,17 @@ export function resolveUnitDisplay(currentUnit) {
     return { unit: "Unassigned", assignment: "Unassigned" };
   }
 
+  const recruitingRoot = [...chain].reverse().find((unit) => unit?.hierarchyBase === 7000);
+  if (recruitingRoot) {
+    return {
+      unit: recruitingRoot.name ?? "Unassigned",
+      assignment:
+        currentUnit && currentUnit.id !== recruitingRoot.id
+          ? shortUnitName(currentUnit.name)
+          : "Unassigned",
+    };
+  }
+
   const assignmentStartIndex = chain.findIndex((unit) => ASSIGNMENT_UNIT_TYPES.has(unit.type));
   const unitNode =
     assignmentStartIndex > 0
