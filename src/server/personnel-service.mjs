@@ -1,5 +1,8 @@
 import { syncUnitScopedRoleAssignments } from "./role-management-service.mjs";
-import { loadLiveRecruitingOpenings } from "./recruiting-openings.mjs";
+import {
+  loadLiveRecruitingBilletOpenings,
+  loadRecruitingBilletOpenings,
+} from "./recruiting-openings.mjs";
 import { comparePersonNamesByLastName } from "../shared/person-name-sort.mjs";
 
 export const PERSONNEL_STATUS_OPTIONS = [
@@ -238,7 +241,7 @@ export async function getStaffUnitOverview(prisma, actor, selectedUnitId = "") {
       },
       include: rosterListInclude(),
     }),
-    buildUnitStrengthRows(prisma, selectedRoot.id, treeUnitIds),
+    buildUnitStrengthRows(prisma, selectedRoot.id),
   ]);
 
   const membersByUnitId = new Map();
@@ -291,15 +294,21 @@ export async function getStaffUnitOverview(prisma, actor, selectedUnitId = "") {
   };
 }
 
-export async function updateUnitMOSSlots({ prisma, actor, unitId, mosId, authorizedSlots }) {
+export async function updateUnitBilletOpeningSlots({
+  prisma,
+  actor,
+  unitId,
+  openingId,
+  authorizedSlots,
+}) {
   if (!canUpdateScopedPersonnel(actor)) {
     return failure("permission_denied", "Scoped personnel update is required.");
   }
 
   const normalizedUnitId = normalizeOptionalText(unitId);
-  const normalizedMosId = normalizeOptionalText(mosId);
-  if (!normalizedUnitId || !normalizedMosId) {
-    return failure("validation_error", "Unit and MOS are required.");
+  const normalizedOpeningId = normalizeOptionalText(openingId);
+  if (!normalizedUnitId || !normalizedOpeningId) {
+    return failure("validation_error", "Unit and billet opening are required.");
   }
 
   const parsedSlots =
@@ -318,34 +327,33 @@ export async function updateUnitMOSSlots({ prisma, actor, unitId, mosId, authori
     return failure("permission_denied", "Selected unit is outside your editable scope.");
   }
 
-  const mos = await prisma.mOS.findFirst({
+  const opening = await prisma.billetOpening.findFirst({
     where: {
-      id: normalizedMosId,
-      unitId: normalizedUnitId,
-      status: "Active",
+      id: normalizedOpeningId,
+      rootUnitId: normalizedUnitId,
     },
     select: {
       id: true,
-      identifier: true,
-      name: true,
+      billetName: true,
       authorizedSlots: true,
-      unit: { select: { id: true, key: true, name: true } },
+      rootUnit: { select: { id: true, key: true, name: true } },
     },
   });
-  if (!mos) {
-    return failure("validation_error", "Selected MOS does not belong to the selected unit.");
+  if (!opening) {
+    return failure(
+      "validation_error",
+      "Selected billet opening does not belong to the selected unit.",
+    );
   }
 
-  const updated = await prisma.mOS.update({
-    where: { id: mos.id },
+  const updated = await prisma.billetOpening.update({
+    where: { id: opening.id },
     data: { authorizedSlots: parsedSlots },
     select: {
       id: true,
-      key: true,
-      identifier: true,
-      name: true,
+      billetName: true,
       authorizedSlots: true,
-      unitId: true,
+      rootUnitId: true,
     },
   });
 
@@ -353,7 +361,7 @@ export async function updateUnitMOSSlots({ prisma, actor, unitId, mosId, authori
 }
 
 export async function listPublicUnitOpenings(prisma) {
-  const openings = await loadLiveRecruitingOpenings(prisma);
+  const openings = await loadLiveRecruitingBilletOpenings(prisma);
   return { ok: true, items: openings.groups };
 }
 
@@ -917,44 +925,9 @@ function collectDescendants(unitId, childrenByParentId) {
   return descendants;
 }
 
-async function buildUnitStrengthRows(prisma, rootUnitId, treeUnitIds) {
-  const [mosRows, assignedProfiles] = await Promise.all([
-    prisma.mOS.findMany({
-      where: {
-        unitId: rootUnitId,
-        status: "Active",
-      },
-      orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        key: true,
-        identifier: true,
-        name: true,
-        authorizedSlots: true,
-        unitId: true,
-      },
-    }),
-    prisma.personnelProfile.findMany({
-      where: {
-        currentUnitId: { in: [...treeUnitIds] },
-        status: { notIn: [...DISCHARGED_PERSONNEL_STATUSES] },
-        currentMOSId: { not: null },
-      },
-      select: {
-        currentMOSId: true,
-      },
-    }),
-  ]);
-
-  const assignedCounts = new Map();
-  for (const profile of assignedProfiles) {
-    assignedCounts.set(profile.currentMOSId, (assignedCounts.get(profile.currentMOSId) ?? 0) + 1);
-  }
-
-  return mosRows.map((row) => ({
-    ...row,
-    assigned: assignedCounts.get(row.id) ?? 0,
-  }));
+async function buildUnitStrengthRows(prisma, rootUnitId) {
+  const openings = await loadRecruitingBilletOpenings(prisma);
+  return openings.rows.filter((row) => row.rootUnitId === rootUnitId);
 }
 
 function orderUnitTree(rootUnitId, unitsById, childrenByParentId, depth = 0) {

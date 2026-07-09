@@ -480,7 +480,9 @@ model Unit {
   personnel            PersonnelProfile[]
   unitAssignments      PersonnelUnitAssignment[]
   billets              Billet[]
-  mos                  MOS[]                         
+  mos                  MOS[]
+  billetOpenings       BilletOpening[]            @relation("BilletOpeningRootUnit")
+  desiredBilletChoices ApplicationDesiredBillet[] @relation("ApplicationDesiredBilletRootUnit")
   targetedApplications Application[]             @relation("ApplicationTargetUnit")
   applicationInterests ApplicationInterestUnit[]
   sourceEvents         Event[]                   @relation("EventSourceUnit")
@@ -526,6 +528,21 @@ model Billet {
   @@index([unitId])
   @@index([minimumRankId])
   @@index([status])
+}
+
+model BilletOpening {
+  id                           String                    @id @default(cuid())
+  rootUnitId                   String
+  rootUnit                     Unit                      @relation("BilletOpeningRootUnit", fields: [rootUnitId], references: [id])
+  billetName                   String
+  authorizedSlots              Int                       @default(0)
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+  applicationDesiredSelections ApplicationDesiredBillet[]
+
+  @@unique([rootUnitId, billetName])
+  @@index([rootUnitId])
+  @@index([billetName])
 }
 
 model StaffSection {
@@ -769,6 +786,7 @@ model Application {
   armaUnits                        ApplicationArmaUnit[]
   interestedUnits                  ApplicationInterestUnit[]
   availabilitySlots                ApplicationAvailabilitySlot[]
+  desiredBillets                   ApplicationDesiredBillet[]
   desiredMOS                       ApplicationDesiredMOS[]
   statusHistory                    ApplicationStatusHistory[]
   notes                            ApplicationReviewNote[]
@@ -879,6 +897,22 @@ model ApplicationDesiredMOS {
 
   @@unique([applicationId, mosId])
   @@index([mosId])
+}
+
+model ApplicationDesiredBillet {
+  id              String        @id @default(cuid())
+  applicationId   String
+  application     Application   @relation(fields: [applicationId], references: [id])
+  billetOpeningId String
+  billetOpening   BilletOpening @relation(fields: [billetOpeningId], references: [id])
+  rootUnitId      String
+  rootUnit        Unit          @relation("ApplicationDesiredBilletRootUnit", fields: [rootUnitId], references: [id])
+  billetName      String
+  sortOrder       Int           @default(0)
+
+  @@unique([applicationId, billetOpeningId])
+  @@index([billetOpeningId])
+  @@index([rootUnitId])
 }
 
 model ApplicationAnswer {

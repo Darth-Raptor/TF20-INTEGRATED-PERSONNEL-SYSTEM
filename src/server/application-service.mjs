@@ -15,7 +15,7 @@ import {
 } from "../shared/application-availability.mjs";
 import {
   buildApplicantOpeningsOptions,
-  loadLiveRecruitingOpenings,
+  loadLiveRecruitingBilletOpenings,
 } from "./recruiting-openings.mjs";
 
 const APPLICATION_FORM_VERSION = "enlistment-v4";
@@ -78,7 +78,7 @@ function normalizeRecruitingOptionsContext(context = {}) {
     return {
       liveOnly: false,
       selectedUnitIds: [],
-      selectedMOSIds: [],
+      selectedBilletIds: [],
       filteredUnitIds: uniqueValues(coerceArray(context).filter(Boolean)),
     };
   }
@@ -88,8 +88,8 @@ function normalizeRecruitingOptionsContext(context = {}) {
     selectedUnitIds: uniqueValues(
       coerceArray(context.selectedUnitIds ?? context.interestedUnitIds).filter(Boolean),
     ),
-    selectedMOSIds: uniqueValues(
-      coerceArray(context.selectedMOSIds ?? context.desiredMOSIds).filter(Boolean),
+    selectedBilletIds: uniqueValues(
+      coerceArray(context.selectedBilletIds ?? context.desiredBilletIds).filter(Boolean),
     ),
     filteredUnitIds: uniqueValues(
       coerceArray(context.filteredUnitIds ?? context.unitIds ?? context.selectedUnitIds).filter(
@@ -146,64 +146,51 @@ export async function getApplicationUnits(prisma) {
 }
 
 export async function getRecruitingOptions(prisma, context = {}) {
-  const { liveOnly, selectedUnitIds, selectedMOSIds, filteredUnitIds } =
+  const { liveOnly, selectedUnitIds, selectedBilletIds, filteredUnitIds } =
     normalizeRecruitingOptionsContext(context);
   let units;
-  let mos;
+  let billets;
 
   if (liveOnly) {
-    const openings = await loadLiveRecruitingOpenings(prisma);
-    const [selectedUnits, selectedMos] = await Promise.all([
+    const openings = await loadLiveRecruitingBilletOpenings(prisma);
+    const [selectedUnits, selectedBillets] = await Promise.all([
       selectedUnitIds.length
         ? prisma.unit.findMany({
             where: { id: { in: selectedUnitIds } },
             select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
           })
         : [],
-      selectedMOSIds.length
-        ? prisma.mOS.findMany({
-            where: { id: { in: selectedMOSIds } },
-            orderBy: [{ identifier: "asc" }, { name: "asc" }],
+      selectedBilletIds.length
+        ? prisma.billetOpening.findMany({
+            where: { id: { in: selectedBilletIds } },
+            orderBy: [{ billetName: "asc" }],
             select: {
               id: true,
-              key: true,
-              identifier: true,
-              name: true,
-              unitId: true,
-              unit: { select: { id: true, key: true, name: true } },
+              billetName: true,
+              rootUnitId: true,
+              rootUnit: {
+                select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
+              },
             },
           })
         : [],
     ]);
 
-    ({ units, mos } = buildApplicantOpeningsOptions({
+    ({ units, billets } = buildApplicantOpeningsOptions({
       openings,
       selectedUnits,
-      selectedMos,
+      selectedBillets,
     }));
   } else {
+    const openings = await loadLiveRecruitingBilletOpenings(prisma);
     units = await prisma.unit.findMany({
       where: { status: "Active", recruitingOpen: true, hierarchyBase: 7000 },
       orderBy: { name: "asc" },
       select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
     });
-    const mosWhere = {
-      status: "Active",
-      recruitingOpen: true,
-      ...(filteredUnitIds.length ? { unitId: { in: filteredUnitIds } } : {}),
-    };
-    mos = await prisma.mOS.findMany({
-      where: mosWhere,
-      orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        key: true,
-        identifier: true,
-        name: true,
-        unitId: true,
-        unit: { select: { id: true, key: true, name: true } },
-      },
-    });
+    billets = filteredUnitIds.length
+      ? openings.billets.filter((row) => filteredUnitIds.includes(row.rootUnitId))
+      : openings.billets;
   }
 
   return {
@@ -215,7 +202,7 @@ export async function getRecruitingOptions(prisma, context = {}) {
       label: slot.label,
     })),
     units,
-    mos,
+    billets,
   };
 }
 
@@ -539,7 +526,7 @@ export async function submitOwnApplication({ prisma, account, body }) {
         newValue: {
           status: nextStatus,
           interestedUnitIds: data.interestedUnitIds,
-          desiredMOSIds: data.desiredMOSIds,
+          desiredBilletIds: data.desiredBilletIds,
         },
         reason: "Pending user submitted their own enlistment application.",
       },
@@ -1054,21 +1041,7 @@ export async function saveApplicationUnitReviewNote({ prisma, actor, application
 }
 
 export async function createOrResumeOwnApplication({ prisma, account, body }) {
-  const normalized = normalizeLegacyApplicationBody(body);
-  if (!normalized.desiredMOSIds.length && normalized.interestedUnitIds.length) {
-    const applicantOptions = await getRecruitingOptions(prisma, {
-      liveOnly: true,
-      selectedUnitIds: normalized.interestedUnitIds,
-    });
-    const fallbackMOS = applicantOptions.mos.find(
-      (mos) => !mos.isStale && normalized.interestedUnitIds.includes(mos.unitId),
-    );
-    if (fallbackMOS) {
-      normalized.desiredMOSIds = [fallbackMOS.id];
-    }
-  }
-
-  return submitOwnApplication({ prisma, account, body: normalized });
+  return submitOwnApplication({ prisma, account, body: normalizeLegacyApplicationBody(body) });
 }
 
 export async function recommendApplication({ prisma, actor, applicationId, reason, targetUnitId }) {
@@ -1648,7 +1621,9 @@ function normalizeApplicationData(body = {}) {
     availabilitySlotKeys: uniqueValues(
       coerceArray(body.availabilitySlotKeys ?? body.availabilitySlots),
     ),
-    desiredMOSIds: uniqueValues(coerceArray(body.desiredMOSIds ?? body.desiredMOS ?? body.mosIds)),
+    desiredBilletIds: uniqueValues(
+      coerceArray(body.desiredBilletIds ?? body.desiredBillets ?? body.billetIds),
+    ),
   };
 }
 
@@ -1667,7 +1642,7 @@ function normalizeLegacyApplicationBody(body = {}) {
     leadership: body.leadership ?? false,
     interestedUnitIds: coerceArray(body.interestedUnitIds ?? body.targetUnitId),
     availabilitySlotKeys: coerceArray(body.availabilitySlotKeys ?? body.availabilitySlots),
-    desiredMOSIds: coerceArray(body.desiredMOSIds),
+    desiredBilletIds: coerceArray(body.desiredBilletIds),
   };
 }
 
@@ -1713,28 +1688,30 @@ async function findActiveOwnApplication(prisma, accountId) {
 
 async function validateApplicationData(prisma, data, { requireComplete, application }) {
   const errors = [];
-  const [openings, units, mosEntries] =
-    data.interestedUnitIds.length || data.desiredMOSIds.length
+  const [openings, units, billetEntries] =
+    data.interestedUnitIds.length || data.desiredBilletIds.length
       ? await Promise.all([
-          loadLiveRecruitingOpenings(prisma),
+          loadLiveRecruitingBilletOpenings(prisma),
           data.interestedUnitIds.length
             ? prisma.unit.findMany({
                 where: { id: { in: data.interestedUnitIds } },
                 select: { id: true },
               })
             : [],
-          data.desiredMOSIds.length
-            ? prisma.mOS.findMany({
-                where: { id: { in: data.desiredMOSIds } },
-                select: { id: true, unitId: true },
+          data.desiredBilletIds.length
+            ? prisma.billetOpening.findMany({
+                where: { id: { in: data.desiredBilletIds } },
+                select: { id: true, rootUnitId: true, billetName: true },
               })
             : [],
         ])
       : [null, [], []];
   const openUnitIds = new Set(openings?.units.map((unit) => unit.id) ?? []);
-  const openMOSIds = new Set(openings?.mos.map((row) => row.id) ?? []);
+  const openBilletIds = new Set(openings?.billets.map((row) => row.id) ?? []);
   const savedUnitIds = new Set((application?.interestedUnits ?? []).map((entry) => entry.unitId));
-  const savedMOSIds = new Set((application?.desiredMOS ?? []).map((entry) => entry.mosId));
+  const savedBilletIds = new Set(
+    (application?.desiredBillets ?? []).map((entry) => entry.billetOpeningId),
+  );
 
   if (requireComplete) {
     if (!data.firstName) errors.push("First name is required.");
@@ -1747,7 +1724,7 @@ async function validateApplicationData(prisma, data, { requireComplete, applicat
     if (!data.availabilitySlotKeys.length) {
       errors.push("At least one availability time slot is required.");
     }
-    if (!data.desiredMOSIds.length) errors.push("At least one desired MOS is required.");
+    if (!data.desiredBilletIds.length) errors.push("At least one desired billet is required.");
     if (data.priorService && !data.servicePeriods.length) {
       errors.push("At least one service period is required when prior service is yes.");
     }
@@ -1812,27 +1789,26 @@ async function validateApplicationData(prisma, data, { requireComplete, applicat
     }
   }
 
-  if (data.desiredMOSIds.length) {
-    const found = new Map(mosEntries.map((mos) => [mos.id, mos]));
+  if (data.desiredBilletIds.length) {
+    const found = new Map(billetEntries.map((opening) => [opening.id, opening]));
     const interestedUnitSet = new Set(data.interestedUnitIds);
-    for (const mosId of data.desiredMOSIds) {
-      const mos = found.get(mosId);
-      if (!mos) {
-        errors.push("One or more desired MOS choices are invalid.");
+    for (const billetOpeningId of data.desiredBilletIds) {
+      const billetOpening = found.get(billetOpeningId);
+      if (!billetOpening) {
+        errors.push("One or more desired billet choices are invalid.");
         continue;
       }
-      if (interestedUnitSet.size && !interestedUnitSet.has(mos.unitId)) {
-        errors.push("Desired MOS choices must belong to selected interested units.");
+      if (interestedUnitSet.size && !interestedUnitSet.has(billetOpening.rootUnitId)) {
+        errors.push("Desired billet choices must belong to selected interested units.");
         continue;
       }
-      if (openMOSIds.has(mosId)) continue;
-      if (!requireComplete && savedMOSIds.has(mosId)) continue;
+      if (openBilletIds.has(billetOpeningId)) continue;
+      if (!requireComplete && savedBilletIds.has(billetOpeningId)) continue;
       errors.push(
         requireComplete
-          ? "Desired MOS choices must have current openings."
-          : "One or more desired MOS choices no longer have current openings.",
+          ? "Desired billet choices must have current openings."
+          : "One or more desired billet choices no longer have current openings.",
       );
-      continue;
     }
   }
 
@@ -1844,6 +1820,18 @@ async function validateApplicationData(prisma, data, { requireComplete, applicat
 }
 
 async function persistApplicationData(tx, applicationId, data) {
+  const desiredBilletRows = data.desiredBilletIds.length
+    ? await tx.billetOpening.findMany({
+        where: { id: { in: data.desiredBilletIds } },
+        select: {
+          id: true,
+          rootUnitId: true,
+          billetName: true,
+        },
+      })
+    : [];
+  const desiredBilletById = new Map(desiredBilletRows.map((row) => [row.id, row]));
+
   await tx.application.update({
     where: { id: applicationId },
     data: {
@@ -1892,12 +1880,22 @@ async function persistApplicationData(tx, applicationId, data) {
           sortOrder: index,
         })),
       },
-      desiredMOS: {
+      desiredBillets: {
         deleteMany: {},
-        create: data.desiredMOSIds.map((mosId, index) => ({
-          mosId,
-          sortOrder: index,
-        })),
+        create: data.desiredBilletIds
+          .map((billetOpeningId, index) => {
+            const billetOpening = desiredBilletById.get(billetOpeningId);
+            if (!billetOpening) {
+              return null;
+            }
+            return {
+              billetOpeningId,
+              rootUnitId: billetOpening.rootUnitId,
+              billetName: billetOpening.billetName,
+              sortOrder: index,
+            };
+          })
+          .filter(Boolean),
       },
     },
   });
@@ -2167,6 +2165,17 @@ function applicationInclude() {
     },
     availabilitySlots: {
       orderBy: { sortOrder: "asc" },
+    },
+    desiredBillets: {
+      orderBy: { sortOrder: "asc" },
+      include: {
+        billetOpening: {
+          include: {
+            rootUnit: true,
+          },
+        },
+        rootUnit: true,
+      },
     },
     desiredMOS: {
       orderBy: { sortOrder: "asc" },

@@ -4,108 +4,114 @@ const DISCHARGED_PERSONNEL_STATUSES = [
   "DishonorableDischarge",
 ];
 
-export function deriveLiveRecruitingOpenings({ rootUnits, allUnits, mosRows, assignedProfiles }) {
+export function deriveRecruitingBilletOpeningRows({
+  rootUnits,
+  allUnits,
+  billetOpenings,
+  activeBillets,
+  assignedProfiles,
+}) {
   const descendantMap = buildDescendantMap(allUnits);
   const rootTreeUnitIds = new Map(
     rootUnits.map((unit) => [unit.id, new Set([unit.id, ...(descendantMap.get(unit.id) ?? [])])]),
   );
-  const mosById = new Map(mosRows.map((row) => [row.id, row]));
+  const rootIdByUnitId = new Map();
+  for (const [rootUnitId, unitIds] of rootTreeUnitIds.entries()) {
+    for (const unitId of unitIds) {
+      rootIdByUnitId.set(unitId, rootUnitId);
+    }
+  }
+
+  const activeBilletNamesByRootId = new Map();
+  for (const billet of activeBillets) {
+    if (!billet.unitId || !billet.name) continue;
+    const rootUnitId = rootIdByUnitId.get(billet.unitId);
+    if (!rootUnitId) continue;
+    const names = activeBilletNamesByRootId.get(rootUnitId) ?? new Set();
+    names.add(billet.name);
+    activeBilletNamesByRootId.set(rootUnitId, names);
+  }
+
+  const openingsByKey = new Map(
+    billetOpenings.map((row) => [openingKey(row.rootUnitId, row.billetName), row]),
+  );
   const assignedCounts = new Map();
 
   for (const profile of assignedProfiles) {
-    const mos = mosById.get(profile.currentMOSId);
-    if (!mos) continue;
-    const treeUnitIds = rootTreeUnitIds.get(mos.unitId);
-    if (!treeUnitIds?.has(profile.currentUnitId)) continue;
-    assignedCounts.set(mos.id, (assignedCounts.get(mos.id) ?? 0) + 1);
+    const rootUnitId = rootIdByUnitId.get(profile.currentUnitId);
+    const billetName = profile.currentBillet?.name ?? "";
+    if (!rootUnitId || !billetName) continue;
+
+    const opening = openingsByKey.get(openingKey(rootUnitId, billetName));
+    if (!opening) continue;
+    assignedCounts.set(opening.id, (assignedCounts.get(opening.id) ?? 0) + 1);
   }
 
-  const mos = mosRows.filter((row) => row.authorizedSlots > (assignedCounts.get(row.id) ?? 0));
-  const unitIdsWithOpenings = new Set(mos.map((row) => row.unitId));
-  const units = rootUnits.filter((unit) => unitIdsWithOpenings.has(unit.id));
+  const rows = billetOpenings
+    .filter((row) => activeBilletNamesByRootId.get(row.rootUnitId)?.has(row.billetName))
+    .map((row) => ({
+      ...row,
+      assigned: assignedCounts.get(row.id) ?? 0,
+      isOpen: row.authorizedSlots > (assignedCounts.get(row.id) ?? 0),
+    }))
+    .sort(compareBilletRows);
+
+  return {
+    rows,
+    assignedCounts,
+  };
+}
+
+export function deriveLiveRecruitingBilletOpenings(source) {
+  const derived = deriveRecruitingBilletOpeningRows(source);
+  const billets = derived.rows.filter((row) => row.isOpen);
+  const unitIdsWithOpenings = new Set(billets.map((row) => row.rootUnitId));
+  const units = source.rootUnits
+    .filter((unit) => unitIdsWithOpenings.has(unit.id))
+    .sort(compareUnitsForOptions);
 
   return {
     units,
-    mos,
+    billets,
     groups: units.map((unit) => ({
       unit: {
         id: unit.id,
         key: unit.key,
         name: unit.name,
       },
-      mos: mos
-        .filter((row) => row.unitId === unit.id)
+      billets: billets
+        .filter((row) => row.rootUnitId === unit.id)
         .map((row) => ({
           id: row.id,
-          key: row.key,
-          identifier: row.identifier,
-          name: row.name,
+          billetName: row.billetName,
         })),
     })),
-    assignedCounts,
+    assignedCounts: derived.assignedCounts,
   };
 }
 
-export async function loadLiveRecruitingOpenings(prisma) {
-  const [rootUnits, allUnits, mosRows, assignedProfiles] = await Promise.all([
-    prisma.unit.findMany({
-      where: {
-        status: "Active",
-        recruitingOpen: true,
-        hierarchyBase: 7000,
-      },
-      orderBy: [{ name: "asc" }],
-      select: { id: true, key: true, name: true, parentId: true, type: true, hierarchyBase: true },
-    }),
-    prisma.unit.findMany({
-      where: { status: "Active" },
-      select: { id: true, parentId: true },
-    }),
-    prisma.mOS.findMany({
-      where: {
-        status: "Active",
-        recruitingOpen: true,
-        unit: {
-          status: "Active",
-          recruitingOpen: true,
-          hierarchyBase: 7000,
-        },
-      },
-      orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        key: true,
-        identifier: true,
-        name: true,
-        unitId: true,
-        authorizedSlots: true,
-        unit: { select: { id: true, key: true, name: true } },
-      },
-    }),
-    prisma.personnelProfile.findMany({
-      where: {
-        status: { notIn: DISCHARGED_PERSONNEL_STATUSES },
-        currentMOSId: { not: null },
-        currentUnitId: { not: null },
-      },
-      select: {
-        currentMOSId: true,
-        currentUnitId: true,
-      },
-    }),
-  ]);
-
-  return deriveLiveRecruitingOpenings({
-    rootUnits,
-    allUnits,
-    mosRows,
-    assignedProfiles,
-  });
+export async function loadRecruitingBilletOpenings(prisma) {
+  const source = await loadRecruitingBilletOpeningSource(prisma);
+  const derived = deriveRecruitingBilletOpeningRows(source);
+  return {
+    rootUnits: source.rootUnits,
+    rows: derived.rows,
+    assignedCounts: derived.assignedCounts,
+  };
 }
 
-export function buildApplicantOpeningsOptions({ openings, selectedUnits = [], selectedMos = [] }) {
+export async function loadLiveRecruitingBilletOpenings(prisma) {
+  const source = await loadRecruitingBilletOpeningSource(prisma);
+  return deriveLiveRecruitingBilletOpenings(source);
+}
+
+export function buildApplicantOpeningsOptions({
+  openings,
+  selectedUnits = [],
+  selectedBillets = [],
+}) {
   const openUnitsById = new Map(openings.units.map((unit) => [unit.id, unit]));
-  const openMosById = new Map(openings.mos.map((row) => [row.id, row]));
+  const openBilletsById = new Map(openings.billets.map((row) => [row.id, row]));
 
   const units = [
     ...openings.units.map((unit) => ({
@@ -128,30 +134,89 @@ export function buildApplicantOpeningsOptions({ openings, selectedUnits = [], se
       })),
   ].sort(compareUnitsForOptions);
 
-  const mos = [
-    ...openings.mos.map((row) => ({
+  const billets = [
+    ...openings.billets.map((row) => ({
       id: row.id,
-      key: row.key,
-      identifier: row.identifier,
-      name: row.name,
-      unitId: row.unitId,
-      unit: row.unit,
+      billetName: row.billetName,
+      rootUnitId: row.rootUnitId,
+      rootUnit: row.rootUnit,
       isStale: false,
     })),
-    ...selectedMos
-      .filter((row) => row && !openMosById.has(row.id))
+    ...selectedBillets
+      .filter((row) => row && !openBilletsById.has(row.id))
       .map((row) => ({
         id: row.id,
-        key: row.key,
-        identifier: row.identifier,
-        name: row.name,
-        unitId: row.unitId,
-        unit: row.unit,
+        billetName: row.billetName,
+        rootUnitId: row.rootUnitId,
+        rootUnit: row.rootUnit,
         isStale: true,
       })),
-  ].sort(compareMosForOptions);
+  ].sort(compareBilletOptions);
 
-  return { units, mos };
+  return { units, billets };
+}
+
+async function loadRecruitingBilletOpeningSource(prisma) {
+  const [rootUnits, allUnits, billetOpenings, activeBillets, assignedProfiles] = await Promise.all([
+    prisma.unit.findMany({
+      where: {
+        status: "Active",
+        recruitingOpen: true,
+        hierarchyBase: 7000,
+      },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, key: true, name: true, parentId: true, type: true, hierarchyBase: true },
+    }),
+    prisma.unit.findMany({
+      where: { status: "Active" },
+      select: { id: true, parentId: true },
+    }),
+    prisma.billetOpening.findMany({
+      orderBy: [{ billetName: "asc" }],
+      select: {
+        id: true,
+        rootUnitId: true,
+        billetName: true,
+        authorizedSlots: true,
+        rootUnit: {
+          select: { id: true, key: true, name: true, type: true, hierarchyBase: true },
+        },
+      },
+    }),
+    prisma.billet.findMany({
+      where: {
+        status: "Active",
+        unitId: { not: null },
+      },
+      select: {
+        unitId: true,
+        name: true,
+      },
+    }),
+    prisma.personnelProfile.findMany({
+      where: {
+        status: { notIn: DISCHARGED_PERSONNEL_STATUSES },
+        currentBilletId: { not: null },
+        currentUnitId: { not: null },
+      },
+      select: {
+        currentUnitId: true,
+        currentBillet: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    rootUnits,
+    allUnits,
+    billetOpenings,
+    activeBillets,
+    assignedProfiles,
+  };
 }
 
 function buildDescendantMap(units) {
@@ -185,6 +250,10 @@ function buildDescendantMap(units) {
   return descendantMap;
 }
 
+function openingKey(rootUnitId, billetName) {
+  return `${rootUnitId}::${billetName}`;
+}
+
 function compareUnitsForOptions(left, right) {
   if (left.isStale !== right.isStale) {
     return left.isStale ? 1 : -1;
@@ -192,15 +261,19 @@ function compareUnitsForOptions(left, right) {
   return String(left.name ?? "").localeCompare(String(right.name ?? ""));
 }
 
-function compareMosForOptions(left, right) {
+function compareBilletRows(left, right) {
+  const rootCompare = String(left.rootUnit?.name ?? "").localeCompare(
+    String(right.rootUnit?.name ?? ""),
+  );
+  if (rootCompare !== 0) {
+    return rootCompare;
+  }
+  return String(left.billetName ?? "").localeCompare(String(right.billetName ?? ""));
+}
+
+function compareBilletOptions(left, right) {
   if (left.isStale !== right.isStale) {
     return left.isStale ? 1 : -1;
   }
-  const identifierCompare = String(left.identifier ?? "").localeCompare(
-    String(right.identifier ?? ""),
-  );
-  if (identifierCompare !== 0) {
-    return identifierCompare;
-  }
-  return String(left.name ?? "").localeCompare(String(right.name ?? ""));
+  return compareBilletRows(left, right);
 }

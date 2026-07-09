@@ -136,14 +136,87 @@ const REQUIREMENTS = [
   "Must have at least 100 Arma 3 hours.",
 ];
 
-const CURRENT_UNITS = [
-  "A Co, 1/75th Ranger Regiment",
+const PUBLIC_CURRENT_UNITS = [
+  "TEAM 1, RRC, RSTB, 75th RR",
   "1 Troop, A Squadron, 1st SFOD-Delta",
   "B Co, 2/160th SOAR",
-  "TEAM 1, RRC, RSTB, 75th RR",
 ];
 
-const FUTURE_UNITS = ["1st Joint Special Operations Air Component"];
+const PUBLIC_APPLICATION_STEPS = [
+  {
+    step: "Step 1",
+    title: "Submit an Application",
+    body: "Complete the online application with accurate information about your availability, experience, interests, and preferred unit or position.",
+  },
+  {
+    step: "Step 2",
+    title: "Recruiter Review",
+    body: "A recruiter reviews the application against current unit requirements and verifies that the applicant meets the minimum entry standards.",
+  },
+  {
+    step: "Step 3",
+    title: "Initial Contact",
+    body: "Selected applicants complete an initial conversation with recruiting staff. This is used to clarify expectations, answer relevant questions, and assess communication and suitability.",
+  },
+  {
+    step: "Step 4",
+    title: "Unit Evaluation",
+    body: "The receiving unit evaluates the applicant for an available position. Placement may depend on current staffing, prior experience, and demonstrated aptitude.",
+  },
+  {
+    step: "Step 5",
+    title: "Training and Integration",
+    body: "Accepted applicants complete initial entry requirements and begin the training pipeline for their assigned role before receiving full operational responsibilities.",
+  },
+];
+
+const PUBLIC_FAQS = [
+  {
+    question: "Do I need previous MILSIM experience?",
+    answer:
+      "No. Previous experience is useful, but it is not a substitute for reliability, communication, judgment, and willingness to learn. Applicants without sufficient Arma familiarity may be required to complete additional familiarization training.",
+  },
+  {
+    question: "Are all three operating days mandatory?",
+    answer:
+      "Not necessarily. Attendance requirements depend on the member's assigned unit, role, and scheduled events. Applicants should provide accurate availability during the recruiting process.",
+  },
+  {
+    question: "Can I choose my unit and position?",
+    answer:
+      "Applicants may state their preferences, but final placement is based on current unit requirements, applicant suitability, demonstrated performance, and completion of the appropriate training pipeline.",
+  },
+  {
+    question: "Does the unit conduct one-off missions?",
+    answer:
+      "Task Force 20 is primarily built around connected campaigns and deployment rotations. Individual training events or special scenarios may occur, but the main operational experience is persistent.",
+  },
+  {
+    question: "What does persistent gameplay mean?",
+    answer:
+      "Personnel status, vehicles, equipment, ammunition, medical supplies, intelligence, and mission outcomes can continue between operations. Decisions made during one mission may create advantages or consequences during later missions.",
+  },
+  {
+    question: "Is Task Force 20 a casual unit?",
+    answer:
+      "No. Task Force 20 expects preparation, tactical discipline, clear communication, and reliable attendance. The environment is intended to remain enjoyable, but members are expected to take their assigned responsibilities seriously.",
+  },
+  {
+    question: "Will I immediately receive a specialized role?",
+    answer:
+      "No position should be treated as automatic. Specialized roles require the appropriate training, qualifications, performance, and available unit assignment.",
+  },
+];
+
+const PUBLIC_FOOTER_LINKS = [
+  { label: "About Task Force 20", href: "#about" },
+  { label: "Operations", href: "#operations" },
+  { label: "Current Units", href: "#units" },
+  { label: "Open Positions", href: "#open-positions" },
+  { label: "Requirements", href: "#requirements" },
+  { label: "Apply", href: APPLY_AUTH_URL },
+  { label: "Discord", href: DISCORD_INVITE_URL },
+];
 
 const ROSTER_SORT_OPTIONS = [
   { value: "name", label: "Name" },
@@ -295,7 +368,7 @@ function PublicLandingPage() {
   }, []);
 
   return (
-    <div className="public-page">
+    <div className="public-page" id="top">
       <header className="public-nav" aria-label="Task Force 20 public navigation">
         <a className="public-brand" href="/" aria-label="Task Force 20 homepage">
           <img src={tf20Crest} alt="" />
@@ -335,7 +408,8 @@ function PublicLandingPage() {
           </div>
         </section>
 
-        <section className="public-section public-intro-section" id="different">
+        <section className="public-section public-intro-section" id="about">
+          <div id="different" />
           <div className="public-section-heading">
             <span className="public-kicker">What Makes Us Different</span>
             <h2>Persistent campaigns, realistic tactics, and teams that can breathe.</h2>
@@ -350,7 +424,11 @@ function PublicLandingPage() {
           </div>
         </section>
 
-        <section className="public-feature-stack" aria-label="Task Force 20 operations">
+        <section
+          className="public-feature-stack"
+          id="operations"
+          aria-label="Task Force 20 operations"
+        >
           {FEATURE_STORIES.map((feature) => (
             <article className="public-feature" key={feature.title}>
               <img src={feature.image} alt={feature.imageAlt} />
@@ -379,35 +457,79 @@ function PublicLandingPage() {
         </section>
 
         <section className="public-section public-openings-section" id="openings">
+          <div id="units" />
+          <div id="open-positions" />
           <div className="public-section-heading">
-            <span className="public-kicker">Current Structure</span>
-            <h2>Units and MOS openings</h2>
+            <span className="public-kicker">Recruiting Priorities</span>
+            <h2>Units and Billet Openings</h2>
           </div>
-          <div className="public-list-layout three-column">
-            <PublicList title="Current Units" items={CURRENT_UNITS} />
+          <div className="public-list-layout">
+            <PublicList title="Current Units" items={PUBLIC_CURRENT_UNITS} />
             <PublicOpeningsList state={openings} />
-            <PublicList title="Future Units" items={FUTURE_UNITS} />
           </div>
         </section>
 
-        <section className="public-final-cta">
-          <span className="public-kicker">Ready to step in?</span>
-          <h2>Start your Task Force 20 application.</h2>
-          <p>
-            Apply through Discord authentication, then continue into the TF20 portal to complete
-            your applicant profile and application. Discord membership is required before
-            application access opens.
-          </p>
-          <div className="public-actions">
-            <a className="public-primary-action" href={APPLY_AUTH_URL}>
-              Apply
-            </a>
-            <a className="public-secondary-action" href={DISCORD_INVITE_URL}>
-              Join our Discord
-            </a>
+        <section className="public-section">
+          <div className="public-section-heading">
+            <span className="public-kicker">Join Task Force 20</span>
+            <h2>From Application to Operational Assignment</h2>
+          </div>
+          <PublicCopyStack
+            paragraphs={[
+              "The recruiting process is designed to determine whether Task Force 20 is the right environment for the applicant and whether the applicant is a suitable addition to the organization.",
+            ]}
+          />
+          <div className="public-process-grid">
+            {PUBLIC_APPLICATION_STEPS.map((step) => (
+              <article className="public-info-card public-process-card" key={step.step}>
+                <span className="public-process-step">{step.step}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="public-section">
+          <div className="public-section-heading">
+            <span className="public-kicker">Frequently Asked Questions</span>
+            <h2>What Applicants Should Know</h2>
+          </div>
+          <div className="public-faq-list">
+            {PUBLIC_FAQS.map((item) => (
+              <article className="public-list-card public-faq-item" key={item.question}>
+                <h3>{item.question}</h3>
+                <p>{item.answer}</p>
+              </article>
+            ))}
           </div>
         </section>
       </main>
+
+      <footer className="public-footer">
+        <div className="public-footer-inner">
+          <div className="public-footer-copy">
+            <h2>Task Force 20</h2>
+            <p>Persistent campaigns. Disciplined procedures. Meaningful responsibility.</p>
+          </div>
+          <nav className="public-footer-links" aria-label="Task Force 20 footer links">
+            {PUBLIC_FOOTER_LINKS.map((item) => (
+              <a key={item.label} href={item.href}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <div className="public-footer-legal">
+            <p>
+              Task Force 20 is an independent online gaming organization that uses Arma 3 to
+              simulate modern military operations. Task Force 20 is not affiliated with, endorsed
+              by, or representative of the United States Department of Defense, the United States
+              Army, the 75th Ranger Regiment, or any other real-world military organization.
+            </p>
+            <small>(c) 2026 Task Force 20. All rights reserved.</small>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -428,11 +550,11 @@ function PublicList({ items, title }) {
 function PublicOpeningsList({ state }) {
   return (
     <article className="public-list-card public-openings-card">
-      <h3>Current MOS Openings</h3>
+      <h3>Current Billet Openings</h3>
       {state.status === "loading" ? <p>Loading openings...</p> : null}
       {state.status === "error" ? <p>Current openings are unavailable right now.</p> : null}
       {state.status === "ready" && !state.items.length ? (
-        <p>No current MOS openings posted.</p>
+        <p>No current billet openings posted.</p>
       ) : null}
       {state.status === "ready" && state.items.length ? (
         <div className="public-openings-groups">
@@ -440,8 +562,8 @@ function PublicOpeningsList({ state }) {
             <div className="public-openings-group" key={group.unit.id}>
               <strong>{group.unit.name}</strong>
               <ul>
-                {(group.mos ?? []).map((row) => (
-                  <li key={row.id}>{mosDisplayLabel(row)}</li>
+                {(group.billets ?? []).map((row) => (
+                  <li key={row.id}>{row.billetName}</li>
                 ))}
               </ul>
             </div>
@@ -449,6 +571,16 @@ function PublicOpeningsList({ state }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function PublicCopyStack({ paragraphs }) {
+  return (
+    <div className="public-copy-stack">
+      {paragraphs.map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </div>
   );
 }
 
@@ -3206,7 +3338,7 @@ function StaffUnitWorkspace() {
     error: null,
   });
   const [selectedUnitId, setSelectedUnitId] = useState("");
-  const [editingMosId, setEditingMosId] = useState("");
+  const [editingOpeningId, setEditingOpeningId] = useState("");
   const [slotDraft, setSlotDraft] = useState("");
   const [message, setMessage] = useState("");
 
@@ -3232,7 +3364,7 @@ function StaffUnitWorkspace() {
     loadOverview();
   }, []);
 
-  const saveSlots = async (mosId) => {
+  const saveSlots = async (openingId) => {
     const unitId = overview.data?.selectedUnit?.id;
     if (!unitId) {
       setMessage("Select a unit before updating slots.");
@@ -3240,7 +3372,7 @@ function StaffUnitWorkspace() {
     }
 
     setMessage("Saving unit slots...");
-    const result = await fetchJson(`/units/${unitId}/mos/${mosId}/slots`, {
+    const result = await fetchJson(`/units/${unitId}/billet-openings/${openingId}/slots`, {
       method: "PATCH",
       body: { authorizedSlots: slotDraft },
     });
@@ -3249,7 +3381,7 @@ function StaffUnitWorkspace() {
       return;
     }
 
-    setEditingMosId("");
+    setEditingOpeningId("");
     setSlotDraft("");
     setMessage("Unit slots updated.");
     await loadOverview(unitId);
@@ -3293,15 +3425,15 @@ function StaffUnitWorkspace() {
             <ApplicationReviewSection title="UNIT STRENGTH">
               <UnitStrengthTable
                 canEdit={Boolean(overview.data?.permissions?.canEdit)}
-                editingMosId={editingMosId}
+                editingOpeningId={editingOpeningId}
                 rows={overview.data?.strengthRows ?? []}
                 slotDraft={slotDraft}
                 onCancel={() => {
-                  setEditingMosId("");
+                  setEditingOpeningId("");
                   setSlotDraft("");
                 }}
                 onEdit={(row) => {
-                  setEditingMosId(row.id);
+                  setEditingOpeningId(row.id);
                   setSlotDraft(String(row.authorizedSlots ?? 0));
                 }}
                 onSave={saveSlots}
@@ -4131,7 +4263,7 @@ function UnitRosterTree({ groups }) {
 
 function UnitStrengthTable({
   canEdit,
-  editingMosId,
+  editingOpeningId,
   rows,
   slotDraft,
   onCancel,
@@ -4140,7 +4272,12 @@ function UnitStrengthTable({
   onSlotDraftChange,
 }) {
   if (!rows.length) {
-    return <EmptyState title="No MOS rows" detail="No MOS rows are configured for this unit." />;
+    return (
+      <EmptyState
+        title="No billet rows"
+        detail="No billet opening rows are configured for this unit."
+      />
+    );
   }
 
   return (
@@ -4148,7 +4285,7 @@ function UnitStrengthTable({
       <table>
         <thead>
           <tr>
-            <th>MOS</th>
+            <th>Billet</th>
             <th>Assigned</th>
             <th>Slots</th>
             <th>
@@ -4158,10 +4295,10 @@ function UnitStrengthTable({
         </thead>
         <tbody>
           {rows.map((row) => {
-            const editing = editingMosId === row.id;
+            const editing = editingOpeningId === row.id;
             return (
               <tr key={row.id}>
-                <td>{mosDisplayLabel(row)}</td>
+                <td>{row.billetName}</td>
                 <td>{row.assigned ?? 0}</td>
                 <td>
                   {editing ? (
@@ -4217,8 +4354,8 @@ function UnitStrengthTable({
 
 function ApplicationForm({ form, options, setForm }) {
   const selectedUnits = new Set(form.interestedUnitIds);
-  const mosOptions = selectedUnits.size
-    ? (options.mos ?? []).filter((mos) => selectedUnits.has(mos.unitId))
+  const billetOptions = selectedUnits.size
+    ? (options.billets ?? []).filter((billet) => selectedUnits.has(billet.rootUnitId))
     : [];
   const timeZones = options.timeZones ?? [];
   const availabilitySlots = options.availabilitySlots ?? [];
@@ -4246,17 +4383,19 @@ function ApplicationForm({ form, options, setForm }) {
       return {
         ...current,
         interestedUnitIds,
-        desiredMOSIds: current.desiredMOSIds.filter((mosId) =>
-          (options.mos ?? []).some((mos) => mos.id === mosId && nextUnitIds.has(mos.unitId)),
+        desiredBilletIds: current.desiredBilletIds.filter((billetId) =>
+          (options.billets ?? []).some(
+            (billet) => billet.id === billetId && nextUnitIds.has(billet.rootUnitId),
+          ),
         ),
       };
     });
-  const toggleDesiredMOS = (mosId, checked) =>
+  const toggleDesiredBillet = (billetId, checked) =>
     setForm((current) => ({
       ...current,
-      desiredMOSIds: checked
-        ? Array.from(new Set([...current.desiredMOSIds, mosId]))
-        : current.desiredMOSIds.filter((id) => id !== mosId),
+      desiredBilletIds: checked
+        ? Array.from(new Set([...current.desiredBilletIds, billetId]))
+        : current.desiredBilletIds.filter((id) => id !== billetId),
     }));
   const toggleAvailabilitySlot = (slotKey, checked) =>
     setForm((current) => ({
@@ -4538,7 +4677,7 @@ function ApplicationForm({ form, options, setForm }) {
       <ApplicationReviewSection title="SELECTIONS">
         <div className="application-section-row single">
           <ChoiceList
-            emptyMessage="No units with current MOS openings are available."
+            emptyMessage="No units with current billet openings are available."
             getLabel={(unit) => unit.name}
             getNote={(unit, isSelected) =>
               unit.isStale
@@ -4558,22 +4697,22 @@ function ApplicationForm({ form, options, setForm }) {
           <ChoiceList
             emptyMessage={
               selectedUnits.size
-                ? "No MOS choices with current openings are available for the selected unit."
+                ? "No billet choices with current openings are available for the selected unit."
                 : "Select an interested unit first."
             }
-            getLabel={(mos) => mosDisplayLabel(mos)}
-            getNote={(mos, isSelected) =>
-              mos.isStale
+            getLabel={(billet) => desiredBilletOptionLabel(billet)}
+            getNote={(billet, isSelected) =>
+              billet.isStale
                 ? isSelected
                   ? "No current opening. Remove this selection before submitting."
                   : "No current opening."
                 : ""
             }
-            isOptionDisabled={(mos, isSelected) => mos.isStale && !isSelected}
-            items={mosOptions}
-            label="INTERESTED MOS"
-            selectedIds={form.desiredMOSIds}
-            onToggle={toggleDesiredMOS}
+            isOptionDisabled={(billet, isSelected) => billet.isStale && !isSelected}
+            items={billetOptions}
+            label="DESIRED BILLET"
+            selectedIds={form.desiredBilletIds}
+            onToggle={toggleDesiredBillet}
           />
         </div>
       </ApplicationReviewSection>
@@ -5131,7 +5270,9 @@ function ReadOnlyApplication({ application, reviewMode = false }) {
   const armaUnits = (application.armaUnits ?? []).map(formatArmaUnit);
   const interestedUnits = (application.interestedUnits ?? []).map((entry) => entry.unit?.name);
   const availability = (application.availabilitySlots ?? []).map((entry) => entry.slotLabel);
-  const desiredMOS = (application.desiredMOS ?? []).map(formatDesiredMOS);
+  const desiredBillets = (application.desiredBillets ?? []).length
+    ? (application.desiredBillets ?? []).map(formatDesiredBillet)
+    : (application.desiredMOS ?? []).map(formatDesiredMOS);
   const serviceValue = reviewMode
     ? renderListValue(
         application.priorService ? servicePeriods : [],
@@ -5161,9 +5302,9 @@ function ReadOnlyApplication({ application, reviewMode = false }) {
   const unitInterestValue = reviewMode
     ? renderListValue(interestedUnits, "No interested units recorded.")
     : inlineList(interestedUnits, "No interested units recorded.");
-  const desiredMOSValue = reviewMode
-    ? renderListValue(desiredMOS, "No desired MOS choices recorded.")
-    : inlineList(desiredMOS, "No desired MOS choices recorded.");
+  const desiredBilletValue = reviewMode
+    ? renderListValue(desiredBillets, "No desired billet choices recorded.")
+    : inlineList(desiredBillets, "No desired billet choices recorded.");
   const availabilityValue = reviewMode
     ? renderListValue(availability, "Not recorded")
     : inlineList(availability, "Not recorded");
@@ -5189,7 +5330,7 @@ function ReadOnlyApplication({ application, reviewMode = false }) {
       <ReadOnlyField label="Previous Arma Experience">{armaValue}</ReadOnlyField>
       <ReadOnlyField label="Leadership Experience">{leadershipValue}</ReadOnlyField>
       <ReadOnlyField label="Unit Interest">{unitInterestValue}</ReadOnlyField>
-      <ReadOnlyField label="Desired MOS">{desiredMOSValue}</ReadOnlyField>
+      <ReadOnlyField label="Desired Billet">{desiredBilletValue}</ReadOnlyField>
       <ReadOnlyField label="Availability">{availabilityValue}</ReadOnlyField>
       <ReadOnlyField label="Source">
         {application.source ? humanize(application.source) : "Not recorded"}
@@ -5294,6 +5435,24 @@ function formatDesiredMOS(entry) {
   return mosDisplayLabel(entry.mos, { empty: "" });
 }
 
+function formatDesiredBillet(entry) {
+  const billetName = entry.billetName ?? entry.billetOpening?.billetName ?? "";
+  const unitName = entry.rootUnit?.name ?? entry.billetOpening?.rootUnit?.name ?? "";
+  if (billetName && unitName) {
+    return `${billetName} | ${unitName}`;
+  }
+  return billetName || unitName || "";
+}
+
+function desiredBilletOptionLabel(entry) {
+  const billetName = entry.billetName ?? "";
+  const unitName = entry.rootUnit?.name ?? "";
+  if (billetName && unitName) {
+    return `${billetName} - ${unitName}`;
+  }
+  return billetName || unitName || "Unassigned";
+}
+
 function blankApplicationForm() {
   return {
     firstName: "",
@@ -5310,7 +5469,7 @@ function blankApplicationForm() {
     leadershipDetails: "",
     interestedUnitIds: [],
     availabilitySlotKeys: [],
-    desiredMOSIds: [],
+    desiredBilletIds: [],
   };
 }
 
@@ -5410,7 +5569,7 @@ function applicationToForm(application) {
     leadershipDetails: application.leadershipDetails ?? "",
     interestedUnitIds: (application.interestedUnits ?? []).map((entry) => entry.unitId),
     availabilitySlotKeys: (application.availabilitySlots ?? []).map((entry) => entry.slotKey),
-    desiredMOSIds: (application.desiredMOS ?? []).map((entry) => entry.mosId),
+    desiredBilletIds: (application.desiredBillets ?? []).map((entry) => entry.billetOpeningId),
   };
 }
 

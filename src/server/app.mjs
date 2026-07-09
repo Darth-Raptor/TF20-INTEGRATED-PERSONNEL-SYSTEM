@@ -53,7 +53,7 @@ import {
   getScopedUnitFilters,
   listScopedPersonnel,
   listPublicUnitOpenings,
-  updateUnitMOSSlots,
+  updateUnitBilletOpeningSlots,
   updatePersonnelProfile,
 } from "./personnel-service.mjs";
 import {
@@ -643,7 +643,9 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
         const options = await getRecruitingOptions(prisma, {
           liveOnly: true,
           selectedUnitIds: (application?.interestedUnits ?? []).map((entry) => entry.unitId),
-          selectedMOSIds: (application?.desiredMOS ?? []).map((entry) => entry.mosId),
+          selectedBilletIds: (application?.desiredBillets ?? []).map(
+            (entry) => entry.billetOpeningId,
+          ),
         });
         const summary = buildSessionSummary({
           account: req.context.account,
@@ -966,15 +968,15 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
   });
 
   app.patch(
-    "/units/:unitId/mos/:mosId/slots",
+    "/units/:unitId/billet-openings/:openingId/slots",
     requireAuthenticatedSession,
     async (req, res, next) => {
       try {
-        const result = await updateUnitMOSSlots({
+        const result = await updateUnitBilletOpeningSlots({
           prisma,
           actor: req.context.account,
           unitId: req.params.unitId,
-          mosId: req.params.mosId,
+          openingId: req.params.openingId,
           authorizedSlots: req.body.authorizedSlots,
         });
         if (!result.ok) {
@@ -1282,7 +1284,9 @@ export function createApp({ prisma, config, requestShutdown = () => {} }) {
           const options = await getRecruitingOptions(prisma, {
             liveOnly: true,
             selectedUnitIds: (application?.interestedUnits ?? []).map((entry) => entry.unitId),
-            selectedMOSIds: (application?.desiredMOS ?? []).map((entry) => entry.mosId),
+            selectedBilletIds: (application?.desiredBillets ?? []).map(
+              (entry) => entry.billetOpeningId,
+            ),
           });
           const summary = buildSessionSummary({
             account: req.context.account,

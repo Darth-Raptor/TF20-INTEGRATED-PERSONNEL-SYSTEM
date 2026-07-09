@@ -30,6 +30,7 @@ export async function syncCatalogs(prismaClient, source, options = {}) {
     trainingCourses: source.trainingCourses.length,
     qualifications: source.qualifications.length,
     awards: source.awards.length,
+    billetOpenings: 0,
   };
 
   await prismaClient.$transaction(async (tx) => {
@@ -44,6 +45,7 @@ export async function syncCatalogs(prismaClient, source, options = {}) {
     await syncQualifications(tx, source.qualifications);
     await syncAwards(tx, source.awards);
     await archiveNonSourceCatalogs(tx, source);
+    summary.billetOpenings = await syncBilletOpenings(tx);
   });
 
   return summary;
@@ -329,6 +331,82 @@ async function syncAwards(tx, awards) {
   }
 }
 
+async function syncBilletOpenings(tx) {
+  const [rootUnits, units, billets] = await Promise.all([
+    tx.unit.findMany({
+      where: {
+        status: "Active",
+        recruitingOpen: true,
+        hierarchyBase: 7000,
+      },
+      select: { id: true },
+    }),
+    tx.unit.findMany({
+      where: { status: "Active" },
+      select: { id: true, parentId: true },
+    }),
+    tx.billet.findMany({
+      where: {
+        status: "Active",
+        unitId: { not: null },
+      },
+      select: {
+        unitId: true,
+        name: true,
+      },
+    }),
+  ]);
+
+  if (!rootUnits.length || !billets.length) {
+    return 0;
+  }
+
+  const descendantMap = buildDescendantMap(units);
+  const billetNamesByUnitId = new Map();
+  for (const billet of billets) {
+    if (!billet.unitId || !billet.name) continue;
+    const names = billetNamesByUnitId.get(billet.unitId) ?? new Set();
+    names.add(billet.name);
+    billetNamesByUnitId.set(billet.unitId, names);
+  }
+
+  const desiredRows = [];
+  for (const rootUnit of rootUnits) {
+    const treeUnitIds = [rootUnit.id, ...(descendantMap.get(rootUnit.id) ?? [])];
+    const billetNames = new Set();
+    for (const unitId of treeUnitIds) {
+      for (const billetName of billetNamesByUnitId.get(unitId) ?? []) {
+        billetNames.add(billetName);
+      }
+    }
+
+    for (const billetName of billetNames) {
+      desiredRows.push({
+        rootUnitId: rootUnit.id,
+        billetName,
+      });
+    }
+  }
+
+  for (const row of desiredRows) {
+    await tx.billetOpening.upsert({
+      where: {
+        rootUnitId_billetName: {
+          rootUnitId: row.rootUnitId,
+          billetName: row.billetName,
+        },
+      },
+      update: {},
+      create: {
+        rootUnitId: row.rootUnitId,
+        billetName: row.billetName,
+      },
+    });
+  }
+
+  return desiredRows.length;
+}
+
 async function archiveNonSourceCatalogs(tx, source) {
   await archiveRowsNotInSource(
     tx.role,
@@ -408,6 +486,36 @@ async function archiveRowsNotInSource(model, fieldName, sourceValues, options = 
       status: "Archived",
     },
   });
+}
+
+function buildDescendantMap(units) {
+  const childrenByParentId = new Map();
+  for (const unit of units) {
+    if (!unit.parentId) continue;
+    const children = childrenByParentId.get(unit.parentId) ?? [];
+    children.push(unit.id);
+    childrenByParentId.set(unit.parentId, children);
+  }
+
+  const descendantMap = new Map();
+  const walk = (unitId) => {
+    if (descendantMap.has(unitId)) {
+      return descendantMap.get(unitId);
+    }
+
+    const descendants = [];
+    for (const childId of childrenByParentId.get(unitId) ?? []) {
+      descendants.push(childId, ...walk(childId));
+    }
+    descendantMap.set(unitId, descendants);
+    return descendants;
+  };
+
+  for (const unit of units) {
+    walk(unit.id);
+  }
+
+  return descendantMap;
 }
 
 export function validateCatalogSource(source) {

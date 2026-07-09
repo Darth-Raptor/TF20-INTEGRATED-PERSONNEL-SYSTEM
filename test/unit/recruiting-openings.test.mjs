@@ -3,11 +3,61 @@ import { test } from "node:test";
 
 import {
   buildApplicantOpeningsOptions,
-  deriveLiveRecruitingOpenings,
+  deriveLiveRecruitingBilletOpenings,
+  deriveRecruitingBilletOpeningRows,
 } from "../../src/server/recruiting-openings.mjs";
 
-test("live recruiting openings only keep units and MOS rows with open slots", () => {
-  const result = deriveLiveRecruitingOpenings({
+test("grouped billet openings aggregate repeated billet names within a root tree", () => {
+  const result = deriveRecruitingBilletOpeningRows({
+    rootUnits: [
+      {
+        id: "unit-a",
+        key: "unit_a",
+        name: "A Co",
+        parentId: null,
+        type: "Company",
+        hierarchyBase: 7000,
+      },
+    ],
+    allUnits: [
+      { id: "unit-a", parentId: null },
+      { id: "unit-a-1", parentId: "unit-a" },
+      { id: "unit-a-2", parentId: "unit-a" },
+    ],
+    billetOpenings: [
+      {
+        id: "opening-team-leader",
+        rootUnitId: "unit-a",
+        billetName: "TEAM LEADER",
+        authorizedSlots: 3,
+        rootUnit: { id: "unit-a", key: "unit_a", name: "A Co" },
+      },
+      {
+        id: "opening-medic",
+        rootUnitId: "unit-a",
+        billetName: "MEDIC",
+        authorizedSlots: 1,
+        rootUnit: { id: "unit-a", key: "unit_a", name: "A Co" },
+      },
+    ],
+    activeBillets: [
+      { unitId: "unit-a-1", name: "TEAM LEADER" },
+      { unitId: "unit-a-2", name: "TEAM LEADER" },
+      { unitId: "unit-a-1", name: "MEDIC" },
+    ],
+    assignedProfiles: [
+      { currentUnitId: "unit-a-1", currentBillet: { name: "TEAM LEADER" } },
+      { currentUnitId: "unit-a-2", currentBillet: { name: "TEAM LEADER" } },
+      { currentUnitId: "unit-a-1", currentBillet: { name: "MEDIC" } },
+    ],
+  });
+
+  assert.equal(result.rows.find((row) => row.id === "opening-team-leader")?.assigned, 2);
+  assert.equal(result.rows.find((row) => row.id === "opening-medic")?.assigned, 1);
+});
+
+test("live recruiting openings only keep units and billet rows with open slots", () => {
+  const result = deriveLiveRecruitingBilletOpenings({
     rootUnits: [
       {
         id: "unit-a",
@@ -31,29 +81,29 @@ test("live recruiting openings only keep units and MOS rows with open slots", ()
       { id: "unit-a-child", parentId: "unit-a" },
       { id: "unit-b", parentId: null },
     ],
-    mosRows: [
+    billetOpenings: [
       {
-        id: "mos-open",
-        key: "11_b",
-        identifier: "11B",
-        name: "Infantryman",
-        unitId: "unit-a",
+        id: "opening-open",
+        rootUnitId: "unit-a",
+        billetName: "TEAM LEADER",
         authorizedSlots: 2,
-        unit: { id: "unit-a", key: "unit_a", name: "A Co" },
+        rootUnit: { id: "unit-a", key: "unit_a", name: "A Co" },
       },
       {
-        id: "mos-closed",
-        key: "68_w",
-        identifier: "68W",
-        name: "Combat Medic",
-        unitId: "unit-b",
+        id: "opening-closed",
+        rootUnitId: "unit-b",
+        billetName: "MEDIC",
         authorizedSlots: 1,
-        unit: { id: "unit-b", key: "unit_b", name: "B Co" },
+        rootUnit: { id: "unit-b", key: "unit_b", name: "B Co" },
       },
     ],
+    activeBillets: [
+      { unitId: "unit-a-child", name: "TEAM LEADER" },
+      { unitId: "unit-b", name: "MEDIC" },
+    ],
     assignedProfiles: [
-      { currentMOSId: "mos-open", currentUnitId: "unit-a-child" },
-      { currentMOSId: "mos-closed", currentUnitId: "unit-b" },
+      { currentUnitId: "unit-a-child", currentBillet: { name: "TEAM LEADER" } },
+      { currentUnitId: "unit-b", currentBillet: { name: "MEDIC" } },
     ],
   });
 
@@ -62,39 +112,35 @@ test("live recruiting openings only keep units and MOS rows with open slots", ()
     ["unit-a"],
   );
   assert.deepEqual(
-    result.mos.map((row) => row.id),
-    ["mos-open"],
+    result.billets.map((row) => row.id),
+    ["opening-open"],
   );
-  assert.equal(result.assignedCounts.get("mos-open"), 1);
-  assert.equal(result.assignedCounts.get("mos-closed"), 1);
+  assert.equal(result.assignedCounts.get("opening-open"), 1);
+  assert.equal(result.assignedCounts.get("opening-closed"), 1);
 });
 
-test("applicant openings options include selected stale unit and MOS rows", () => {
+test("applicant openings options include selected stale unit and billet rows", () => {
   const result = buildApplicantOpeningsOptions({
     openings: {
       units: [{ id: "unit-a", key: "unit_a", name: "A Co", type: "Company", hierarchyBase: 7000 }],
-      mos: [
+      billets: [
         {
-          id: "mos-open",
-          key: "11_b",
-          identifier: "11B",
-          name: "Infantryman",
-          unitId: "unit-a",
-          unit: { id: "unit-a", key: "unit_a", name: "A Co" },
+          id: "opening-open",
+          billetName: "TEAM LEADER",
+          rootUnitId: "unit-a",
+          rootUnit: { id: "unit-a", key: "unit_a", name: "A Co" },
         },
       ],
     },
     selectedUnits: [
       { id: "unit-b", key: "unit_b", name: "B Co", type: "Company", hierarchyBase: 7000 },
     ],
-    selectedMos: [
+    selectedBillets: [
       {
-        id: "mos-stale",
-        key: "68_w",
-        identifier: "68W",
-        name: "Combat Medic",
-        unitId: "unit-b",
-        unit: { id: "unit-b", key: "unit_b", name: "B Co" },
+        id: "opening-stale",
+        billetName: "MEDIC",
+        rootUnitId: "unit-b",
+        rootUnit: { id: "unit-b", key: "unit_b", name: "B Co" },
       },
     ],
   });
@@ -107,10 +153,10 @@ test("applicant openings options include selected stale unit and MOS rows", () =
     ],
   );
   assert.deepEqual(
-    result.mos.map((row) => [row.id, row.isStale]),
+    result.billets.map((row) => [row.id, row.isStale]),
     [
-      ["mos-open", false],
-      ["mos-stale", true],
+      ["opening-open", false],
+      ["opening-stale", true],
     ],
   );
 });

@@ -50,7 +50,7 @@ import {
   getStaffUnitOverview,
   listPublicUnitOpenings,
   listScopedPersonnel,
-  updateUnitMOSSlots,
+  updateUnitBilletOpeningSlots,
   updatePersonnelProfile,
 } from "../../src/server/personnel-service.mjs";
 import {
@@ -111,34 +111,34 @@ test("recruiting options expose only active open 7000-level units", async () => 
   );
 });
 
-test("applicant recruiting options only show live-open units and MOS rows", async () => {
+test("applicant recruiting options only show live-open units and billet rows", async () => {
   const openUnit = await activeUnit("tf20_ranger_a");
-  const openMos = await ensureOpenRecruitingMOS(openUnit.id);
+  const openBillet = await ensureOpenRecruitingBilletOpening(openUnit.id);
   const closedUnit = await activeUnit("tf20_soar_b160");
-  const closedMos = await recruitingMOSForUnit(closedUnit.id);
+  const closedBillet = await recruitingBilletOpeningForUnit(closedUnit.id);
 
-  await prisma.mOS.update({
-    where: { id: closedMos.id },
+  await prisma.billetOpening.update({
+    where: { id: closedBillet.id },
     data: { authorizedSlots: 0 },
   });
 
   const options = await getRecruitingOptions(prisma, { liveOnly: true });
 
   assert.ok(options.units.some((unit) => unit.id === openUnit.id));
-  assert.ok(options.mos.some((mos) => mos.id === openMos.id));
+  assert.ok(options.billets.some((billet) => billet.id === openBillet.id));
   assert.equal(
     options.units.some((unit) => unit.id === closedUnit.id),
     false,
   );
   assert.equal(
-    options.mos.some((mos) => mos.id === closedMos.id),
+    options.billets.some((billet) => billet.id === closedBillet.id),
     false,
   );
 });
 
 test("TEAM 1 RRC stays out of live openings until slots are configured", async () => {
   const rrcUnit = await activeUnit("tf20_1rrc");
-  const rrcMos = await recruitingMOSForUnit(rrcUnit.id);
+  const rrcBillet = await recruitingBilletOpeningForUnit(rrcUnit.id);
 
   const initialLiveOptions = await getRecruitingOptions(prisma, { liveOnly: true });
   assert.equal(
@@ -146,7 +146,7 @@ test("TEAM 1 RRC stays out of live openings until slots are configured", async (
     false,
   );
   assert.equal(
-    initialLiveOptions.mos.some((mos) => mos.id === rrcMos.id),
+    initialLiveOptions.billets.some((billet) => billet.id === rrcBillet.id),
     false,
   );
 
@@ -157,8 +157,8 @@ test("TEAM 1 RRC stays out of live openings until slots are configured", async (
     false,
   );
 
-  await prisma.mOS.update({
-    where: { id: rrcMos.id },
+  await prisma.billetOpening.update({
+    where: { id: rrcBillet.id },
     data: { authorizedSlots: 1 },
   });
 
@@ -168,7 +168,7 @@ test("TEAM 1 RRC stays out of live openings until slots are configured", async (
     true,
   );
   assert.equal(
-    openedLiveOptions.mos.some((mos) => mos.id === rrcMos.id),
+    openedLiveOptions.billets.some((billet) => billet.id === rrcBillet.id),
     true,
   );
 
@@ -176,7 +176,7 @@ test("TEAM 1 RRC stays out of live openings until slots are configured", async (
   assert.equal(openedPublicOpenings.ok, true);
   const rrcGroup = openedPublicOpenings.items.find((group) => group.unit.id === rrcUnit.id);
   assert.ok(rrcGroup);
-  assert.ok(rrcGroup.mos.some((mos) => mos.id === rrcMos.id));
+  assert.ok(rrcGroup.billets.some((billet) => billet.id === rrcBillet.id));
 });
 
 test("intake agreements are required before applicant draft, update, or submit", async () => {
@@ -267,34 +267,34 @@ test("application submit requires and validates new applicant questions", async 
   assert.match(invalid.message, /availability time slots are invalid/i);
 });
 
-test("stale draft unit and MOS selections remain visible but are blocked on submit", async () => {
+test("stale draft unit and billet selections remain visible but are blocked on submit", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
-  const targetMos = await ensureOpenRecruitingMOS(targetUnit.id);
+  const targetBillet = await ensureOpenRecruitingBilletOpening(targetUnit.id);
   const pending = await createAccountWithRole("pending-user", "Pending");
   const body = await applicationBody(targetUnit.id, "Stale Openings");
-  body.desiredMOSIds = [targetMos.id];
+  body.desiredBilletIds = [targetBillet.id];
 
   await agreeToCurrentIntakeDocuments(pending);
 
   const draft = await updateOwnApplication({ prisma, account: pending, body });
   assert.equal(draft.ok, true);
 
-  await prisma.mOS.update({
-    where: { id: targetMos.id },
+  await prisma.billetOpening.update({
+    where: { id: targetBillet.id },
     data: { authorizedSlots: 0 },
   });
 
   const applicantOptions = await getRecruitingOptions(prisma, {
     liveOnly: true,
     selectedUnitIds: draft.application.interestedUnits.map((entry) => entry.unitId),
-    selectedMOSIds: draft.application.desiredMOS.map((entry) => entry.mosId),
+    selectedBilletIds: draft.application.desiredBillets.map((entry) => entry.billetOpeningId),
   });
   assert.equal(
     applicantOptions.units.some((unit) => unit.id === targetUnit.id && unit.isStale),
     true,
   );
   assert.equal(
-    applicantOptions.mos.some((mos) => mos.id === targetMos.id && mos.isStale),
+    applicantOptions.billets.some((billet) => billet.id === targetBillet.id && billet.isStale),
     true,
   );
 
@@ -1004,7 +1004,7 @@ test("person-oriented lists and training attendee rows sort by last name", async
   );
 });
 
-test("staff unit overview resolves to the nearest 7000 root and updates MOS slots in scope", async () => {
+test("staff unit overview resolves to the nearest 7000 root and updates billet slots in scope", async () => {
   const rootUnit = await activeUnit("tf20_ranger_a");
   const childUnit = await activeUnit("tf20_ranger_a_1p");
   const squadUnit = await activeUnit("tf20_ranger_a_1p_1s");
@@ -1014,18 +1014,18 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
     unitId: childUnit.id,
   });
   const commandStaff = await createAccountWithRole("command-staff", "Active");
-  const rootMos = await recruitingMOSForUnit(rootUnit.id);
   const rootMember = await createActivePersonnel("Root Scope");
   const childMember = await createActivePersonnel("Child Scope");
   const squadMember = await createActivePersonnel("Squad Lead");
   const teamMember = await createActivePersonnel("Team Member");
+  const treeUnitIds = [rootUnit.id, childUnit.id, squadUnit.id, teamUnit.id];
   const [highBillet, lowBillet, captainRank, sergeantRank] = await Promise.all([
     prisma.billet.findFirstOrThrow({
-      where: { status: "Active" },
+      where: { status: "Active", unitId: { in: treeUnitIds } },
       orderBy: [{ commandPrecedence: "desc" }, { name: "asc" }],
     }),
     prisma.billet.findFirstOrThrow({
-      where: { status: "Active" },
+      where: { status: "Active", unitId: { in: treeUnitIds } },
       orderBy: [{ commandPrecedence: "asc" }, { name: "asc" }],
     }),
     prisma.rank.findFirstOrThrow({
@@ -1042,21 +1042,20 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
     where: { id: rootMember.profile.id },
     data: {
       currentUnitId: rootUnit.id,
-      currentMOSId: rootMos.id,
+      currentBilletId: lowBillet.id,
     },
   });
   await prisma.personnelProfile.update({
     where: { id: childMember.profile.id },
     data: {
       currentUnitId: childUnit.id,
-      currentMOSId: rootMos.id,
+      currentBilletId: lowBillet.id,
     },
   });
   await prisma.personnelProfile.update({
     where: { id: squadMember.profile.id },
     data: {
       currentUnitId: squadUnit.id,
-      currentMOSId: rootMos.id,
       currentBilletId: highBillet.id,
       currentRankId: captainRank.id,
     },
@@ -1065,7 +1064,6 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
     where: { id: teamMember.profile.id },
     data: {
       currentUnitId: teamUnit.id,
-      currentMOSId: rootMos.id,
       currentBilletId: lowBillet.id,
       currentRankId: sergeantRank.id,
     },
@@ -1090,30 +1088,34 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
     squadGroup.members.find((member) => member.id === teamMember.profile.id)?.teamLabel,
     "A",
   );
-  assert.equal(overview.data.strengthRows.find((row) => row.id === rootMos.id)?.assigned, 4);
+  assert.equal(
+    overview.data.strengthRows.find((row) => row.billetName === lowBillet.name)?.assigned,
+    3,
+  );
 
   const globalOverview = await getStaffUnitOverview(prisma, commandStaff);
   assert.equal(globalOverview.ok, true);
   assert.ok(globalOverview.data.roots.some((unit) => unit.id === rootUnit.id));
   assert.ok(globalOverview.data.roots.some((unit) => unit.key === "tf20_1rrc"));
 
-  const updatedSlots = await updateUnitMOSSlots({
+  const editableOpening = await recruitingBilletOpeningForUnit(rootUnit.id, lowBillet.name);
+  const updatedSlots = await updateUnitBilletOpeningSlots({
     prisma,
     actor: unitStaff,
     unitId: rootUnit.id,
-    mosId: rootMos.id,
+    openingId: editableOpening.id,
     authorizedSlots: 5,
   });
   assert.equal(updatedSlots.ok, true);
   assert.equal(updatedSlots.row.authorizedSlots, 5);
 
   const outsideRoot = await activeUnit("tf20_sfod_1a");
-  const outsideMos = await recruitingMOSForUnit(outsideRoot.id);
-  const deniedUpdate = await updateUnitMOSSlots({
+  const outsideOpening = await recruitingBilletOpeningForUnit(outsideRoot.id);
+  const deniedUpdate = await updateUnitBilletOpeningSlots({
     prisma,
     actor: unitStaff,
     unitId: outsideRoot.id,
-    mosId: outsideMos.id,
+    openingId: outsideOpening.id,
     authorizedSlots: 1,
   });
   assert.equal(deniedUpdate.ok, false);
@@ -1586,22 +1588,32 @@ test("application availability selections persist and appear in review detail", 
   );
 });
 
-test("public unit openings only include units with open MOS slots", async () => {
+test("public unit openings only include units with open billet slots", async () => {
   const rootUnit = await activeUnit("tf20_ranger_a");
   const childUnit = await activeUnit("tf20_ranger_a_1p");
-  const rootMos = await recruitingMOSForUnit(rootUnit.id);
+  const opening = await ensureOpenRecruitingBilletOpening(rootUnit.id);
+  const billet = await prisma.billet.findFirstOrThrow({
+    where: {
+      status: "Active",
+      name: opening.billetName,
+      unit: {
+        status: "Active",
+      },
+    },
+    orderBy: [{ commandPrecedence: "desc" }, { name: "asc" }],
+  });
   const member = await createActivePersonnel("Openings Scope");
 
   await prisma.personnelProfile.update({
     where: { id: member.profile.id },
     data: {
       currentUnitId: childUnit.id,
-      currentMOSId: rootMos.id,
+      currentBilletId: billet.id,
     },
   });
 
-  await prisma.mOS.update({
-    where: { id: rootMos.id },
+  await prisma.billetOpening.update({
+    where: { id: opening.id },
     data: { authorizedSlots: 0 },
   });
 
@@ -1612,8 +1624,8 @@ test("public unit openings only include units with open MOS slots", async () => 
     false,
   );
 
-  await prisma.mOS.update({
-    where: { id: rootMos.id },
+  await prisma.billetOpening.update({
+    where: { id: opening.id },
     data: { authorizedSlots: 99 },
   });
 
@@ -1621,7 +1633,7 @@ test("public unit openings only include units with open MOS slots", async () => 
   assert.equal(openOpenings.ok, true);
   const rootGroup = openOpenings.items.find((group) => group.unit.id === rootUnit.id);
   assert.ok(rootGroup);
-  assert.ok(rootGroup.mos.some((row) => row.id === rootMos.id));
+  assert.ok(rootGroup.billets.some((row) => row.id === opening.id));
 });
 
 test("target-unit acceptance is denied outside scope and allowed inside scope", async () => {
@@ -3228,17 +3240,27 @@ async function recruitingMOSForUnit(unitId) {
   });
 }
 
-async function ensureOpenRecruitingMOS(unitId) {
-  const mos = await recruitingMOSForUnit(unitId);
-  await prisma.mOS.update({
-    where: { id: mos.id },
+async function recruitingBilletOpeningForUnit(unitId, billetName = null) {
+  return prisma.billetOpening.findFirstOrThrow({
+    where: {
+      rootUnitId: unitId,
+      ...(billetName ? { billetName } : {}),
+    },
+    orderBy: { billetName: "asc" },
+  });
+}
+
+async function ensureOpenRecruitingBilletOpening(unitId, billetName = null) {
+  const opening = await recruitingBilletOpeningForUnit(unitId, billetName);
+  await prisma.billetOpening.update({
+    where: { id: opening.id },
     data: { authorizedSlots: 99 },
   });
-  return prisma.mOS.findUniqueOrThrow({ where: { id: mos.id } });
+  return prisma.billetOpening.findUniqueOrThrow({ where: { id: opening.id } });
 }
 
 async function applicationBody(targetUnitId, preferredName) {
-  const mos = await ensureOpenRecruitingMOS(targetUnitId);
+  const billetOpening = await ensureOpenRecruitingBilletOpening(targetUnitId);
   const [firstName, ...lastNameParts] = preferredName.split(/\s+/);
   return {
     firstName,
@@ -3263,7 +3285,7 @@ async function applicationBody(targetUnitId, preferredName) {
     leadershipDetails: "Integration test fireteam leadership.",
     interestedUnitIds: [targetUnitId],
     availabilitySlotKeys: ["tuesday_evenings", "thursday_evenings"],
-    desiredMOSIds: [mos.id],
+    desiredBilletIds: [billetOpening.id],
   };
 }
 
