@@ -83,3 +83,9 @@ tf20_soar_b160_2p_fsg,FIRST SERGEANT,leadership,tf20_soar_b161_2p,first_sergeant
 tf20_soar_b160_2p_ip,INSTRUCTOR PILOT,leadership,tf20_soar_b161_2p,cw3,5050
 tf20_soar_b160_2p_avi,AVIATOR,flight,tf20_soar_b161_2p,wo1,5010
 tf20_soar_b160_2p_acc,AIR CREW CHIEF,flight,tf20_soar_b161_2p,sgt,5010
+tf20_1rrc_sftl,SPECIAL FORCES TEAM LEADER,leadership,tf20_1rrc,msg,7090
+tf20_1rrc_sfatl,SPECIAL FORCES ASSISTANT TEAM LEADER,leadership,tf20_1rrc,sfc,7080
+tf20_1rrc_rto,RADIO TELEPHONE OPERATOR,support,tf20_1rrc,spc,5010
+tf20_1rrc_hw,HEAVY WEAPONS OPERATOR,weapons,tf20_1rrc,spc,5010
+tf20_1rrc_med,MEDIC,support,tf20_1rrc,spc,5010
+tf20_1rrc_dmr,DESIGNATED MARKSMAN,weapons,tf20_1rrc,spc,5010

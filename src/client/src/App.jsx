@@ -139,9 +139,10 @@ const CURRENT_UNITS = [
   "A Co, 1/75th Ranger Regiment",
   "1 Troop, A Squadron, 1st SFOD-Delta",
   "B Co, 2/160th SOAR",
+  "TEAM 1, RRC, RSTB, 75th RR",
 ];
 
-const FUTURE_UNITS = ["1-RRC, STB, 75th RR", "1st Joint Special Operations Air Component"];
+const FUTURE_UNITS = ["1st Joint Special Operations Air Component"];
 
 const ROSTER_SORT_OPTIONS = [
   { value: "name", label: "Name" },

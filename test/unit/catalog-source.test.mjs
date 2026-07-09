@@ -8,8 +8,46 @@ test("catalog source validates with the approved Phase 2 data", () => {
   assert.doesNotThrow(() => validateCatalogSource(catalogSource));
   assert.equal(catalogSource.roles.length, 7);
   assert.equal(catalogSource.permissions.length, 30);
-  assert.equal(catalogSource.units.length, 14);
-  assert.equal(catalogSource.mos.length, 33);
+  assert.equal(catalogSource.units.length, 15);
+  assert.equal(catalogSource.mos.length, 55);
+});
+
+test("catalog includes TEAM 1, RRC, RSTB, 75th RR as a recruiting root with mirrored A Co MOS", () => {
+  const unit = catalogSource.units.find((entry) => entry.key === "tf20_1rrc");
+  assert.ok(unit);
+  assert.equal(unit.name, "TEAM 1, RRC, RSTB, 75th RR");
+  assert.equal(unit.type, "Team");
+  assert.equal(unit.hierarchyBase, 7000);
+
+  const rrcMos = catalogSource.mos.filter((entry) => entry.unitKey === "tf20_1rrc");
+  assert.equal(rrcMos.length, 22);
+  assert.deepEqual(
+    rrcMos.map((entry) => entry.identifier).sort(),
+    [
+      "11A",
+      "11B",
+      "11C",
+      "12A",
+      "12B",
+      "13A",
+      "13B",
+      "13F",
+      "13Z",
+      "15W",
+      "19D",
+      "25C",
+      "25E",
+      "25U",
+      "25X",
+      "35F",
+      "35M",
+      "35N",
+      "68W",
+      "74D",
+      "91B",
+      "92Y",
+    ].sort(),
+  );
 });
 
 test("catalog roles use the explicit least-privilege permission matrix", () => {

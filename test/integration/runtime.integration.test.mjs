@@ -104,6 +104,10 @@ test("recruiting options expose only active open 7000-level units", async () => 
     options.units.every((unit) => unit.hierarchyBase === 7000),
     true,
   );
+  assert.equal(
+    options.units.some((unit) => unit.key === "tf20_1rrc"),
+    true,
+  );
 });
 
 test("applicant recruiting options only show live-open units and MOS rows", async () => {
@@ -129,6 +133,49 @@ test("applicant recruiting options only show live-open units and MOS rows", asyn
     options.mos.some((mos) => mos.id === closedMos.id),
     false,
   );
+});
+
+test("TEAM 1 RRC stays out of live openings until slots are configured", async () => {
+  const rrcUnit = await activeUnit("tf20_1rrc");
+  const rrcMos = await recruitingMOSForUnit(rrcUnit.id);
+
+  const initialLiveOptions = await getRecruitingOptions(prisma, { liveOnly: true });
+  assert.equal(
+    initialLiveOptions.units.some((unit) => unit.id === rrcUnit.id),
+    false,
+  );
+  assert.equal(
+    initialLiveOptions.mos.some((mos) => mos.id === rrcMos.id),
+    false,
+  );
+
+  const initialPublicOpenings = await listPublicUnitOpenings(prisma);
+  assert.equal(initialPublicOpenings.ok, true);
+  assert.equal(
+    initialPublicOpenings.items.some((group) => group.unit.id === rrcUnit.id),
+    false,
+  );
+
+  await prisma.mOS.update({
+    where: { id: rrcMos.id },
+    data: { authorizedSlots: 1 },
+  });
+
+  const openedLiveOptions = await getRecruitingOptions(prisma, { liveOnly: true });
+  assert.equal(
+    openedLiveOptions.units.some((unit) => unit.id === rrcUnit.id),
+    true,
+  );
+  assert.equal(
+    openedLiveOptions.mos.some((mos) => mos.id === rrcMos.id),
+    true,
+  );
+
+  const openedPublicOpenings = await listPublicUnitOpenings(prisma);
+  assert.equal(openedPublicOpenings.ok, true);
+  const rrcGroup = openedPublicOpenings.items.find((group) => group.unit.id === rrcUnit.id);
+  assert.ok(rrcGroup);
+  assert.ok(rrcGroup.mos.some((mos) => mos.id === rrcMos.id));
 });
 
 test("intake agreements are required before applicant draft, update, or submit", async () => {
@@ -959,6 +1006,7 @@ test("staff unit overview resolves to the nearest 7000 root and updates MOS slot
   const globalOverview = await getStaffUnitOverview(prisma, commandStaff);
   assert.equal(globalOverview.ok, true);
   assert.ok(globalOverview.data.roots.some((unit) => unit.id === rootUnit.id));
+  assert.ok(globalOverview.data.roots.some((unit) => unit.key === "tf20_1rrc"));
 
   const updatedSlots = await updateUnitMOSSlots({
     prisma,

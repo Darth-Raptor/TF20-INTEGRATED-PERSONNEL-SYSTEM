@@ -13,3 +13,4 @@ tf20_sfod_1a_a,"A Team, 1 Troop, A Squadron, 1st SFOD-Delta",Team,tf20_sfod_1a,5
 tf20_soar_b160,"B Co, 2/160th SOAR",Company,tf20_hhc,7000
 tf20_soar_b161_1p,"1P, B Co, 2/160th SOAR",Platoon,tf20_soar_b160,5000
 tf20_soar_b161_2p,"2P, B Co, 2/160th SOAR",Platoon,tf20_soar_b160,5000
+tf20_1rrc,"TEAM 1, RRC, RSTB, 75th RR",Team,tf20_hhc,7000
