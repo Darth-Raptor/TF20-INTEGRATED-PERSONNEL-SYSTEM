@@ -1,3 +1,5 @@
+import { comparePersonNamesByLastName } from "../shared/person-name-sort.mjs";
+
 const TRAINING_OUTCOMES = ["Pass", "Fail"];
 
 export function canViewTraining(account) {
@@ -90,7 +92,6 @@ export async function getTrainingOptions(prisma, actor) {
     }),
     prisma.personnelProfile.findMany({
       where: { status: "Active" },
-      orderBy: [{ name: "asc" }],
       include: {
         currentRank: true,
         currentUnit: true,
@@ -98,7 +99,13 @@ export async function getTrainingOptions(prisma, actor) {
     }),
   ]);
 
-  return { ok: true, options: { courses, personnel } };
+  return {
+    ok: true,
+    options: {
+      courses,
+      personnel: sortProfilesByLastName(personnel),
+    },
+  };
 }
 
 export async function listTrainingSessions(prisma, actor) {
@@ -121,7 +128,6 @@ export async function listTrainingSessions(prisma, actor) {
             },
           },
         },
-        orderBy: [{ personnelProfile: { name: "asc" } }],
       },
     },
   });
@@ -158,7 +164,6 @@ export async function getTrainingSession(prisma, actor, sessionId) {
           },
           course: true,
         },
-        orderBy: [{ personnelProfile: { name: "asc" } }],
       },
     },
   });
@@ -454,11 +459,13 @@ async function hydrateSessionAccounts(prisma, sessions, actor) {
       canEdit: canRecordTraining(actor) && session.recordedByAccountId === actor.id,
     },
     summary: summarizeTrainingRecords(session.records ?? []),
-    records: (session.records ?? []).map((record) => ({
-      ...record,
-      recordedByAccount: accountMap.get(record.recordedByAccountId) ?? null,
-      instructorAccount: accountMap.get(record.instructorAccountId) ?? null,
-    })),
+    records: sortTrainingRecordsByLastName(
+      (session.records ?? []).map((record) => ({
+        ...record,
+        recordedByAccount: accountMap.get(record.recordedByAccountId) ?? null,
+        instructorAccount: accountMap.get(record.instructorAccountId) ?? null,
+      })),
+    ),
   }));
 }
 
@@ -511,6 +518,22 @@ function summarizeTrainingRecords(records) {
     }
   }
   return summary;
+}
+
+function sortProfilesByLastName(profiles) {
+  return [...profiles].sort(
+    (left, right) =>
+      comparePersonNamesByLastName(left?.name, right?.name) ||
+      String(left?.id ?? "").localeCompare(String(right?.id ?? "")),
+  );
+}
+
+function sortTrainingRecordsByLastName(records) {
+  return [...records].sort(
+    (left, right) =>
+      comparePersonNamesByLastName(left?.personnelProfile?.name, right?.personnelProfile?.name) ||
+      String(left?.id ?? "").localeCompare(String(right?.id ?? "")),
+  );
 }
 
 function normalizeTrainingOutcome(attendee) {

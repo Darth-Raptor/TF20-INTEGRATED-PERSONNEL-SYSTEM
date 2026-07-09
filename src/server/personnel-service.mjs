@@ -1,5 +1,6 @@
 import { syncUnitScopedRoleAssignments } from "./role-management-service.mjs";
 import { loadLiveRecruitingOpenings } from "./recruiting-openings.mjs";
+import { comparePersonNamesByLastName } from "../shared/person-name-sort.mjs";
 
 export const PERSONNEL_STATUS_OPTIONS = [
   "Applicant",
@@ -89,11 +90,15 @@ export async function listScopedPersonnel(prisma, actor, filters = {}) {
 
   const items = await prisma.personnelProfile.findMany({
     where,
-    orderBy: [{ status: "asc" }, { name: "asc" }],
     include: rosterListInclude(),
   });
 
-  return { ok: true, items: items.map(applyDerivedStanding) };
+  return {
+    ok: true,
+    items: items
+      .map(applyDerivedStanding)
+      .sort((left, right) => comparePersonNamesByLastName(left.name, right.name)),
+  };
 }
 
 export async function getPersonnelLookupData(prisma) {
@@ -101,7 +106,7 @@ export async function getPersonnelLookupData(prisma) {
     prisma.unit.findMany({
       where: { status: "Active" },
       orderBy: [{ hierarchyBase: "desc" }, { name: "asc" }],
-      select: { id: true, key: true, name: true, parentId: true },
+      select: { id: true, key: true, name: true, parentId: true, hierarchyBase: true },
     }),
     prisma.rank.findMany({
       where: { status: "Active" },
@@ -116,7 +121,7 @@ export async function getPersonnelLookupData(prisma) {
     prisma.mOS.findMany({
       where: { status: "Active" },
       orderBy: [{ identifier: "asc" }, { name: "asc" }],
-      select: { id: true, key: true, identifier: true, name: true },
+      select: { id: true, key: true, identifier: true, name: true, unitId: true },
     }),
   ]);
 
@@ -139,11 +144,19 @@ export async function getPersonnelEditOptions(prisma, actor) {
     return unitResult;
   }
 
+  const optionMaps = buildPersonnelEditOptionMaps({
+    allUnits: lookups.units,
+    scopedUnits: unitResult.units,
+    billets: lookups.billets,
+    mos: lookups.mos,
+  });
+
   return {
     ok: true,
     options: {
       ...lookups,
       units: unitResult.units,
+      ...optionMaps,
     },
   };
 }
@@ -157,7 +170,7 @@ export async function getScopedUnitFilters(prisma, actor) {
   const allUnits = await prisma.unit.findMany({
     where: { status: "Active" },
     orderBy: [{ hierarchyBase: "desc" }, { name: "asc" }],
-    select: { id: true, key: true, name: true },
+    select: { id: true, key: true, name: true, parentId: true, hierarchyBase: true },
   });
 
   const units = scope.unitIds
@@ -415,6 +428,30 @@ export async function updatePersonnelProfile({ prisma, actor, personnelProfileId
 
   if (scope.unitIds && nextUnitId && !scope.unitIds.includes(nextUnitId)) {
     return failure("permission_denied", "Selected unit is outside your update scope.");
+  }
+
+  if ((nextMOS || nextSecondaryMOS) && nextUnitId) {
+    const unitsById = await loadActiveUnitsById(prisma);
+    const recruitingRootId = findNearestRecruitingRootId(nextUnitId, unitsById);
+
+    if (nextMOS && (!recruitingRootId || nextMOS.unitId !== recruitingRootId)) {
+      return failure(
+        "validation_error",
+        "Selected primary MOS does not belong to the selected unit.",
+      );
+    }
+
+    if (nextSecondaryMOS && (!recruitingRootId || nextSecondaryMOS.unitId !== recruitingRootId)) {
+      return failure(
+        "validation_error",
+        "Selected secondary MOS does not belong to the selected unit.",
+      );
+    }
+  } else if (nextMOS || nextSecondaryMOS) {
+    return failure(
+      "validation_error",
+      "A unit assignment is required before selecting a primary or secondary MOS.",
+    );
   }
 
   if (
@@ -858,39 +895,13 @@ function deriveRosterTeamLabel(unit) {
   return keyMatch?.[1]?.toUpperCase() ?? "";
 }
 
-function comparePersonnelNamesByLastName(leftName, rightName) {
-  const left = personNameSortParts(leftName);
-  const right = personNameSortParts(rightName);
-  return (
-    left.last.localeCompare(right.last) ||
-    left.first.localeCompare(right.first) ||
-    left.full.localeCompare(right.full)
-  );
-}
-
-function personNameSortParts(fullName) {
-  const tokens = String(fullName ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!tokens.length) {
-    return { last: "", first: "", full: "" };
-  }
-
-  return {
-    last: tokens.at(-1)?.toLowerCase() ?? "",
-    first: tokens[0]?.toLowerCase() ?? "",
-    full: tokens.join(" ").toLowerCase(),
-  };
-}
-
 function sortUnitRosterMembers(items) {
   return [...items].sort((left, right) => {
     return (
       (right.currentBillet?.commandPrecedence ?? -1) -
         (left.currentBillet?.commandPrecedence ?? -1) ||
       (right.currentRank?.precedence ?? -1) - (left.currentRank?.precedence ?? -1) ||
-      comparePersonnelNamesByLastName(left.name, right.name)
+      comparePersonNamesByLastName(left.name, right.name)
     );
   });
 }
@@ -959,19 +970,93 @@ function orderUnitTree(rootUnitId, unitsById, childrenByParentId, depth = 0) {
   return ordered;
 }
 
-function findNearestHierarchyRootId(unitId, unitsById) {
-  let current = unitsById.get(unitId);
-  let fallback = current?.id ?? null;
+export function resolveCompatibleBilletOptionsForUnit({ allUnits, billets, unitId }) {
+  if (!unitId) {
+    return [];
+  }
 
+  const unitsById = new Map((allUnits ?? []).map((unit) => [unit.id, unit]));
+  return (billets ?? []).filter((billet) =>
+    unitOwnsOrContainsAssignmentInMap(billet.unitId, unitId, unitsById),
+  );
+}
+
+export function resolveCompatibleMOSOptionsForUnit({ allUnits, mos, unitId }) {
+  if (!unitId) {
+    return [];
+  }
+
+  const unitsById = new Map((allUnits ?? []).map((unit) => [unit.id, unit]));
+  const recruitingRootId = findNearestRecruitingRootId(unitId, unitsById);
+  if (!recruitingRootId) {
+    return [];
+  }
+
+  return (mos ?? []).filter((row) => row.unitId === recruitingRootId);
+}
+
+function buildPersonnelEditOptionMaps({ allUnits, scopedUnits, billets, mos }) {
+  const billetOptionsByUnitId = {};
+  const mosOptionsByUnitId = {};
+
+  for (const unit of scopedUnits ?? []) {
+    billetOptionsByUnitId[unit.id] = resolveCompatibleBilletOptionsForUnit({
+      allUnits,
+      billets,
+      unitId: unit.id,
+    });
+    mosOptionsByUnitId[unit.id] = resolveCompatibleMOSOptionsForUnit({
+      allUnits,
+      mos,
+      unitId: unit.id,
+    });
+  }
+
+  return { billetOptionsByUnitId, mosOptionsByUnitId };
+}
+
+function unitOwnsOrContainsAssignmentInMap(ownerUnitId, assignedUnitId, unitsById) {
+  if (!ownerUnitId || !assignedUnitId) {
+    return false;
+  }
+
+  let currentId = assignedUnitId;
+  while (currentId) {
+    if (currentId === ownerUnitId) {
+      return true;
+    }
+    const current = unitsById.get(currentId);
+    currentId = current?.parentId ?? null;
+  }
+
+  return false;
+}
+
+function findNearestRecruitingRootId(unitId, unitsById) {
+  let current = unitsById.get(unitId);
   while (current) {
     if (current.hierarchyBase === 7000) {
       return current.id;
     }
-    fallback = current.id;
     current = current.parentId ? unitsById.get(current.parentId) : null;
   }
 
-  return fallback;
+  return null;
+}
+
+function findNearestHierarchyRootId(unitId, unitsById) {
+  let current = unitsById.get(unitId);
+  let fallback = current?.id ?? null;
+
+  return findNearestRecruitingRootId(unitId, unitsById) ?? fallback;
+}
+
+async function loadActiveUnitsById(prisma) {
+  const units = await prisma.unit.findMany({
+    where: { status: "Active" },
+    select: { id: true, parentId: true, hierarchyBase: true },
+  });
+  return new Map(units.map((unit) => [unit.id, unit]));
 }
 
 async function fetchActiveUnit(prisma, id) {
@@ -1008,7 +1093,7 @@ async function fetchActiveMOS(prisma, id) {
   if (!id) return null;
   return prisma.mOS.findFirst({
     where: { id, status: "Active" },
-    select: { id: true },
+    select: { id: true, unitId: true },
   });
 }
 

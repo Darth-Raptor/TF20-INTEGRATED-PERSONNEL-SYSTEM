@@ -1,3 +1,5 @@
+import { comparePersonNamesByLastName } from "../shared/person-name-sort.mjs";
+
 const UNIT_SCOPED_ROLE_KEYS = new Set(["unit-staff", "trainer"]);
 const MEMBER_DEPENDENT_ROLE_KEYS = new Set(["recruiter", "trainer", "unit-staff", "command-staff"]);
 
@@ -11,7 +13,7 @@ export async function listRoleManagementOptions(prisma, actor) {
   const [accounts, roles] = await Promise.all([
     prisma.account.findMany({
       where: { status: { not: "Archived" } },
-      orderBy: [{ displayName: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ createdAt: "asc" }],
       select: {
         id: true,
         displayName: true,
@@ -42,7 +44,17 @@ export async function listRoleManagementOptions(prisma, actor) {
     }),
   ]);
 
-  return { ok: true, accounts, roles };
+  return {
+    ok: true,
+    accounts: [...accounts].sort(
+      (left, right) =>
+        comparePersonNamesByLastName(
+          roleManagementAccountSortName(left),
+          roleManagementAccountSortName(right),
+        ) || String(left.id).localeCompare(String(right.id)),
+    ),
+    roles,
+  };
 }
 
 export async function getRoleManagementAccount(prisma, actor, accountId) {
@@ -364,6 +376,16 @@ function hasPermission(account, permissionKey) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function roleManagementAccountSortName(account) {
+  return (
+    account?.personnelProfile?.name ??
+    account?.displayName ??
+    account?.authIdentities?.[0]?.displayName ??
+    account?.authIdentities?.[0]?.username ??
+    ""
+  );
 }
 
 function permissionDenied() {

@@ -577,6 +577,15 @@ function renderApplicationForm(units, formState) {
 }
 
 function renderPersonnelUpdateForm(profileId, lookups, formState) {
+  const billetOptions = resolveUnitFilteredOptions(
+    lookups.billetOptionsByUnitId,
+    formState.currentUnitId,
+  );
+  const mosOptions = resolveUnitFilteredOptions(
+    lookups.mosOptionsByUnitId,
+    formState.currentUnitId,
+  );
+
   return `<div class="card">
     <h2>Update personnel</h2>
     <form method="post" action="/personnel/${profileId}/update">
@@ -613,14 +622,20 @@ function renderPersonnelUpdateForm(profileId, lookups, formState) {
           <label for="currentBilletId">Billet</label>
           <select id="currentBilletId" name="currentBilletId">
             <option value="">Unassigned</option>
-            ${lookups.billets.map((billet) => `<option value="${billet.id}" ${formState.currentBilletId === billet.id ? "selected" : ""}>${escapeHtml(billet.name)}</option>`).join("")}
+            ${renderOptionElements(
+              billetOptions,
+              formState.currentBilletId,
+              (billet) => billet.name,
+            )}
           </select>
         </div>
         <div class="field">
           <label for="currentMOSId">Primary MOS</label>
           <select id="currentMOSId" name="currentMOSId">
             <option value="">Unassigned</option>
-            ${lookups.mos.map((mos) => `<option value="${mos.id}" ${formState.currentMOSId === mos.id ? "selected" : ""}>${escapeHtml(mosDisplayLabel(mos))}</option>`).join("")}
+            ${renderOptionElements(mosOptions, formState.currentMOSId, (mos) =>
+              mosDisplayLabel(mos),
+            )}
           </select>
         </div>
       </div>
@@ -628,8 +643,10 @@ function renderPersonnelUpdateForm(profileId, lookups, formState) {
         <div class="field">
           <label for="currentSecondaryMOSId">Secondary MOS</label>
           <select id="currentSecondaryMOSId" name="currentSecondaryMOSId">
-            <option value="">Unassigned</option>
-            ${lookups.mos.map((mos) => `<option value="${mos.id}" ${formState.currentSecondaryMOSId === mos.id ? "selected" : ""}>${escapeHtml(mosDisplayLabel(mos))}</option>`).join("")}
+            <option value="">None</option>
+            ${renderOptionElements(mosOptions, formState.currentSecondaryMOSId, (mos) =>
+              mosDisplayLabel(mos),
+            )}
           </select>
         </div>
         <div class="field">
@@ -645,6 +662,75 @@ function renderPersonnelUpdateForm(profileId, lookups, formState) {
         <button type="submit">Save personnel changes</button>
       </div>
     </form>
+    <script>
+      (() => {
+        const unitSelect = document.getElementById("currentUnitId");
+        const billetSelect = document.getElementById("currentBilletId");
+        const primaryMosSelect = document.getElementById("currentMOSId");
+        const secondaryMosSelect = document.getElementById("currentSecondaryMOSId");
+        if (!unitSelect || !billetSelect || !primaryMosSelect || !secondaryMosSelect) {
+          return;
+        }
+
+        const billetOptionsByUnitId = ${serializeJsonForScript(lookups.billetOptionsByUnitId ?? {})};
+        const mosOptionsByUnitId = ${serializeJsonForScript(lookups.mosOptionsByUnitId ?? {})};
+
+        const renderOptions = (select, options, emptyLabel, getLabel) => {
+          const currentValue = select.value;
+          select.innerHTML = "";
+
+          const emptyOption = document.createElement("option");
+          emptyOption.value = "";
+          emptyOption.textContent = emptyLabel;
+          select.appendChild(emptyOption);
+
+          for (const option of options) {
+            const element = document.createElement("option");
+            element.value = option.id;
+            element.textContent = getLabel(option);
+            select.appendChild(element);
+          }
+
+          if (options.some((option) => option.id === currentValue)) {
+            select.value = currentValue;
+          } else {
+            select.value = "";
+          }
+        };
+
+        const formatMosLabel = (mos) => {
+          if (mos?.identifier && mos?.name) {
+            return mos.identifier + " - " + mos.name;
+          }
+          return mos?.name || mos?.identifier || "Unassigned";
+        };
+
+        const syncForUnit = () => {
+          const unitId = unitSelect.value;
+          renderOptions(
+            billetSelect,
+            billetOptionsByUnitId[unitId] ?? [],
+            "Unassigned",
+            (billet) => billet?.name || "Unassigned",
+          );
+          renderOptions(
+            primaryMosSelect,
+            mosOptionsByUnitId[unitId] ?? [],
+            "Unassigned",
+            formatMosLabel,
+          );
+          renderOptions(
+            secondaryMosSelect,
+            mosOptionsByUnitId[unitId] ?? [],
+            "None",
+            formatMosLabel,
+          );
+        };
+
+        unitSelect.addEventListener("change", syncForUnit);
+        syncForUnit();
+      })();
+    </script>
   </div>`;
 }
 
@@ -756,4 +842,27 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function renderOptionElements(options, selectedId, getLabel) {
+  return (options ?? [])
+    .map(
+      (option) =>
+        `<option value="${option.id}" ${selectedId === option.id ? "selected" : ""}>${escapeHtml(getLabel(option))}</option>`,
+    )
+    .join("");
+}
+
+function resolveUnitFilteredOptions(optionsByUnitId, unitId) {
+  if (!unitId) {
+    return [];
+  }
+  return optionsByUnitId?.[unitId] ?? [];
+}
+
+function serializeJsonForScript(value) {
+  return JSON.stringify(value ?? {})
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026");
 }

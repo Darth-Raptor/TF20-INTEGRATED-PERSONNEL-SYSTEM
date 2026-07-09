@@ -1,3 +1,5 @@
+import { comparePersonNamesByLastName } from "../shared/person-name-sort.mjs";
+
 import {
   PERSONNEL_STATUS_OPTIONS,
   deriveGoodStanding,
@@ -424,7 +426,7 @@ function compareUserRecordItems(left, right) {
   const leftName = userRecordSortName(left);
   const rightName = userRecordSortName(right);
   return (
-    compareNamesByLastName(leftName, rightName) ||
+    comparePersonNamesByLastName(leftName, rightName) ||
     compareStrings(
       left.authIdentities?.[0]?.providerAccountId,
       right.authIdentities?.[0]?.providerAccountId,
@@ -440,29 +442,6 @@ function userRecordSortName(account) {
     account.authIdentities?.[0]?.username ??
     ""
   );
-}
-
-function compareNamesByLastName(leftName, rightName) {
-  const left = sortNameParts(leftName);
-  const right = sortNameParts(rightName);
-  return (
-    left.last.localeCompare(right.last) ||
-    left.first.localeCompare(right.first) ||
-    left.full.localeCompare(right.full)
-  );
-}
-
-function sortNameParts(fullName) {
-  const tokens = String(fullName ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  return {
-    last: tokens.at(-1)?.toLowerCase() ?? "",
-    first: tokens[0]?.toLowerCase() ?? "",
-    full: tokens.join(" ").toLowerCase(),
-  };
 }
 
 function compareStrings(left, right) {

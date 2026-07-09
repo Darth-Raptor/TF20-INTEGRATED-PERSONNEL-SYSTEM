@@ -62,6 +62,7 @@ import {
 import {
   createTrainingSession,
   getTrainingOptions,
+  listTrainingSessions,
   listOwnTrainingRecords,
   updateTrainingSession,
 } from "../../src/server/training-service.mjs";
@@ -915,6 +916,94 @@ test("least-privilege roles block cross-section application, personnel, and trai
   assert.equal(unitPersonnel.ok, true);
 });
 
+test("person-oriented lists and training attendee rows sort by last name", async () => {
+  const unit = await activeUnit("tf20_ranger_a");
+  const reviewer = await createAccountWithRole("unit-staff", "Active", {
+    scopeType: "Unit",
+    unitId: unit.id,
+  });
+  const admin = await createAccountWithRole("system-admin", "Active");
+  const trainer = await createAccountWithRole("trainer", "Active", {
+    scopeType: "Unit",
+    unitId: unit.id,
+  });
+  const course = await prisma.trainingCourse.findFirstOrThrow({
+    where: { status: "Active" },
+  });
+
+  const createdPeople = [];
+  for (const name of ["Alex Zimmer", "Chris Baker", "Bella Adams"]) {
+    const account = await createAccountWithRole("member", "Active");
+    const profile = await prisma.personnelProfile.create({
+      data: {
+        accountId: account.id,
+        name,
+        status: "Active",
+        currentUnitId: unit.id,
+      },
+    });
+    createdPeople.push({ accountId: account.id, profileId: profile.id, name });
+  }
+
+  const expectedNames = ["Bella Adams", "Chris Baker", "Alex Zimmer"];
+  const createdAccountIds = new Set(createdPeople.map((person) => person.accountId));
+  const createdProfileIds = new Set(createdPeople.map((person) => person.profileId));
+
+  const roster = await listScopedPersonnel(prisma, reviewer);
+  assert.equal(roster.ok, true);
+  assert.deepEqual(
+    roster.items.filter((item) => createdProfileIds.has(item.id)).map((item) => item.name),
+    expectedNames,
+  );
+
+  const roleOptions = await listRoleManagementOptions(prisma, admin);
+  assert.equal(roleOptions.ok, true);
+  assert.deepEqual(
+    roleOptions.accounts
+      .filter((account) => createdAccountIds.has(account.id))
+      .map((account) => account.personnelProfile?.name ?? account.displayName),
+    expectedNames,
+  );
+
+  const trainingOptions = await getTrainingOptions(prisma, trainer);
+  assert.equal(trainingOptions.ok, true);
+  assert.deepEqual(
+    trainingOptions.options.personnel
+      .filter((profile) => createdProfileIds.has(profile.id))
+      .map((profile) => profile.name),
+    expectedNames,
+  );
+
+  const createdSession = await createTrainingSession({
+    prisma,
+    actor: trainer,
+    body: {
+      courseId: course.id,
+      completedAt: "2026-07-08",
+      notes: "Sorting verification.",
+      attendees: [
+        { personnelProfileId: createdPeople[0].profileId, outcome: "Pass" },
+        { personnelProfileId: createdPeople[1].profileId, outcome: "Pass" },
+        { personnelProfileId: createdPeople[2].profileId, outcome: "Fail" },
+      ],
+    },
+  });
+  assert.equal(createdSession.ok, true);
+  assert.deepEqual(
+    createdSession.session.records.map((record) => record.personnelProfile.name),
+    expectedNames,
+  );
+
+  const sessions = await listTrainingSessions(prisma, trainer);
+  assert.equal(sessions.ok, true);
+  const listedSession = sessions.items.find((item) => item.id === createdSession.session.id);
+  assert.ok(listedSession);
+  assert.deepEqual(
+    listedSession.records.map((record) => record.personnelProfile.name),
+    expectedNames,
+  );
+});
+
 test("staff unit overview resolves to the nearest 7000 root and updates MOS slots in scope", async () => {
   const rootUnit = await activeUnit("tf20_ranger_a");
   const childUnit = await activeUnit("tf20_ranger_a_1p");
@@ -1720,6 +1809,7 @@ test("staff applicant review can reject an in-scope target-unit application", as
 
 test("personnel updates require reason, enforce MOS/name fields, and reject low-rank billet assignment", async () => {
   const targetUnit = await activeUnit("tf20_ranger_a");
+  const otherUnit = await activeUnit("tf20_soar_b160");
   const pending = await createAccountWithRole("pending-user", "Pending");
   const reviewer = await createAccountWithRole("unit-staff", "Active");
   const application = await createConvertedApplication({
@@ -1736,7 +1826,8 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
     where: { status: "Active" },
     orderBy: { precedence: "asc" },
   });
-  const mos = await prisma.mOS.findFirstOrThrow({ where: { status: "Active" } });
+  const mos = await recruitingMOSForUnit(targetUnit.id);
+  const outsideMos = await recruitingMOSForUnit(otherUnit.id);
 
   const missingReason = await updatePersonnelProfile({
     prisma,
@@ -1781,8 +1872,31 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
     1,
   );
 
+  const invalidMos = await updatePersonnelProfile({
+    prisma,
+    actor: reviewer,
+    personnelProfileId: profile.id,
+    body: {
+      name: "Falcon Invalid",
+      status: "Active",
+      currentUnitId: targetUnit.id,
+      currentRankId: rank.id,
+      currentBilletId: "",
+      currentMOSId: outsideMos.id,
+      reason: "Integration invalid MOS check.",
+    },
+  });
+
+  assert.equal(invalidMos.ok, false);
+  assert.equal(invalidMos.code, "validation_error");
+  assert.match(invalidMos.message, /primary MOS does not belong/i);
+
   const billet = await prisma.billet.findFirstOrThrow({
-    where: { status: "Active", minimumRankId: { not: null }, unitId: { not: null } },
+    where: {
+      status: "Active",
+      minimumRankId: { not: null },
+      unitId: targetUnit.id,
+    },
     include: { minimumRank: true },
     orderBy: { commandPrecedence: "desc" },
   });
@@ -1812,7 +1926,8 @@ test("personnel updates require reason, enforce MOS/name fields, and reject low-
 });
 
 test("personnel edit options expose scoped human-readable dropdown choices", async () => {
-  const targetUnit = await activeUnit("tf20_ranger_a");
+  const rootUnit = await activeUnit("tf20_ranger_a");
+  const targetUnit = await activeUnit("tf20_ranger_a_1p");
   const reviewer = await createAccountWithRole("unit-staff", "Active", {
     scopeType: "Unit",
     unitId: targetUnit.id,
@@ -1825,6 +1940,15 @@ test("personnel edit options expose scoped human-readable dropdown choices", asy
   assert.ok(result.options.ranks.every((rank) => rank.name));
   assert.ok(result.options.billets.every((billet) => billet.name));
   assert.ok(result.options.mos.every((mos) => mos.name || mos.identifier));
+  assert.ok(result.options.billetOptionsByUnitId[targetUnit.id]?.length > 0);
+  assert.ok(
+    result.options.billetOptionsByUnitId[targetUnit.id].some(
+      (billet) => billet.unitId === rootUnit.id,
+    ),
+  );
+  assert.ok(
+    result.options.mosOptionsByUnitId[targetUnit.id].every((mos) => mos.unitId === rootUnit.id),
+  );
   assert.equal(result.options.standingOptions, undefined);
 });
 

@@ -55,6 +55,7 @@ import {
   resolveVisibleNavigation,
 } from "../../shared/site-map.mjs";
 import { buildPersonnelProfileViewModel } from "../../shared/profile-view-model.mjs";
+import { comparePersonNamesByLastName } from "../../shared/person-name-sort.mjs";
 import airAssaultImage from "./assets/public-page/air-assault.webp";
 import casualtyEvacImage from "./assets/public-page/casualty-evac.webp";
 import nightRaidImage from "./assets/public-page/night-raid.png";
@@ -1740,7 +1741,34 @@ function StaffPersonnelProfileWorkspace({ personnelId, onNavigate }) {
     load();
   }, [personnelId]);
 
-  const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const updateForm = (field, value) =>
+    setForm((current) => {
+      if (field !== "currentUnitId") {
+        return { ...current, [field]: value };
+      }
+
+      const next = { ...current, currentUnitId: value };
+      const billetIds = new Set(
+        resolveUnitFilteredOptions(detail.options?.billetOptionsByUnitId, value).map(
+          (billet) => billet.id,
+        ),
+      );
+      const mosIds = new Set(
+        resolveUnitFilteredOptions(detail.options?.mosOptionsByUnitId, value).map((mos) => mos.id),
+      );
+
+      if (next.currentBilletId && !billetIds.has(next.currentBilletId)) {
+        next.currentBilletId = "";
+      }
+      if (next.currentMOSId && !mosIds.has(next.currentMOSId)) {
+        next.currentMOSId = "";
+      }
+      if (next.currentSecondaryMOSId && !mosIds.has(next.currentSecondaryMOSId)) {
+        next.currentSecondaryMOSId = "";
+      }
+
+      return next;
+    });
   const save = async () => {
     setMessage("Saving profile...");
     const result = await fetchJson(`/personnel/${encodeURIComponent(personnelId)}`, {
@@ -1842,6 +1870,11 @@ function StaffPersonnelProfileWorkspace({ personnelId, onNavigate }) {
 
 function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
   const derivedStanding = standingDisplayLabel(derivePersonnelStanding(form.status || ""));
+  const billetOptions = resolveUnitFilteredOptions(
+    options.billetOptionsByUnitId,
+    form.currentUnitId,
+  );
+  const mosOptions = resolveUnitFilteredOptions(options.mosOptionsByUnitId, form.currentUnitId);
 
   return (
     <>
@@ -1884,7 +1917,7 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
               onChange={(event) => onChange("currentBilletId", event.target.value)}
             >
               <option value="">Unassigned</option>
-              {(options.billets ?? []).map((billet) => (
+              {billetOptions.map((billet) => (
                 <option key={billet.id} value={billet.id}>
                   {billetDisplayLabel(billet)}
                 </option>
@@ -1897,7 +1930,7 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
               onChange={(event) => onChange("currentMOSId", event.target.value)}
             >
               <option value="">Unassigned</option>
-              {(options.mos ?? []).map((mos) => (
+              {mosOptions.map((mos) => (
                 <option key={mos.id} value={mos.id}>
                   {mosDisplayLabel(mos)}
                 </option>
@@ -1910,7 +1943,7 @@ function PersonnelProfileEditForm({ form, onChange, options, viewModel }) {
               onChange={(event) => onChange("currentSecondaryMOSId", event.target.value)}
             >
               <option value="">None</option>
-              {(options.mos ?? []).map((mos) => (
+              {mosOptions.map((mos) => (
                 <option key={mos.id} value={mos.id}>
                   {mosDisplayLabel(mos)}
                 </option>
@@ -5463,32 +5496,6 @@ function applicationDisplayName(application) {
   );
 }
 
-function personNameSortParts(fullName, fallback = "") {
-  const tokens = String(fullName ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!tokens.length) {
-    return { last: fallback, first: fallback, full: fallback };
-  }
-
-  return {
-    last: tokens.at(-1)?.toLowerCase() ?? "",
-    first: tokens[0]?.toLowerCase() ?? "",
-    full: tokens.join(" ").toLowerCase(),
-  };
-}
-
-function compareNamesByLastName(leftName, rightName) {
-  const left = personNameSortParts(leftName);
-  const right = personNameSortParts(rightName);
-  return (
-    left.last.localeCompare(right.last) ||
-    left.first.localeCompare(right.first) ||
-    left.full.localeCompare(right.full)
-  );
-}
-
 function compareStrings(left, right) {
   return String(left ?? "").localeCompare(String(right ?? ""), undefined, { sensitivity: "base" });
 }
@@ -5499,34 +5506,42 @@ function sortPersonnelRosterItems(items, sortBy) {
     if (sortBy === "status") {
       return (
         compareStrings(personnelStatusLabel(left.status), personnelStatusLabel(right.status)) ||
-        compareNamesByLastName(left.name, right.name)
+        comparePersonNamesByLastName(left.name, right.name)
       );
     }
 
     if (sortBy === "unit") {
       return (
         compareStrings(unitDisplayLabel(left.currentUnit), unitDisplayLabel(right.currentUnit)) ||
-        compareNamesByLastName(left.name, right.name)
+        comparePersonNamesByLastName(left.name, right.name)
       );
     }
 
     if (sortBy === "rank") {
       return (
         (right.currentRank?.precedence ?? -1) - (left.currentRank?.precedence ?? -1) ||
-        compareNamesByLastName(left.name, right.name)
+        comparePersonNamesByLastName(left.name, right.name)
       );
     }
 
     if (sortBy === "mos") {
       return (
         compareStrings(formatRosterMos(left), formatRosterMos(right)) ||
-        compareNamesByLastName(left.name, right.name)
+        comparePersonNamesByLastName(left.name, right.name)
       );
     }
 
-    return compareNamesByLastName(left.name, right.name);
+    return comparePersonNamesByLastName(left.name, right.name);
   });
   return sorted;
+}
+
+function resolveUnitFilteredOptions(optionsByUnitId, unitId) {
+  if (!unitId) {
+    return [];
+  }
+
+  return optionsByUnitId?.[unitId] ?? [];
 }
 
 function personnelOptionLabel(profile) {
